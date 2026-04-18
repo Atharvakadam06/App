@@ -306,11 +306,51 @@ const requestCameraPermission = async () => {
     cameraInputRef.current?.click();
   };
 
-  const selectFromGallery = () => {
+  const selectFromGallery = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          types: [{ description: 'Images', accept: {'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']} }],
+          multiple: false
+        });
+        const file = await fileHandle.getFile();
+        selectedFileRef.current = file;
+        const reader = new FileReader();
+        reader.onload = (ev) => setImagePreview(ev.target.result);
+        reader.readAsDataURL(file);
+        setShowMediaMenu(false);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('File picker error:', err);
+        }
+        return;
+      }
+    }
     fileInputRef.current?.click();
   };
 
-  const selectDocument = () => {
+  const selectDocument = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          types: [{ description: 'Documents & Images', accept: {'image/*': ['.*'], 'application/pdf': ['.pdf'], 'application/msword': ['.doc'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']} }],
+          multiple: false
+        });
+        const file = await fileHandle.getFile();
+        selectedFileRef.current = file;
+        const reader = new FileReader();
+        reader.onload = (ev) => setImagePreview(ev.target.result);
+        reader.readAsDataURL(file);
+        setShowMediaMenu(false);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('File picker error:', err);
+        }
+        return;
+      }
+    }
     documentInputRef.current?.click();
   };
 

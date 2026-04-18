@@ -130,7 +130,30 @@ export default function PYQVault() {
     } else { setFilePreview(null); }
   };
 
-  const openFilePicker = () => {
+  const openFilePicker = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          types: [{ description: 'Documents', accept: {'application/pdf': ['.pdf'], 'application/msword': ['.doc'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'], 'image/*': ['.*'], 'video/*': ['.*']} }],
+          multiple: false
+        });
+        const file = await fileHandle.getFile();
+        setSelectedFile(file);
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (ev) => setFilePreview(ev.target.result);
+          reader.readAsDataURL(file);
+        } else if (file.type.startsWith('video/')) {
+          setFilePreview(URL.createObjectURL(file));
+        } else { setFilePreview(null); }
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('File picker error:', err);
+        }
+        return;
+      }
+    }
     fileInputRef.current?.click();
   };
 
