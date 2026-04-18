@@ -306,12 +306,15 @@ const requestCameraPermission = async () => {
     cameraInputRef.current?.click();
   };
 
-  const selectFromGallery = async () => {
+  const selectFromGallery = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
     input.onchange = (e) => {
       const file = e.target.files?.[0];
+      document.body.removeChild(input);
       if (!file) return;
       if (file.size > 20 * 1024 * 1024) {
         addToast('File must be less than 20MB', 'error');
@@ -326,12 +329,15 @@ const requestCameraPermission = async () => {
     input.click();
   };
 
-  const selectDocument = async () => {
+  const selectDocument = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*,application/pdf,.pdf,.doc,.docx';
+    input.style.display = 'none';
+    document.body.appendChild(input);
     input.onchange = (e) => {
       const file = e.target.files?.[0];
+      document.body.removeChild(input);
       if (!file) return;
       const allowedTypes = ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
       const isAllowed = allowedTypes.some(t => file.type.match(t) || file.name.match(/\.(pdf|doc|docx)$/i));

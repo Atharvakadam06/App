@@ -134,8 +134,11 @@ export default function PYQVault() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.pdf,.doc,.docx,image/*,video/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
     input.onchange = (e) => {
       const file = e.target.files?.[0];
+      document.body.removeChild(input);
       if (!file) return;
       setSelectedFile(file);
       if (file.type.startsWith('image/')) {

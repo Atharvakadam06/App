@@ -102,8 +102,11 @@ export default function BookExchange() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
     input.onchange = (e) => {
       const file = e.target.files?.[0];
+      document.body.removeChild(input);
       if (!file) return;
       selectedFileRef.current = file;
       const reader = new FileReader();
