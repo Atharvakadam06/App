@@ -64,7 +64,7 @@ export default function Network() {
       if (u.branch && user?.branch && u.branch === user.branch) { score += 3; reason = reason || `Same branch`; }
       if (u.year && user?.year && u.year === user.year) { score += 2; reason = reason || `Same year`; }
       if (!reason) reason = 'Suggested for you';
-      if (linkedUsers[u.id]) { score = 0; reason = 'Connected'; }
+      if (linkedUsers[u.id]) { score = 0; reason = 'Binded'; }
       return { ...u, score, reason };
     });
     const sug = arr.filter(u => u.score > 0).sort((a, b) => b.score - a.score);
