@@ -76,7 +76,7 @@ export default function Network() {
     return { suggested: filtered, count: arr.length };
   }, [otherUsers, linkedUsers, user, searchQuery]);
 
-  const displayUsers = searchQuery ? suggested : suggested;
+  const displayUsers = searchQuery ? suggested : [];
 
   if (loading) {
     return (
@@ -101,31 +101,39 @@ export default function Network() {
       {/* Search Bar */}
       <div className="mb-6">
         <ProfessionalSearch
-          placeholder="Search students..."
+          placeholder="Search by username..."
           value={searchQuery}
           onChange={setSearchQuery}
           className="w-full"
         />
       </div>
 
-      {/* Suggestions */}
-      {displayUsers.length > 0 ? (
-        <div className="space-y-3">
-          {displayUsers.map((u, i) => (
-            <SuggestionRow 
-              key={u.id} 
-              user={u} 
-              delay={i * 30}
-              onProfile={() => navigateToProfile(u.id)}
-              onConnect={() => toggleConnect(u.id)}
-            />
-          ))}
-        </div>
+      {/* Results - only show when searching */}
+      {searchQuery ? (
+        displayUsers.length > 0 ? (
+          <div className="space-y-3">
+            {displayUsers.map((u, i) => (
+              <SuggestionRow 
+                key={u.id} 
+                user={u} 
+                delay={i * 30}
+                onProfile={() => navigateToProfile(u.id)}
+                onConnect={() => toggleConnect(u.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <Compass className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No users found</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Try searching with a different username</p>
+          </div>
+        )
       ) : (
         <div className="text-center py-16">
           <Compass className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No students found</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Check back later for new students!</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Search for students</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Enter a username to find and bind with students</p>
         </div>
       )}
     </div>
@@ -159,7 +167,7 @@ function SuggestionRow({ user, delay, onProfile, onConnect }) {
         className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 active:scale-95 transition-all duration-200"
       >
         <UserPlus className="w-4 h-4" />
-        Connect
+        Bind
       </button>
     </div>
   );
