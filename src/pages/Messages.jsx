@@ -105,7 +105,6 @@ export default function Messages() {
   const [showNewChat, setShowNewChat] = useState(false);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   const conversation = conversations.find(c => c.id === selectedConversation);
 
@@ -175,26 +174,11 @@ export default function Messages() {
     e.target.value = '';
   };
 
-  const openFilePicker = async () => {
-    if ('showOpenFilePicker' in window) {
-      try {
-        const [fileHandle] = await window.showOpenFilePicker({
-          modes: ['readwrite', 'read'],
-          types: [{ description: 'All Files', accept: {'*': ['.*']} }]
-        });
-        const file = await fileHandle.getFile();
-        await handleFileUpload(file);
-        return;
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('File picker error:', err);
-        }
-        return;
-      }
-    }
+  const openFilePicker = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.style.display = 'none';
+    input.name = 'msgfile-' + Date.now();
+    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     document.body.appendChild(input);
     input.onchange = (e) => {
       document.body.removeChild(input);
@@ -203,27 +187,12 @@ export default function Messages() {
     input.click();
   };
 
-  const openImagePicker = async () => {
-    if ('showOpenFilePicker' in window) {
-      try {
-        const [fileHandle] = await window.showOpenFilePicker({
-          modes: ['readwrite', 'read'],
-          types: [{ description: 'Images', accept: {'image/*': ['.*']} }]
-        });
-        const file = await fileHandle.getFile();
-        await handleFileUpload(file);
-        return;
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('File picker error:', err);
-        }
-        return;
-      }
-    }
+  const openImagePicker = () => {
     const input = document.createElement('input');
     input.type = 'file';
+    input.name = 'msgimage-' + Date.now();
     input.accept = 'image/*';
-    input.style.display = 'none';
+    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     document.body.appendChild(input);
     input.onchange = (e) => {
       document.body.removeChild(input);
@@ -300,7 +269,6 @@ export default function Messages() {
               </div>
               <div className="p-3 sm:p-4" style={{borderTop: '1px solid #e8e5e0'}}>
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileAttach} />
                   <button onClick={openFilePicker} className="p-2 rounded-lg hover:bg-[#f3f1ed] dark:hover:bg-[#0e1322] transition-colors hidden sm:block"><Paperclip className="w-5 h-5 text-slate-500" /></button>
                   <button onClick={openImagePicker} className="p-2 rounded-lg hover:bg-[#f3f1ed] dark:hover:bg-[#0e1322] transition-colors hidden sm:block"><ImageIcon className="w-5 h-5 text-slate-500" /></button>
                   <div className="flex-1 relative">

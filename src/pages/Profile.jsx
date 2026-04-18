@@ -232,9 +232,6 @@ function CreatePost({ onPost, user }) {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
-  const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
-  const documentInputRef = useRef(null);
   const { addToast } = useToast();
   const selectedFileRef = useRef(null);
   const menuRef = useRef(null);
@@ -306,39 +303,16 @@ const requestCameraPermission = async () => {
     cameraInputRef.current?.click();
   };
 
-  const selectFromGallery = async () => {
-    if ('showOpenFilePicker' in window) {
-      try {
-        const [fileHandle] = await window.showOpenFilePicker({
-          modes: ['readwrite', 'read'],
-          types: [{ description: 'Images', accept: {'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic']} }]
-        });
-        const file = await fileHandle.getFile();
-        if (file.size > 20 * 1024 * 1024) {
-          addToast('File must be less than 20MB', 'error');
-          return;
-        }
-        selectedFileRef.current = file;
-        const reader = new FileReader();
-        reader.onload = (ev) => setImagePreview(ev.target.result);
-        reader.readAsDataURL(file);
-        setShowMediaMenu(false);
-        return;
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          addToast('Could not access files. Please try again.', 'error');
-        }
-        return;
-      }
-    }
+  const selectFromGallery = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
-    input.style.display = 'none';
+    input.name = 'gallery-' + Date.now();
+    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/heic';
+    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     document.body.appendChild(input);
     input.onchange = (e) => {
-      const file = e.target.files?.[0];
       document.body.removeChild(input);
+      const file = e.target.files?.[0];
       if (!file) return;
       if (file.size > 20 * 1024 * 1024) {
         addToast('File must be less than 20MB', 'error');
@@ -353,43 +327,20 @@ const requestCameraPermission = async () => {
     input.click();
   };
 
-  const selectDocument = async () => {
-    if ('showOpenFilePicker' in window) {
-      try {
-        const [fileHandle] = await window.showOpenFilePicker({
-          modes: ['readwrite', 'read'],
-          types: [{ description: 'Documents & Images', accept: {'image/*': ['.*'], 'application/pdf': ['.pdf'], 'application/msword': ['.doc'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']} }]
-        });
-        const file = await fileHandle.getFile();
-        if (file.size > 20 * 1024 * 1024) {
-          addToast('File must be less than 20MB', 'error');
-          return;
-        }
-        selectedFileRef.current = file;
-        const reader = new FileReader();
-        reader.onload = (ev) => setImagePreview(ev.target.result);
-        reader.readAsDataURL(file);
-        setShowMediaMenu(false);
-        return;
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          addToast('Could not access files. Please try again.', 'error');
-        }
-        return;
-      }
-    }
+  const selectDocument = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*,application/pdf,.pdf,.doc,.docx';
-    input.style.display = 'none';
+    input.name = 'doc-' + Date.now();
+    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx';
+    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     document.body.appendChild(input);
     input.onchange = (e) => {
-      const file = e.target.files?.[0];
       document.body.removeChild(input);
+      const file = e.target.files?.[0];
       if (!file) return;
-      const allowedTypes = ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      const isAllowed = allowedTypes.some(t => file.type.match(t) || file.name.match(/\.(pdf|doc|docx)$/i));
-      if (!isAllowed) {
+      const allowedTypes = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      const isAllowed = allowedTypes.some(t => file.type.startsWith(t.replace('/*','')) || file.name.match(/\.(pdf|doc|docx)$/i));
+      if (!isAllowed && !file.type.startsWith('image/')) {
         addToast('Please select an image or document (PDF, Word)', 'error');
         return;
       }
@@ -487,9 +438,6 @@ const requestCameraPermission = async () => {
           </div>
         </div>
       </div>
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden-input" onChange={(e) => handleFileChange(e, 'gallery')} />
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden-input" onChange={(e) => handleFileChange(e, 'camera')} />
-      <input ref={documentInputRef} type="file" accept="image/*,application/pdf,.pdf,.doc,.docx" className="hidden-input" onChange={(e) => handleFileChange(e, 'document')} />
     </div>
   );
 }

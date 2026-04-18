@@ -103,7 +103,6 @@ export default function PYQVault() {
   const [uploading, setUploading] = useState(false);
   const [viewingPaper, setViewingPaper] = useState(null);
   const [loading, setLoading] = useState(true);
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     loadPapers();
@@ -130,37 +129,16 @@ export default function PYQVault() {
     } else { setFilePreview(null); }
   };
 
-  const openFilePicker = async () => {
-    if ('showOpenFilePicker' in window) {
-      try {
-        const [fileHandle] = await window.showOpenFilePicker({
-          modes: ['readwrite', 'read'],
-          types: [{ description: 'Documents, Images & Videos', accept: {'application/pdf': ['.pdf'], 'application/msword': ['.doc'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'], 'image/*': ['.*'], 'video/*': ['.*']} }]
-        });
-        const file = await fileHandle.getFile();
-        setSelectedFile(file);
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (ev) => setFilePreview(ev.target.result);
-          reader.readAsDataURL(file);
-        } else if (file.type.startsWith('video/')) {
-          setFilePreview(URL.createObjectURL(file));
-        } else { setFilePreview(null); }
-        return;
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('File picker error:', err);
-        }
-      }
-    }
+  const openFilePicker = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.pdf,.doc,.docx,image/*,video/*';
-    input.style.display = 'none';
+    input.name = 'paper-' + Date.now();
+    input.accept = 'application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,image/*,video/*';
+    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     document.body.appendChild(input);
     input.onchange = (e) => {
-      const file = e.target.files?.[0];
       document.body.removeChild(input);
+      const file = e.target.files?.[0];
       if (!file) return;
       setSelectedFile(file);
       if (file.type.startsWith('image/')) {
@@ -260,7 +238,6 @@ export default function PYQVault() {
               <input type="text" placeholder="Year (e.g., 2025)" className="input-field" value={uploadForm.year} onChange={(e) => setUploadForm(p => ({ ...p, year: e.target.value }))} />
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Upload File</label>
-                <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,image/*,video/*" className="hidden" onChange={handleFileChange} />
                 <button onClick={openFilePicker} className="btn-secondary w-full flex items-center justify-center gap-2 text-sm"><Upload className="w-4 h-4" />{selectedFile ? selectedFile.name : 'Choose file from device'}</button>
                 {filePreview && selectedFile?.type?.startsWith('image/') && <div className="relative mt-3"><img src={filePreview} alt="Preview" className="w-full max-h-48 object-cover rounded-xl" /><button onClick={() => { setSelectedFile(null); setFilePreview(null); }} className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-4 h-4" /></button></div>}
                 {filePreview && selectedFile?.type?.startsWith('video/') && <div className="relative mt-3"><video src={filePreview} controls className="w-full max-h-48 rounded-xl" /><button onClick={() => { setSelectedFile(null); setFilePreview(null); }} className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-4 h-4" /></button></div>}

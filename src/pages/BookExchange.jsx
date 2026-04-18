@@ -78,7 +78,6 @@ export default function BookExchange() {
   const [bookImage, setBookImage] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const fileInputRef = useRef(null);
   const selectedFileRef = useRef(null);
 
   useEffect(() => {
@@ -98,33 +97,16 @@ export default function BookExchange() {
     reader.readAsDataURL(file);
   };
 
-  const openImagePicker = async () => {
-    if ('showOpenFilePicker' in window) {
-      try {
-        const [fileHandle] = await window.showOpenFilePicker({
-          modes: ['readwrite', 'read'],
-          types: [{ description: 'Images', accept: {'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic']} }]
-        });
-        const file = await fileHandle.getFile();
-        selectedFileRef.current = file;
-        const reader = new FileReader();
-        reader.onload = (ev) => setBookImage(ev.target.result);
-        reader.readAsDataURL(file);
-        return;
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('File picker error:', err);
-        }
-      }
-    }
+  const openImagePicker = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
-    input.style.display = 'none';
+    input.name = 'book-' + Date.now();
+    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp';
+    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     document.body.appendChild(input);
     input.onchange = (e) => {
-      const file = e.target.files?.[0];
       document.body.removeChild(input);
+      const file = e.target.files?.[0];
       if (!file) return;
       selectedFileRef.current = file;
       const reader = new FileReader();
@@ -197,7 +179,6 @@ export default function BookExchange() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Book Cover Photo</label>
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
               <button onClick={openImagePicker} className="btn-secondary w-full flex items-center justify-center gap-2 text-sm"><Camera className="w-4 h-4" />{bookImage ? 'Change photo' : 'Upload book photo from device'}</button>
               {bookImage && <div className="relative mt-3 inline-block"><img src={bookImage} alt="Book cover" className="w-32 h-40 object-cover rounded-xl" /><button onClick={() => { setBookImage(null); selectedFileRef.current = null; }} className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-3.5 h-3.5" /></button></div>}
             </div>
