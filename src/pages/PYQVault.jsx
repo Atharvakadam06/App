@@ -150,7 +150,6 @@ export default function PYQVault() {
     });
     document.body.appendChild(input);
     input.click();
-    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
   const handleDownload = async (paperId) => {

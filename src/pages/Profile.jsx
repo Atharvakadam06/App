@@ -326,17 +326,9 @@ const requestCameraPermission = async () => {
     });
     document.body.appendChild(input);
     input.click();
-    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
-  const selectFromGallery = async () => {
-    try {
-      const files = await navigator.permissions.query({ name: 'clipboard-read' });
-      console.log('Permission status:', files.state);
-    } catch (e) {
-      console.log('Permission API not supported');
-    }
-    
+  const selectFromGallery = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.id = 'gallery-input-' + Math.random().toString(36).substr(2, 9);
@@ -358,7 +350,6 @@ const requestCameraPermission = async () => {
     });
     document.body.appendChild(input);
     input.click();
-    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
   const selectDocument = async () => {
@@ -389,7 +380,6 @@ const requestCameraPermission = async () => {
     });
     document.body.appendChild(input);
     input.click();
-    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
   const handlePost = async () => {

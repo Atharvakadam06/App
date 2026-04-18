@@ -185,7 +185,6 @@ export default function Messages() {
     });
     document.body.appendChild(input);
     input.click();
-    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
   const openImagePicker = () => {
@@ -200,7 +199,6 @@ export default function Messages() {
     });
     document.body.appendChild(input);
     input.click();
-    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
   const handleFileUpload = async (file) => {

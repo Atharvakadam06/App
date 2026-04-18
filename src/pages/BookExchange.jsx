@@ -114,7 +114,6 @@ export default function BookExchange() {
     });
     document.body.appendChild(input);
     input.click();
-    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
   const handleRequest = (bookId) => setRequestedBooks(prev => ({ ...prev, [bookId]: !prev[bookId] }));
