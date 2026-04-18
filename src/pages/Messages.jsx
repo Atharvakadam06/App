@@ -177,28 +177,30 @@ export default function Messages() {
   const openFilePicker = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.name = 'msgfile-' + Date.now();
-    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
-    document.body.appendChild(input);
-    input.onchange = (e) => {
-      document.body.removeChild(input);
+    input.id = 'msgfile-' + Math.random().toString(36).substr(2, 9);
+    input.style.cssText = 'display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
+    input.addEventListener('change', function(e) {
+      setTimeout(() => input.remove(), 100);
       handleFileAttach(e);
-    };
+    });
+    document.body.appendChild(input);
     input.click();
+    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
   const openImagePicker = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.name = 'msgimage-' + Date.now();
+    input.id = 'msgimage-' + Math.random().toString(36).substr(2, 9);
     input.accept = 'image/*';
-    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
-    document.body.appendChild(input);
-    input.onchange = (e) => {
-      document.body.removeChild(input);
+    input.style.cssText = 'display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
+    input.addEventListener('change', function(e) {
+      setTimeout(() => input.remove(), 100);
       handleFileAttach(e);
-    };
+    });
+    document.body.appendChild(input);
     input.click();
+    setTimeout(() => { if (input.parentNode) input.remove(); }, 60000);
   };
 
   const handleFileUpload = async (file) => {
