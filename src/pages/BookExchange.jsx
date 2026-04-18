@@ -98,7 +98,25 @@ export default function BookExchange() {
     reader.readAsDataURL(file);
   };
 
-  const openImagePicker = () => {
+  const openImagePicker = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          modes: ['readwrite', 'read'],
+          types: [{ description: 'Images', accept: {'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic']} }]
+        });
+        const file = await fileHandle.getFile();
+        selectedFileRef.current = file;
+        const reader = new FileReader();
+        reader.onload = (ev) => setBookImage(ev.target.result);
+        reader.readAsDataURL(file);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('File picker error:', err);
+        }
+      }
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';

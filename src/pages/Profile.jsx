@@ -306,7 +306,31 @@ const requestCameraPermission = async () => {
     cameraInputRef.current?.click();
   };
 
-  const selectFromGallery = () => {
+  const selectFromGallery = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          modes: ['readwrite', 'read'],
+          types: [{ description: 'Images', accept: {'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic']} }]
+        });
+        const file = await fileHandle.getFile();
+        if (file.size > 20 * 1024 * 1024) {
+          addToast('File must be less than 20MB', 'error');
+          return;
+        }
+        selectedFileRef.current = file;
+        const reader = new FileReader();
+        reader.onload = (ev) => setImagePreview(ev.target.result);
+        reader.readAsDataURL(file);
+        setShowMediaMenu(false);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          addToast('Could not access files. Please try again.', 'error');
+        }
+        return;
+      }
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -329,7 +353,31 @@ const requestCameraPermission = async () => {
     input.click();
   };
 
-  const selectDocument = () => {
+  const selectDocument = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          modes: ['readwrite', 'read'],
+          types: [{ description: 'Documents & Images', accept: {'image/*': ['.*'], 'application/pdf': ['.pdf'], 'application/msword': ['.doc'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']} }]
+        });
+        const file = await fileHandle.getFile();
+        if (file.size > 20 * 1024 * 1024) {
+          addToast('File must be less than 20MB', 'error');
+          return;
+        }
+        selectedFileRef.current = file;
+        const reader = new FileReader();
+        reader.onload = (ev) => setImagePreview(ev.target.result);
+        reader.readAsDataURL(file);
+        setShowMediaMenu(false);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          addToast('Could not access files. Please try again.', 'error');
+        }
+        return;
+      }
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*,application/pdf,.pdf,.doc,.docx';

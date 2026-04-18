@@ -175,7 +175,23 @@ export default function Messages() {
     e.target.value = '';
   };
 
-  const openFilePicker = () => {
+  const openFilePicker = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          modes: ['readwrite', 'read'],
+          types: [{ description: 'All Files', accept: {'*': ['.*']} }]
+        });
+        const file = await fileHandle.getFile();
+        await handleFileUpload(file);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('File picker error:', err);
+        }
+        return;
+      }
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.style.display = 'none';
@@ -187,7 +203,23 @@ export default function Messages() {
     input.click();
   };
 
-  const openImagePicker = () => {
+  const openImagePicker = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          modes: ['readwrite', 'read'],
+          types: [{ description: 'Images', accept: {'image/*': ['.*']} }]
+        });
+        const file = await fileHandle.getFile();
+        await handleFileUpload(file);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('File picker error:', err);
+        }
+        return;
+      }
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
