@@ -131,7 +131,22 @@ export default function PYQVault() {
   };
 
   const openFilePicker = () => {
-    fileInputRef.current?.click();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,image/*,video/*';
+    input.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setSelectedFile(file);
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => setFilePreview(ev.target.result);
+        reader.readAsDataURL(file);
+      } else if (file.type.startsWith('video/')) {
+        setFilePreview(URL.createObjectURL(file));
+      } else { setFilePreview(null); }
+    };
+    input.click();
   };
 
   const handleDownload = async (paperId) => {

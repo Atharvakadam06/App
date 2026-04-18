@@ -99,7 +99,18 @@ export default function BookExchange() {
   };
 
   const openImagePicker = () => {
-    fileInputRef.current?.click();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      selectedFileRef.current = file;
+      const reader = new FileReader();
+      reader.onload = (ev) => setBookImage(ev.target.result);
+      reader.readAsDataURL(file);
+    };
+    input.click();
   };
 
   const handleRequest = (bookId) => setRequestedBooks(prev => ({ ...prev, [bookId]: !prev[bookId] }));

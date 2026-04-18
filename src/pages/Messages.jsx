@@ -171,23 +171,7 @@ export default function Messages() {
   const handleFileAttach = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    if (!navigator.permissions) {
-      await handleFileUpload(file);
-      e.target.value = '';
-      return;
-    }
-    
-    try {
-      const result = await navigator.permissions.query({ name: 'read-files' });
-      if (result.state === 'granted') {
-        await handleFileUpload(file);
-      } else {
-        addToast('File access permission required. Please allow access in browser settings.', 'error');
-      }
-    } catch (permErr) {
-      await handleFileUpload(file);
-    }
+    await handleFileUpload(file);
     e.target.value = '';
   };
 
@@ -260,8 +244,19 @@ export default function Messages() {
               <div className="p-3 sm:p-4" style={{borderTop: '1px solid #e8e5e0'}}>
                 <div className="flex items-center gap-2 sm:gap-3">
                   <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileAttach} />
-                  <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-lg hover:bg-[#f3f1ed] dark:hover:bg-[#0e1322] transition-colors hidden sm:block"><Paperclip className="w-5 h-5 text-slate-500" /></button>
-                  <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-lg hover:bg-[#f3f1ed] dark:hover:bg-[#0e1322] transition-colors hidden sm:block"><ImageIcon className="w-5 h-5 text-slate-500" /></button>
+                  <button onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.onchange = (e) => handleFileAttach(e);
+                    input.click();
+                  }} className="p-2 rounded-lg hover:bg-[#f3f1ed] dark:hover:bg-[#0e1322] transition-colors hidden sm:block"><Paperclip className="w-5 h-5 text-slate-500" /></button>
+                  <button onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => handleFileAttach(e);
+                    input.click();
+                  }} className="p-2 rounded-lg hover:bg-[#f3f1ed] dark:hover:bg-[#0e1322] transition-colors hidden sm:block"><ImageIcon className="w-5 h-5 text-slate-500" /></button>
                   <div className="flex-1 relative">
                     <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={handleKeyPress} placeholder="Type a message..." className="input-field pr-10" />
                     <div className="relative"><button onClick={() => setShowEmoji(!showEmoji)} className="absolute right-3 top-1/2 -translate-y-1/2 p-0"><Smile className="w-5 h-5 text-slate-400" /></button>{showEmoji && <EmojiPicker onSelect={(e) => setNewMessage(prev => prev + e)} onClose={() => setShowEmoji(false)} />}</div>

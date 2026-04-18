@@ -306,12 +306,50 @@ const requestCameraPermission = async () => {
     cameraInputRef.current?.click();
   };
 
-  const selectFromGallery = () => {
-    fileInputRef.current?.click();
+  const selectFromGallery = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 20 * 1024 * 1024) {
+        addToast('File must be less than 20MB', 'error');
+        return;
+      }
+      selectedFileRef.current = file;
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target.result);
+      reader.readAsDataURL(file);
+      setShowMediaMenu(false);
+    };
+    input.click();
   };
 
-  const selectDocument = () => {
-    documentInputRef.current?.click();
+  const selectDocument = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,application/pdf,.pdf,.doc,.docx';
+    input.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const allowedTypes = ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      const isAllowed = allowedTypes.some(t => file.type.match(t) || file.name.match(/\.(pdf|doc|docx)$/i));
+      if (!isAllowed) {
+        addToast('Please select an image or document (PDF, Word)', 'error');
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        addToast('File must be less than 20MB', 'error');
+        return;
+      }
+      selectedFileRef.current = file;
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target.result);
+      reader.readAsDataURL(file);
+      setShowMediaMenu(false);
+    };
+    input.click();
   };
 
   const handlePost = async () => {
