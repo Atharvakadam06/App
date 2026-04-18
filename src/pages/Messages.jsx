@@ -171,6 +171,27 @@ export default function Messages() {
   const handleFileAttach = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    if (!navigator.permissions) {
+      await handleFileUpload(file);
+      e.target.value = '';
+      return;
+    }
+    
+    try {
+      const result = await navigator.permissions.query({ name: 'read-files' });
+      if (result.state === 'granted') {
+        await handleFileUpload(file);
+      } else {
+        addToast('File access permission required. Please allow access in browser settings.', 'error');
+      }
+    } catch (permErr) {
+      await handleFileUpload(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleFileUpload = async (file) => {
     const isImage = file.type.startsWith('image/');
     try {
       addToast('Uploading file...', 'info');
@@ -180,7 +201,6 @@ export default function Messages() {
       setChatMessages(msgs);
       addToast('File sent!', 'success');
     } catch { addToast('Failed to upload file. Check Cloudinary config.', 'error'); }
-    e.target.value = '';
   };
 
   const handleStartChat = async (targetUser) => {

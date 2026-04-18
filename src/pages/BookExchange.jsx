@@ -98,6 +98,23 @@ export default function BookExchange() {
     reader.readAsDataURL(file);
   };
 
+  const openImagePicker = async () => {
+    if (!navigator.permissions) {
+      fileInputRef.current?.click();
+      return;
+    }
+    try {
+      const result = await navigator.permissions.query({ name: 'read-files' });
+      if (result.state === 'granted') {
+        fileInputRef.current?.click();
+      } else {
+        fileInputRef.current?.click();
+      }
+    } catch (permErr) {
+      fileInputRef.current?.click();
+    }
+  };
+
   const handleRequest = (bookId) => setRequestedBooks(prev => ({ ...prev, [bookId]: !prev[bookId] }));
 
   const handleDonate = async () => {
@@ -162,7 +179,7 @@ export default function BookExchange() {
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Book Cover Photo</label>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-              <button onClick={() => fileInputRef.current?.click()} className="btn-secondary w-full flex items-center justify-center gap-2 text-sm"><Camera className="w-4 h-4" />{bookImage ? 'Change photo' : 'Upload book photo from device'}</button>
+              <button onClick={openImagePicker} className="btn-secondary w-full flex items-center justify-center gap-2 text-sm"><Camera className="w-4 h-4" />{bookImage ? 'Change photo' : 'Upload book photo from device'}</button>
               {bookImage && <div className="relative mt-3 inline-block"><img src={bookImage} alt="Book cover" className="w-32 h-40 object-cover rounded-xl" /><button onClick={() => { setBookImage(null); selectedFileRef.current = null; }} className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-3.5 h-3.5" /></button></div>}
             </div>
             <button onClick={handleDonate} disabled={!donateForm.title.trim() || !donateForm.author.trim() || uploading} className="btn-primary w-full disabled:opacity-50">{uploading ? 'Uploading...' : 'Submit Book'}</button>

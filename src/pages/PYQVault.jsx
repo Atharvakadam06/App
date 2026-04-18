@@ -130,6 +130,23 @@ export default function PYQVault() {
     } else { setFilePreview(null); }
   };
 
+  const openFilePicker = async () => {
+    if (!navigator.permissions) {
+      fileInputRef.current?.click();
+      return;
+    }
+    try {
+      const result = await navigator.permissions.query({ name: 'read-files' });
+      if (result.state === 'granted') {
+        fileInputRef.current?.click();
+      } else {
+        fileInputRef.current?.click();
+      }
+    } catch (permErr) {
+      fileInputRef.current?.click();
+    }
+  };
+
   const handleDownload = async (paperId) => {
     setDownloaded(prev => ({ ...prev, [paperId]: true }));
     try { await incrementPaperDownloads(paperId); } catch { /* Ignore download counter errors */ }
@@ -217,7 +234,7 @@ export default function PYQVault() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Upload File</label>
                 <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,image/*,video/*" className="hidden" onChange={handleFileChange} />
-                <button onClick={() => fileInputRef.current?.click()} className="btn-secondary w-full flex items-center justify-center gap-2 text-sm"><Upload className="w-4 h-4" />{selectedFile ? selectedFile.name : 'Choose file from device'}</button>
+                <button onClick={openFilePicker} className="btn-secondary w-full flex items-center justify-center gap-2 text-sm"><Upload className="w-4 h-4" />{selectedFile ? selectedFile.name : 'Choose file from device'}</button>
                 {filePreview && selectedFile?.type?.startsWith('image/') && <div className="relative mt-3"><img src={filePreview} alt="Preview" className="w-full max-h-48 object-cover rounded-xl" /><button onClick={() => { setSelectedFile(null); setFilePreview(null); }} className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-4 h-4" /></button></div>}
                 {filePreview && selectedFile?.type?.startsWith('video/') && <div className="relative mt-3"><video src={filePreview} controls className="w-full max-h-48 rounded-xl" /><button onClick={() => { setSelectedFile(null); setFilePreview(null); }} className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-4 h-4" /></button></div>}
               </div>

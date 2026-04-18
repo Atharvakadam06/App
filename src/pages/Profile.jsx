@@ -251,7 +251,7 @@ function CreatePost({ onPost, user }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMediaMenu]);
 
-  const requestCameraPermission = async () => {
+const requestCameraPermission = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       stream.getTracks().forEach(track => track.stop());
@@ -262,32 +262,17 @@ function CreatePost({ onPost, user }) {
     }
   };
 
-  const handlePost = async () => {
-    if (!content.trim() && !selectedFileRef.current) return;
-    let imageUrl = null;
-    setUploading(true);
-
+  const requestStoragePermission = async () => {
+    if (!navigator.permissions) return true;
     try {
-      if (selectedFileRef.current) {
-        imageUrl = await uploadToCloudinary(selectedFileRef.current, 'stugrow/posts');
-      }
-    } catch {
-      addToast('Image upload failed', 'error');
-      setUploading(false);
-      return;
-    }
-
+      const result = await navigator.permissions.query({ name: 'persistent-storage' });
+      if (result.state === 'granted') return true;
+    } catch (e) {}
     try {
-      onPost(content, imageUrl, null, 'general');
-      setContent('');
-      setImagePreview(null);
-      selectedFileRef.current = null;
-      addToast('Post published successfully', 'success');
-    } catch {
-      addToast('Failed to publish post', 'error');
-    } finally {
-      setUploading(false);
-    }
+      const result = await navigator.permissions.query({ name: 'read-files' });
+      if (result.state === 'granted') return true;
+    } catch (e) {}
+    return true;
   };
 
   const handleFileChange = (e, type) => {
@@ -329,15 +314,26 @@ function CreatePost({ onPost, user }) {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
       addToast('Camera permission denied. Please allow camera access in your browser settings.', 'error');
+      return;
     }
     cameraInputRef.current?.click();
   };
 
-  const selectFromGallery = () => {
+  const selectFromGallery = async () => {
+    const hasPermission = await requestStoragePermission();
+    if (!hasPermission) {
+      addToast('Storage permission denied. Please allow access in your browser settings.', 'error');
+      return;
+    }
     fileInputRef.current?.click();
   };
 
-  const selectDocument = () => {
+  const selectDocument = async () => {
+    const hasPermission = await requestStoragePermission();
+    if (!hasPermission) {
+      addToast('Storage permission denied. Please allow access in your browser settings.', 'error');
+      return;
+    }
     documentInputRef.current?.click();
   };
 
