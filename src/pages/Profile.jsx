@@ -337,6 +337,34 @@ const requestCameraPermission = async () => {
     documentInputRef.current?.click();
   };
 
+  const handlePost = async () => {
+    if (!content.trim() && !selectedFileRef.current) return;
+    let imageUrl = null;
+    setUploading(true);
+
+    try {
+      if (selectedFileRef.current) {
+        imageUrl = await uploadToCloudinary(selectedFileRef.current, 'stugrow/posts');
+      }
+    } catch {
+      addToast('Image upload failed', 'error');
+      setUploading(false);
+      return;
+    }
+
+    try {
+      onPost?.(content, imageUrl, null, 'general');
+      setContent('');
+      setImagePreview(null);
+      selectedFileRef.current = null;
+      addToast('Post published successfully', 'success');
+    } catch {
+      addToast('Failed to publish post', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className={`profile-post-card ${isFocused || imagePreview ? 'ring-2 ring-indigo-500/30' : ''}`}>
       <div className="flex gap-3">
@@ -384,7 +412,7 @@ const requestCameraPermission = async () => {
                 <FileText className="w-5 h-5" />
               </button>
             </div>
-            <button onClick={handlePost} disabled={(!content.trim() && !imagePreview) || uploading} className="profile-post-btn">
+            <button onClick={() => onPost?.()} disabled={(!content.trim() && !imagePreview) || uploading} className="profile-post-btn">
               {uploading ? 'Publishing...' : 'Post'}
             </button>
           </div>
