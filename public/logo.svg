@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <!-- Main gradient - Instagram-like purple/violet -->
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#833AB4;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#C13584;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#E1306C;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#FD1D1D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F77737;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Subtle secondary gradient -->
+    <linearGradient id="logoGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A855F7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow effect -->
+    <filter id="logoGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Soft shadow -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#7C3AED" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Soft background circle -->
+  <circle cx="60" cy="60" r="55" fill="url(#logoGrad)" opacity="0.08"/>
+  
+  <!-- Main S shape - stylized like Instagram but better -->
+  <g filter="url(#shadow)">
+    <!-- S curves -->
+    <path d="M78 42C78 38.6863 75.3137 36 72 36H52C48.6863 36 46 38.6863 46 42C46 45.3137 48.6863 48 52 48H68V56L46 72C44.6195 73.3805 44.6195 75.6195 46 77C47.3805 78.3805 49.6195 78.3805 51 77L72 58V72C72 75.3137 74.6863 78 78 78C81.3137 78 84 75.3137 84 72V42C84 38.6863 81.3137 36 78 36" 
+          fill="url(#logoGrad2)" 
+          stroke="url(#logoGrad2)" 
+          stroke-width="4"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Growth element - subtle leaf/sprout accent -->
+  <g opacity="0.7">
+    <path d="M46 82V94" 
+          stroke="url(#logoGrad)" 
+          stroke-width="3" 
+          stroke-linecap="round"/>
+    <path d="M40 88C40 88 43 86 46 88C49 90 52 88 52 88" 
+          stroke="url(#logoGrad)" 
+          stroke-width="3" 
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          fill="none"/>
+  </g>
+  
+  <!-- Subtle sparkle accents -->
+  <circle cx="85" cy="35" r="2" fill="#F77737" opacity="0.6"/>
+  <circle cx="35" cy="85" r="1.5" fill="#833AB4" opacity="0.5"/>
+</svg>

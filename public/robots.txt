@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://stugrow.vercel.app/sitemap.xml
