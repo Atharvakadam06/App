@@ -98,21 +98,8 @@ export default function BookExchange() {
     reader.readAsDataURL(file);
   };
 
-  const openImagePicker = async () => {
-    if (!navigator.permissions) {
-      fileInputRef.current?.click();
-      return;
-    }
-    try {
-      const result = await navigator.permissions.query({ name: 'read-files' });
-      if (result.state === 'granted') {
-        fileInputRef.current?.click();
-      } else {
-        fileInputRef.current?.click();
-      }
-    } catch (permErr) {
-      fileInputRef.current?.click();
-    }
+  const openImagePicker = () => {
+    fileInputRef.current?.click();
   };
 
   const handleRequest = (bookId) => setRequestedBooks(prev => ({ ...prev, [bookId]: !prev[bookId] }));

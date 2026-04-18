@@ -262,19 +262,6 @@ const requestCameraPermission = async () => {
     }
   };
 
-  const requestStoragePermission = async () => {
-    if (!navigator.permissions) return true;
-    try {
-      const result = await navigator.permissions.query({ name: 'persistent-storage' });
-      if (result.state === 'granted') return true;
-    } catch (e) {}
-    try {
-      const result = await navigator.permissions.query({ name: 'read-files' });
-      if (result.state === 'granted') return true;
-    } catch (e) {}
-    return true;
-  };
-
   const handleFileChange = (e, type) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -319,21 +306,11 @@ const requestCameraPermission = async () => {
     cameraInputRef.current?.click();
   };
 
-  const selectFromGallery = async () => {
-    const hasPermission = await requestStoragePermission();
-    if (!hasPermission) {
-      addToast('Storage permission denied. Please allow access in your browser settings.', 'error');
-      return;
-    }
+  const selectFromGallery = () => {
     fileInputRef.current?.click();
   };
 
-  const selectDocument = async () => {
-    const hasPermission = await requestStoragePermission();
-    if (!hasPermission) {
-      addToast('Storage permission denied. Please allow access in your browser settings.', 'error');
-      return;
-    }
+  const selectDocument = () => {
     documentInputRef.current?.click();
   };
 

@@ -130,21 +130,8 @@ export default function PYQVault() {
     } else { setFilePreview(null); }
   };
 
-  const openFilePicker = async () => {
-    if (!navigator.permissions) {
-      fileInputRef.current?.click();
-      return;
-    }
-    try {
-      const result = await navigator.permissions.query({ name: 'read-files' });
-      if (result.state === 'granted') {
-        fileInputRef.current?.click();
-      } else {
-        fileInputRef.current?.click();
-      }
-    } catch (permErr) {
-      fileInputRef.current?.click();
-    }
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
   };
 
   const handleDownload = async (paperId) => {
