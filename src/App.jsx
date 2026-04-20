@@ -3,6 +3,7 @@ import { useState, useEffect, Component } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { PostLikeProvider } from './context/PostLikeContext';
 import { ToastProvider } from './components/Toast';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -119,15 +120,17 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <AuthProvider>
-          <NotificationProvider>
-            <ToastProvider>
-              <Router>
-                <AuthGate />
-              </Router>
-            </ToastProvider>
-          </NotificationProvider>
-        </AuthProvider>
+        <PostLikeProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              <ToastProvider>
+                <Router>
+                  <AuthGate />
+                </Router>
+              </ToastProvider>
+            </NotificationProvider>
+          </AuthProvider>
+        </PostLikeProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

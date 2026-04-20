@@ -3,11 +3,12 @@ import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Image, Send, Fi
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { getAllPosts, deletePost, updatePost, likePost, isPostLiked, savePost, isPostSaved, addComment, getPostComments, createReport } from '../services/data';
+import { getAllPosts, deletePost, updatePost, likePost, isPostLiked, savePost, isPostSaved, addComment, getPostComments, deleteComment, createReport } from '../services/data';
+import { usePostLike } from '../context/PostLikeContext';
 import { formatTimeAgo } from '../utils/timeUtils';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 
-function PostCard({ post, onLike, onSave, onDelete, onComment, onUpdate, currentUserId, index }) {
+function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, onUpdate, currentUserId, index }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -223,11 +224,18 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onUpdate, current
                 <div key={i} className="flex gap-3 animate-fade-in">
                   <img src={c.avatar} alt="" className="w-8 h-8 rounded-full shrink-0" />
                   <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-2xl px-4 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-gray-900 dark:text-white">{c.name}</span>
                       <span className="text-xs text-gray-500">{formatTimeAgo(c.timestamp)}</span>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{c.text}</p>
+                    {c.userId === currentUserId && (
+                      <button onClick={() => onDeleteComment(post.id, c.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{c.text}</p>
                   </div>
                 </div>
               ))}
@@ -287,6 +295,7 @@ function SkeletonPost() {
 
 export default function Feed() {
   const { user } = useAuth();
+  const { likeMap, likesCountMap, toggleLike, getLikeState, syncAllPosts, initialized } = usePostLike();
   const [loading, setLoading] = useState(true);
   const [allPosts, setAllPosts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -313,12 +322,17 @@ export default function Feed() {
 
   const loadPosts = async () => {
     try {
+      if (user?.id && !initialized) {
+        await syncAllPosts(user.id);
+      }
       const posts = await getAllPosts();
       const enriched = await Promise.all(posts.map(async (p) => {
         const comments = await getPostComments(p.id);
+        const { liked, likes } = getLikeState(p.id);
         return {
           ...p,
-          liked: await isPostLiked(p.id, user?.id),
+          liked: liked ?? await isPostLiked(p.id, user?.id),
+          likes: likes ?? p.likes ?? 0,
           saved: await isPostSaved(p.id, user?.id),
           comments
         };
@@ -340,12 +354,16 @@ export default function Feed() {
   }, [allPosts, searchQuery, activeCategory, sortBy]);
 
   const handleLike = async (postId) => {
-    console.log('handleLike', postId, user?.id);
     if (!user?.id) return;
     try {
-      const isLiked = await likePost(postId, user.id);
-      console.log('like result', isLiked);
-      setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: isLiked, likes: isLiked ? p.likes + 1 : p.likes - 1 } : p));
+      const post = allPosts.find(p => p.id === postId);
+      if (!post) return;
+      const wasLiked = post.liked || false;
+      
+      await likePost(postId, !wasLiked);
+      const result = await toggleLike(postId, user.id, wasLiked, post.likes || 0);
+      
+      setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: result.liked, likes: result.likes } : p));
     } catch (e) { console.error(e); }
   };
 
@@ -368,6 +386,12 @@ export default function Feed() {
 
   const handleComment = async (postId, text) => {
     await addComment(postId, user.id, text);
+    const comments = await getPostComments(postId);
+    setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, comments } : p));
+  };
+
+  const handleDeleteComment = async (postId, commentId) => {
+    await deleteComment(commentId);
     const comments = await getPostComments(postId);
     setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, comments } : p));
   };
@@ -396,7 +420,7 @@ export default function Feed() {
         />
 
         {filteredPosts.length === 0 ? <EmptyFeed /> : filteredPosts.map((post, i) => (
-          <PostCard key={post.id} post={post} onLike={handleLike} onSave={handleSave} onDelete={handleDelete} onUpdate={handleUpdate} onComment={handleComment} currentUserId={user.id} index={i} />
+          <PostCard key={post.id} post={post} onLike={handleLike} onSave={handleSave} onDelete={handleDelete} onUpdate={handleUpdate} onComment={handleComment} onDeleteComment={handleDeleteComment} currentUserId={user.id} index={i} />
         ))}
 
         {showScrollTop && (

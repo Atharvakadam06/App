@@ -226,6 +226,11 @@ export async function addComment(postId, userId, text) {
   return id;
 }
 
+export async function deleteComment(commentId) {
+  await ensureDb();
+  await execute('DELETE FROM comments WHERE id = ?', [commentId]);
+}
+
 // ---- Papers ----
 export async function createPaper(paper) {
   await ensureDb();

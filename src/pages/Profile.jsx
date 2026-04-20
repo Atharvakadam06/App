@@ -5,7 +5,8 @@ import { useToast } from '../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { uploadToCloudinary } from '../services/cloudinary';
 import { uploadToGofile } from '../services/gofile';
-import { createPost, createPaper, createBook, getAllPosts, getAllPapers, getAllBooks, isPostSaved, getLinks, getUser, createConversation } from '../services/data';
+import { createPost, createPaper, createBook, getAllPosts, getAllPapers, getAllBooks, isPostSaved, getLinks, getUser, createConversation, isPostLiked, likePost, addComment, getPostComments } from '../services/data';
+import { usePostLike } from '../context/PostLikeContext';
 import { formatTimeAgo, getCurrentTimestamp } from '../utils/timeUtils';
 import { branches, semesters } from '../data/mockData';
 import CustomSelect from '../components/CustomSelect';
@@ -482,6 +483,7 @@ function EmptyTab({ icon, title, description }) {
 
 export default function Profile() {
   const { user: currentUser, users, updateProfile } = useAuth();
+  const { likeMap, likesCountMap, toggleLike, getLikeState, syncAllPosts, initialized } = usePostLike();
   const navigate = useNavigate();
   const { userId } = useParams();
   const { addToast } = useToast();
@@ -492,6 +494,9 @@ export default function Profile() {
   const [savedPosts, setSavedPosts] = useState([]);
   const [linkedUsersProfile, setLinkedUsersProfile] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [showCommentInput, setShowCommentInput] = useState(null);
+  const [commentText, setCommentText] = useState('');
 
   const [showUploadPaper, setShowUploadPaper] = useState(false);
   const [uploadPaperForm, setUploadPaperForm] = useState({ title: '', branch: '', semester: '', year: '' });
@@ -547,6 +552,39 @@ export default function Profile() {
 
   const [tabUnderline, setTabUnderline] = useState({ left: 0, width: 0 });
 
+  const handlePostComment = async (postId) => {
+    if (!commentText.trim() || !currentUser?.id) return;
+    try {
+      await addComment(postId, currentUser.id, commentText);
+      const comments = await getPostComments(postId);
+      const updated = userPosts.map(p => p.id === postId ? { ...p, comments: comments } : p);
+      setUserPosts(updated);
+      if (selectedPost?.id === postId) {
+        setSelectedPost({ ...selectedPost, comments: comments });
+      }
+      setCommentText('');
+      setShowCommentInput(null);
+    } catch (e) {
+      console.warn('Failed to post comment:', e);
+    }
+  };
+
+  const handleLikePost = async (postId) => {
+    if (!currentUser?.id) return;
+    const post = userPosts.find(p => p.id === postId);
+    if (!post) return;
+    const wasLiked = post.liked || false;
+    
+    await likePost(postId, !wasLiked);
+    const result = await toggleLike(postId, currentUser.id, wasLiked, post.likes || 0);
+    
+    const updated = userPosts.map(p => p.id === postId ? { ...p, likes: result.likes, liked: result.liked } : p);
+    setUserPosts(updated);
+    if (selectedPost?.id === postId) {
+      setSelectedPost({ ...selectedPost, likes: result.likes, liked: result.liked });
+    }
+  };
+
   useEffect(() => {
     const activeTabEl = document.querySelector(`[data-tab="${activeTab}"]`);
     if (activeTabEl) {
@@ -557,12 +595,57 @@ export default function Profile() {
     }
   }, [activeTab]);
 
+  const loadUserPosts = async () => {
+    if (!currentUser?.id) return;
+    const targetUserId = isOwnProfile ? currentUser.id : userId;
+    if (!targetUserId) return;
+    
+    if (!initialized) {
+      await syncAllPosts(currentUser.id);
+    }
+    
+    const posts = await getAllPosts();
+    const userPostsFiltered = posts.filter(p => p.userId === targetUserId);
+    if (isOwnProfile && currentUser?.id) {
+      const postsWithLikes = await Promise.all(userPostsFiltered.map(async (p) => {
+        const { liked, likes } = getLikeState(p.id);
+        return {
+          ...p,
+          liked: liked ?? await isPostLiked(p.id, currentUser.id),
+          likes: likes ?? p.likes ?? 0
+        };
+      }));
+      setUserPosts(postsWithLikes);
+    } else {
+      setUserPosts(userPostsFiltered);
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
         const targetUserId = isOwnProfile ? currentUser?.id : userId;
+        if (!targetUserId) return;
+        
+        if (!initialized) {
+          await syncAllPosts(currentUser.id);
+        }
+        
         const [posts, papers, books] = await Promise.all([getAllPosts(), getAllPapers(), getAllBooks()]);
-        setUserPosts(posts.filter(p => p.userId === targetUserId));
+        const userPostsFiltered = posts.filter(p => p.userId === targetUserId);
+        if (isOwnProfile && currentUser?.id) {
+          const postsWithLikes = await Promise.all(userPostsFiltered.map(async (p) => {
+            const { liked, likes } = getLikeState(p.id);
+            return {
+              ...p,
+              liked: liked ?? await isPostLiked(p.id, currentUser.id),
+              likes: likes ?? p.likes ?? 0
+            };
+          }));
+          setUserPosts(postsWithLikes);
+        } else {
+          setUserPosts(userPostsFiltered);
+        }
         setUserPapers(papers.filter(p => p.uploadedBy?.id === targetUserId));
         setUserBooks(books.filter(b => b.uploadedBy?.id === targetUserId));
         if (isOwnProfile) {
@@ -583,7 +666,7 @@ export default function Profile() {
       finally { setLoading(false); }
     };
     if ((isOwnProfile && currentUser?.id) || (!isOwnProfile && userId)) load();
-  }, [currentUser?.id, userId, isOwnProfile]);
+  }, [currentUser?.id, userId, isOwnProfile, initialized]);
 
   const handleEdit = isOwnProfile ? updateProfile : () => {};
 
@@ -643,7 +726,83 @@ export default function Profile() {
     switch (activeTab) {
       case 'posts':
         return userPosts.length === 0 ? (<EmptyTab icon={Grid} title="No posts yet" description="Share your first post to see it here" />) : (
-          <div className="space-y-4">{userPosts.map(post => (<div key={post.id} className="card p-4 sm:p-6">{post.image && <img src={post.image} alt="" className="w-full h-48 object-cover rounded-xl mb-3" />}<p className="text-sm sm:text-base text-slate-700 dark:text-slate-300 mb-4">{post.content}</p><div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-slate-500 dark:text-slate-400"><span className="flex items-center gap-1"><Heart className="w-4 h-4" />{post.likes}</span><span>{post.comments?.length || 0} comments</span><span>{formatTimeAgo(post.timestamp)}</span></div></div>))}</div>
+          <>
+            <div className="grid grid-cols-3 gap-0.5 sm:gap-1">{userPosts.map((post, i) => (
+              <button key={post.id} onClick={async () => { const comments = await getPostComments(post.id); setSelectedPost({ ...post, comments, index: i }); }} className="aspect-square relative overflow-hidden group bg-gray-200 dark:bg-gray-700">
+                {post.image ? (
+                  <img src={post.image} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center p-3 text-center text-xs text-gray-600 dark:text-gray-300 break-words">{post.content?.substring(0, 80)}</div>
+                )}
+              </button>
+            ))}</div>
+            {selectedPost && (
+              <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={() => setSelectedPost(null)}>
+                <button onClick={() => setSelectedPost(null)} className="absolute top-4 right-4 p-3 rounded-full bg-black/50 hover:bg-black/70 transition-all z-10">
+                  <X className="w-6 h-6 text-white" />
+                </button>
+                <div className="flex flex-col sm:flex-row w-full h-full sm:h-auto sm:max-w-5xl sm:max-h-[90vh] bg-white dark:bg-[#0e1322] sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="flex-1 bg-black flex items-center justify-center min-h-0">
+                    {selectedPost.image ? (
+                      <img src={selectedPost.image} alt="" className="max-w-full max-h-[60vh] sm:max-h-[90vh] object-contain" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full min-h-[40vh] p-8">
+                        <p className="text-white text-lg text-center">{selectedPost.content}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="w-full sm:w-96 flex flex-col bg-white dark:bg-[#0e1322]">
+                    <div className="p-4 border-b border-gray-100 dark:border-gray-800">
+                      <div className="flex items-center gap-3">
+                        <img src={profileUser?.avatar} alt="" className="w-10 h-10 rounded-full" />
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-white">{profileUser?.name}</p>
+                          <p className="text-xs text-gray-500">@{profileUser?.username}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{selectedPost.content}</p>
+                      {selectedPost.comments?.length > 0 && (
+                        <div className="pt-2 space-y-3 border-t border-gray-100 dark:border-gray-800">
+                          {selectedPost.comments.slice(0, 5).map((c, i) => (
+                            <div key={i} className="flex gap-2">
+                              <img src={c.avatar} alt="" className="w-7 h-7 rounded-full shrink-0" />
+                              <div>
+                                <p className="text-sm"><span className="font-semibold text-gray-900 dark:text-white">{c.name}</span> <span className="text-gray-600 dark:text-gray-300">{c.text}</span></p>
+                                <p className="text-xs text-gray-400">{formatTimeAgo(c.timestamp)}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {selectedPost.comments.length > 5 && (
+                            <button onClick={() => {}} className="text-sm text-gray-500 hover:text-blue-500">{selectedPost.comments.length - 5} more comments</button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => handleLikePost(selectedPost.id)} className={`p-2 rounded-full transition-all ${selectedPost.liked ? 'text-red-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                          <Heart className="w-6 h-6" fill={selectedPost.liked ? 'currentColor' : 'none'} />
+                        </button>
+                        <button onClick={() => { setShowCommentInput(prev => prev === selectedPost.id ? null : selectedPost.id); }} className="p-2 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
+                          <MessageCircle className="w-6 h-6" />
+                        </button>
+                      </div>
+                      <p className="font-semibold text-gray-900 dark:text-white">{selectedPost.likes || 0} likes</p>
+                      <p className="text-xs text-gray-500">{formatTimeAgo(selectedPost.timestamp)}</p>
+                      {showCommentInput === selectedPost.id && (
+                        <div className="flex gap-2 mt-2 items-center">
+                          <input type="text" placeholder="Add a comment..." value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && commentText.trim()) handlePostComment(selectedPost.id); }} className="flex-1 px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
+                          <button onClick={() => handlePostComment(selectedPost.id)} disabled={!commentText.trim()} className="text-blue-500 font-semibold disabled:opacity-40 disabled:cursor-not-allowed text-sm">Post</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         );
       case 'resources':
         return (
