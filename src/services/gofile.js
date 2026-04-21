@@ -1,3 +1,5 @@
+export const GOFILE_TOKEN = ''; // Add your Gofile API token for faster uploads
+
 async function getBestServer() {
   const res = await fetch('https://api.gofile.io/servers');
   const data = await res.json();
@@ -11,6 +13,9 @@ export async function uploadToGofile(file) {
   const server = await getBestServer();
   const formData = new FormData();
   formData.append('file', file);
+  if (GOFILE_TOKEN) {
+    formData.append('token', GOFILE_TOKEN);
+  }
 
   const res = await fetch(`https://${server}.gofile.io/contents/uploadfile`, {
     method: 'POST',
@@ -19,7 +24,7 @@ export async function uploadToGofile(file) {
 
   const data = await res.json();
   if (data.status === 'ok') {
-    return data.data.downloadPage;
+    return data.data.directLink || data.data.downloadPage;
   }
   throw new Error(data.message || 'Upload failed');
 }
