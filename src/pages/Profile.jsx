@@ -749,13 +749,13 @@ export default function Profile() {
             ))}</div>
             {selectedPost && (
               <div 
-                className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 modal-backdrop"
+                className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4 modal-backdrop"
                 style={{ '--backdrop-blur': 'blur(12px)', backdropFilter: 'blur(12px)', backgroundColor: 'rgba(0,0,0,0.65)' }}
                 onClick={(e) => { if (e.target === e.currentTarget) setSelectedPost(null); }}
               >
                 <button 
                   onClick={() => setSelectedPost(null)} 
-                  className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 sm:p-3 rounded-full bg-white/20 hover:bg-white/30 z-[102] modal-close-btn transition-all duration-200 hover:rotate-90"
+                  className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 sm:p-3 rounded-full bg-white/20 hover:bg-white/30 z-[10001] modal-close-btn transition-all duration-200 hover:rotate-90"
                 >
                   <X className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </button>
