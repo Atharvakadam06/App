@@ -1072,7 +1072,7 @@ case 'books':
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto overflow-x-hidden profile-page-bg profile-safe-area pb-28 lg:pb-8 relative z-0">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto profile-page-bg profile-safe-area pb-28 lg:pb-8">
       <ProfileHeader user={profileUser} onEdit={handleEdit} isOwnProfile={isOwnProfile} onMessage={handleSendMessage} bindsCount={linkedUsersProfile?.length || 0} />
       {isOwnProfile && activeTab === 'posts' && <CreatePost onPost={handlePost} user={currentUser} />}
       <div className="profile-tabs-container">

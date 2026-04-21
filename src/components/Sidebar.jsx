@@ -98,7 +98,7 @@ export default function Sidebar() {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#080b14] border-t border-[#e8e5e0] dark:border-[#151a28] z-[100] safe-area-bottom">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#080b14] border-t border-[#e8e5e0] dark:border-[#151a28] z-[9999] safe-area-bottom">
           <div className="flex items-center justify-around py-2 px-1">
             {[
               { path: '/', icon: Home },

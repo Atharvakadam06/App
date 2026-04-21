@@ -94,9 +94,9 @@ function AuthGate() {
   const meta = pageMeta[location.pathname] || pageMeta['/'];
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300 overflow-x-hidden relative">
+    <div className="min-h-screen bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300 overflow-x-hidden">
       <Sidebar />
-      <main className="lg:ml-[72px] xl:ml-[240px] min-h-screen pb-20 lg:pb-0 transition-all duration-300 relative">
+      <main className="lg:ml-[72px] xl:ml-[240px] min-h-screen pb-24 lg:pb-0 transition-all duration-300">
         <Header title={meta.title} subtitle={meta.subtitle} />
         <Routes>
           <Route path="/" element={<Feed />} />
