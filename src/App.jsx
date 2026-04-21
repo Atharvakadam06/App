@@ -94,7 +94,7 @@ function AuthGate() {
   const meta = pageMeta[location.pathname] || pageMeta['/'];
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300 overflow-x-hidden">
+    <div className="min-h-screen bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300 overflow-x-hidden relative">
       <Sidebar />
       <main className="lg:ml-[72px] xl:ml-[240px] min-h-screen pb-20 lg:pb-0 transition-all duration-300 relative">
         <Header title={meta.title} subtitle={meta.subtitle} />
