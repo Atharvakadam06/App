@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Send, Upload, Trash2, Download, Link2, GraduationCap, Users } from 'lucide-react';
+import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Send, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -727,77 +727,64 @@ export default function Profile() {
       case 'posts':
         return userPosts.length === 0 ? (<EmptyTab icon={Grid} title="No posts yet" description="Share your first post to see it here" />) : (
           <>
-            <div className="grid grid-cols-3 gap-0.5 sm:gap-1">{userPosts.map((post, i) => (
+            <div className="grid grid-cols-3 gap-1">{userPosts.map((post, i) => (
               <button key={post.id} onClick={async () => { const comments = await getPostComments(post.id); setSelectedPost({ ...post, comments, index: i }); }} className="aspect-square relative overflow-hidden group bg-gray-200 dark:bg-gray-700">
                 {post.image ? (
                   <img src={post.image} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center p-3 text-center text-xs text-gray-600 dark:text-gray-300 break-words">{post.content?.substring(0, 80)}</div>
+                  <div className="w-full h-full flex items-center justify-center p-2 text-center text-xs text-gray-600 dark:text-gray-300 break-words">{post.content?.substring(0, 50)}</div>
                 )}
               </button>
             ))}</div>
             {selectedPost && (
-              <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={() => setSelectedPost(null)}>
-                <button onClick={() => setSelectedPost(null)} className="absolute top-4 right-4 p-3 rounded-full bg-black/50 hover:bg-black/70 transition-all z-10">
+              <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-2 sm:p-4" onClick={() => setSelectedPost(null)}>
+                <button onClick={() => setSelectedPost(null)} className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 z-50">
                   <X className="w-6 h-6 text-white" />
                 </button>
-                <div className="flex flex-col sm:flex-row w-full h-full sm:h-auto sm:max-w-5xl sm:max-h-[90vh] bg-white dark:bg-[#0e1322] sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-                  <div className="flex-1 bg-black flex items-center justify-center min-h-0">
-                    {selectedPost.image ? (
-                      <img src={selectedPost.image} alt="" className="max-w-full max-h-[60vh] sm:max-h-[90vh] object-contain" />
-                    ) : (
-                      <div className="flex items-center justify-center h-full min-h-[40vh] p-8">
-                        <p className="text-white text-lg text-center">{selectedPost.content}</p>
+                <div className="bg-white dark:bg-[#0e1322] rounded-lg sm:rounded-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                  <div className="p-3 sm:p-4 border-b dark:border-gray-700 flex items-center gap-3">
+                    <img src={profileUser?.avatar} alt="" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">{profileUser?.name}</p>
+                      <p className="text-xs text-gray-500">@{profileUser?.username}</p>
+                    </div>
+                  </div>
+                  {selectedPost.image ? (
+                    <div className="bg-black flex justify-center">
+                      <img src={selectedPost.image} alt="" className="max-h-[40vh] sm:max-h-[50vh] object-contain" />
+                    </div>
+                  ) : (
+                    <div className="p-4">
+                      <p className="text-gray-900 dark:text-white">{selectedPost.content}</p>
+                    </div>
+                  )}
+                  <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                    <div className="flex gap-3 mb-3">
+                      <button onClick={() => handleLikePost(selectedPost.id)} className={`${selectedPost.liked ? 'text-red-500' : 'text-gray-600 dark:text-gray-400'}`}>
+                        <Heart className="w-5 h-5" fill={selectedPost.liked ? 'currentColor' : 'none'} />
+                      </button>
+                      <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)} className="text-gray-600 dark:text-gray-400">
+                        <MessageCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm">{selectedPost.likes || 0} likes</p>
+                    <p className="text-xs text-gray-500 mt-1">{formatTimeAgo(selectedPost.timestamp)}</p>
+                    {selectedPost.comments?.length > 0 && (
+                      <div className="mt-3 pt-3 border-t dark:border-gray-700 space-y-2">
+                        {selectedPost.comments.slice(0, 2).map((c, i) => (
+                          <div key={i} className="flex gap-2">
+                            <img src={c.avatar} alt="" className="w-5 h-5 rounded-full" />
+                            <p className="text-xs sm:text-sm"><span className="font-semibold">{c.name}</span> <span className="text-gray-600 dark:text-gray-300">{c.text}</span></p>
+                          </div>
+                        ))}
                       </div>
                     )}
-                  </div>
-                  <div className="w-full sm:w-96 flex flex-col bg-white dark:bg-[#0e1322]">
-                    <div className="p-4 border-b border-gray-100 dark:border-gray-800">
-                      <div className="flex items-center gap-3">
-                        <img src={profileUser?.avatar} alt="" className="w-10 h-10 rounded-full" />
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{profileUser?.name}</p>
-                          <p className="text-xs text-gray-500">@{profileUser?.username}</p>
-                        </div>
+                    {showCommentInput === selectedPost.id && (
+                      <div className="flex gap-2 mt-3">
+                        <input type="text" placeholder="Add comment..." value={commentText} onChange={e => setCommentText(e.target.value)} className="flex-1 text-sm px-3 py-2 rounded-full bg-gray-100 dark:bg-gray-800" />
+                        <button onClick={() => handlePostComment(selectedPost.id)} disabled={!commentText.trim()} className="text-blue-500 text-sm font-medium">Post</button>
                       </div>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                      <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{selectedPost.content}</p>
-                      {selectedPost.comments?.length > 0 && (
-                        <div className="pt-2 space-y-3 border-t border-gray-100 dark:border-gray-800">
-                          {selectedPost.comments.slice(0, 5).map((c, i) => (
-                            <div key={i} className="flex gap-2">
-                              <img src={c.avatar} alt="" className="w-7 h-7 rounded-full shrink-0" />
-                              <div>
-                                <p className="text-sm"><span className="font-semibold text-gray-900 dark:text-white">{c.name}</span> <span className="text-gray-600 dark:text-gray-300">{c.text}</span></p>
-                                <p className="text-xs text-gray-400">{formatTimeAgo(c.timestamp)}</p>
-                              </div>
-                            </div>
-                          ))}
-                          {selectedPost.comments.length > 5 && (
-                            <button onClick={() => {}} className="text-sm text-gray-500 hover:text-blue-500">{selectedPost.comments.length - 5} more comments</button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => handleLikePost(selectedPost.id)} className={`p-2 rounded-full transition-all ${selectedPost.liked ? 'text-red-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-                          <Heart className="w-6 h-6" fill={selectedPost.liked ? 'currentColor' : 'none'} />
-                        </button>
-                        <button onClick={() => { setShowCommentInput(prev => prev === selectedPost.id ? null : selectedPost.id); }} className="p-2 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
-                          <MessageCircle className="w-6 h-6" />
-                        </button>
-                      </div>
-                      <p className="font-semibold text-gray-900 dark:text-white">{selectedPost.likes || 0} likes</p>
-                      <p className="text-xs text-gray-500">{formatTimeAgo(selectedPost.timestamp)}</p>
-                      {showCommentInput === selectedPost.id && (
-                        <div className="flex gap-2 mt-2 items-center">
-                          <input type="text" placeholder="Add a comment..." value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && commentText.trim()) handlePostComment(selectedPost.id); }} className="flex-1 px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
-                          <button onClick={() => handlePostComment(selectedPost.id)} disabled={!commentText.trim()} className="text-blue-500 font-semibold disabled:opacity-40 disabled:cursor-not-allowed text-sm">Post</button>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>

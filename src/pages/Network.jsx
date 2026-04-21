@@ -143,14 +143,14 @@ export default function Network() {
 function SuggestionRow({ user, delay, onProfile, onConnect }) {
   return (
     <div 
-      className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-[#0e1322] border border-gray-100 dark:border-[#151a28] hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm transition-all duration-200 animate-fade-in"
+      className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-[#0e1322] border border-gray-100 dark:border-[#151a28] hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm transition-all duration-200 animate-fade-in"
       style={{ animationDelay: `${delay}ms` }}
     >
       <button onClick={onProfile} className="shrink-0">
         <img
           src={user.avatar}
           alt={user.name}
-          className="w-14 h-14 rounded-full object-cover border-2 border-gray-100 dark:border-gray-700"
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-gray-100 dark:border-gray-700"
         />
       </button>
       <div className="flex-1 min-w-0">
@@ -158,16 +158,16 @@ function SuggestionRow({ user, delay, onProfile, onConnect }) {
           <p className="text-sm font-semibold text-gray-900 dark:text-white truncate hover:text-blue-500 transition-colors">{user.name}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">@{user.username}</p>
           {user.reason && (
-            <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">{user.reason}</p>
+            <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">{user.reason}</p>
           )}
         </button>
       </div>
       <button
         onClick={onConnect}
-        className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 active:scale-95 transition-all duration-200"
+        className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 active:scale-95 transition-all duration-200"
       >
         <UserPlus className="w-4 h-4" />
-        Bind
+        <span className="hidden sm:inline">Bind</span>
       </button>
     </div>
   );
