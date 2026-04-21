@@ -329,10 +329,12 @@ export default function Feed() {
       const enriched = await Promise.all(posts.map(async (p) => {
         const comments = await getPostComments(p.id);
         const { liked, likes } = getLikeState(p.id);
+        const dbLiked = await isPostLiked(p.id, user?.id);
+        const actualLikes = likesCountMap[p.id] ?? p.likes ?? 0;
         return {
           ...p,
-          liked: liked ?? await isPostLiked(p.id, user?.id),
-          likes: likes ?? p.likes ?? 0,
+          liked: liked ?? dbLiked,
+          likes: actualLikes,
           saved: await isPostSaved(p.id, user?.id),
           comments
         };
