@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Send, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Send, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -748,49 +748,61 @@ export default function Profile() {
               </button>
             ))}</div>
             {selectedPost && (
-              <div className="fixed inset-0 z-[10000] bg-black flex flex-col overflow-hidden" onClick={() => setSelectedPost(null)}>
-                <button onClick={() => setSelectedPost(null)} className="absolute top-3 right-3 z-[10001] p-2 bg-black/50 rounded-full">
-                  <X className="w-5 h-5 text-white" />
-                </button>
-                <div className="absolute top-3 left-3 z-[10001] text-white text-sm font-medium">{profileUser?.name}</div>
-                <div className="flex-1 flex items-center justify-center bg-black mt-10" onClick={e => e.stopPropagation()}>
-                  {selectedPost.image ? (
-                    <img src={selectedPost.image} alt="" className="max-w-full max-h-full object-contain" />
-                  ) : (
-                    <p className="text-white text-center p-8 whitespace-pre-wrap">{selectedPost.content}</p>
-                  )}
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#0e1322] rounded-t-2xl max-h-[50vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                  <div className="p-3 border-b dark:border-gray-800 flex items-center gap-3">
-                    <img src={profileUser?.avatar} alt="" className="w-8 h-8 rounded-full" />
-                    <div><p className="font-semibold text-sm">{profileUser?.name}</p></div>
-                  </div>
-                  <div className="p-3">
-                    <p className="text-sm mb-3">{selectedPost.content}</p>
-                    {selectedPost.comments?.map((c, i) => (
-                      <div key={i} className="flex gap-2 mb-2">
-                        <img src={c.avatar} alt="" className="w-5 h-5 rounded-full" />
-                        <p className="text-xs"><span className="font-semibold">{c.name}</span> <span className="text-gray-600 dark:text-gray-300">{c.text}</span></p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-3 border-t dark:border-gray-800 flex items-center gap-4">
-                    <button onClick={() => handleLikePost(selectedPost.id)}><Heart className={`w-6 h-6 ${selectedPost.liked ? 'text-red-500 fill-current' : 'text-gray-800 dark:text-white'}`} /></button>
-                    <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)}><MessageCircle className="w-6 h-6 text-gray-800 dark:text-white" /></button>
-                    <button><Send className="w-6 h-6 text-gray-800 dark:text-white" /></button>
-                    <button className="ml-auto"><Bookmark className="w-6 h-6 text-gray-800 dark:text-white" /></button>
-                  </div>
-                  <div className="px-3 pb-3">
-                    <p className="font-semibold text-sm">{selectedPost.likes || 0} likes</p>
-                    <p className="text-xs text-gray-500">{formatTimeAgo(selectedPost.timestamp)}</p>
-                    {showCommentInput === selectedPost.id && (
-                      <div className="flex gap-2 mt-2">
-                        <input value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Add comment..." className="flex-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-1.5" />
-                        <button onClick={() => handlePostComment(selectedPost.id)} className="text-blue-500 text-sm font-medium">Post</button>
-                      </div>
+              <div className="fixed inset-0 z-[999] flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedPost(null)} style={{ animationDuration: '200ms' }} />
+                <div className="relative w-[92vw] max-w-[980px] h-[90vh] max-h-[680px] bg-white dark:bg-[#0e1322] rounded-[18px] overflow-hidden shadow-2xl animate-scale-in flex flex-col sm:flex-row" style={{ boxShadow: '0 24px 80px rgba(0,0,0,0.4)', animationDuration: '260ms' }} onClick={e => e.stopPropagation()}>
+                  <div className="flex-1 bg-black flex items-center justify-center min-h-0 sm:rounded-l-[18px]">
+                    {selectedPost.image ? (
+                      <img src={selectedPost.image} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="p-8"><p className="text-white text-center text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
                     )}
                   </div>
+                  <div className="w-full sm:w-[340px] flex flex-col border-l dark:border-gray-800">
+                    <div className="p-3 border-b dark:border-gray-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <img src={profileUser?.avatar} alt="" className="w-8 h-8 rounded-full" />
+                        <div><p className="font-semibold text-sm">{profileUser?.name}</p><p className="text-xs text-gray-500">@{profileUser?.username}</p></div>
+                      </div>
+                      <button className="p-1"><MoreHorizontal className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                      <p className="text-sm">{selectedPost.content}</p>
+                      {selectedPost.comments?.length > 0 && (
+                        <div className="pt-2 border-t dark:border-gray-700 space-y-3">
+                          {selectedPost.comments.map((c, i) => (
+                            <div key={i} className="flex gap-2">
+                              <img src={c.avatar} alt="" className="w-6 h-6 rounded-full" />
+                              <div><p className="text-xs"><span className="font-semibold">{c.name}</span> <span className="text-gray-600 dark:text-gray-300">{c.text}</span></p><p className="text-xs text-gray-400">{formatTimeAgo(c.timestamp)}</p></div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 border-t dark:border-gray-800">
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => handleLikePost(selectedPost.id)} className="like-btn">
+                          <Heart className={`w-6 h-6 ${selectedPost.liked ? 'text-red-500 fill-current' : 'text-gray-800 dark:text-white'}`} />
+                        </button>
+                        <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)}><MessageCircle className="w-6 h-6 text-gray-800 dark:text-white" /></button>
+                        <button><Send className="w-6 h-6 text-gray-800 dark:text-white" /></button>
+                        <button className="ml-auto"><Bookmark className={`w-6 h-6 text-gray-800 dark:text-white ${selectedPost.saved ? 'fill-current text-amber-500' : ''}`} /></button>
+                      </div>
+                      <p className="font-semibold text-sm mt-2">{selectedPost.likes || 0} likes</p>
+                      <p className="text-xs text-gray-500">{formatTimeAgo(selectedPost.timestamp)}</p>
+                      {showCommentInput === selectedPost.id && (
+                        <div className="flex gap-2 mt-3 items-center">
+                          <img src={currentUser?.avatar} alt="" className="w-6 h-6 rounded-full" />
+                          <input value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Add a comment..." className="flex-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-2" />
+                          <button onClick={() => handlePostComment(selectedPost.id)} disabled={!commentText.trim()} className="text-blue-500 text-sm font-semibold disabled:opacity-40">Post</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
+                <button onClick={() => setSelectedPost(null)} className="absolute top-4 right-4 z-[1000] p-2 bg-white/20 rounded-full hover:bg-white/30 transition-all">
+                  <X className="w-5 h-5 text-white" />
+                </button>
               </div>
             )}
           </>
