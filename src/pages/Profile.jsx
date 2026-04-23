@@ -777,7 +777,7 @@ export default function Profile() {
                     </div>
                     <div className="p-3 border-t dark:border-gray-800">
                       <div className="flex items-center gap-4">
-                        <button onClick={() => handleLikePost(selectedPost.id)} className="like-btn">
+                        <button onClick={() => handleLikePost(selectedPost.id)} className={`like-btn ${selectedPost.liked ? 'liked' : ''}`}>
                           <Heart className={`w-6 h-6 ${selectedPost.liked ? 'text-red-500 fill-current' : 'text-gray-800 dark:text-white'}`} />
                         </button>
                         <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)}><MessageCircle className="w-6 h-6 text-gray-800 dark:text-white" /></button>

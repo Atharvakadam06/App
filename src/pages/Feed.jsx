@@ -193,8 +193,8 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
 
       <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-1">
-          <button type="button" style={{zIndex: 100}} onClick={handleLikeClick} className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${post.liked ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}`}>
-            <Heart className={`w-[19px] h-[19px] ${post.liked ? 'fill-current' : ''} ${likeAnimating ? 'animate-like-pop' : ''}`} />
+          <button type="button" style={{zIndex: 100}} onClick={handleLikeClick} className={`like-btn flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${post.liked ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}`}>
+            <Heart className={`w-[19px] h-[19px] ${post.liked ? 'fill-current' : ''}`} />
             <span className="text-sm font-semibold">{post.likes}</span>
           </button>
           <button onClick={() => setShowComments(!showComments)} className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${showComments ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}>
@@ -350,13 +350,11 @@ export default function Feed() {
       const posts = await getAllPosts();
       const enriched = await Promise.all(posts.map(async (p) => {
         const comments = await getPostComments(p.id);
-        const { liked, likes } = getLikeState(p.id);
-        const dbLiked = await isPostLiked(p.id, user?.id);
-        const actualLikes = likesCountMap[p.id] ?? p.likes ?? 0;
+        const liked = await isPostLiked(p.id, user?.id);
         return {
           ...p,
-          liked: liked ?? dbLiked,
-          likes: actualLikes,
+          liked,
+          likes: p.likes ?? 0,
           saved: await isPostSaved(p.id, user?.id),
           comments
         };
