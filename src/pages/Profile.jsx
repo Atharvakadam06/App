@@ -780,7 +780,28 @@ export default function Profile() {
                           <Heart className={`w-6 h-6 ${selectedPost.liked ? 'text-red-500 fill-current' : 'text-gray-800 dark:text-white'}`} />
                         </button>
                         <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)}><MessageCircle className="w-6 h-6 text-gray-800 dark:text-white" /></button>
-                        <button><Send className="w-6 h-6 text-gray-800 dark:text-white" /></button>
+                        <button className="btn-share-flip" title="Share">
+                  <div className="flip-inner">
+                    <div className="flip-front">
+                      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                        <circle cx="8" cy="14" r="3" stroke="#1a6fa8" stroke-width="2"/>
+                        <circle cx="20" cy="7" r="3" stroke="#1a6fa8" stroke-width="2"/>
+                        <circle cx="20" cy="21" r="3" stroke="#1a6fa8" stroke-width="2"/>
+                        <line x1="11" y1="12.5" x2="17" y2="8.5" stroke="#1a6fa8" stroke-width="1.5"/>
+                        <line x1="11" y1="15.5" x2="17" y2="19.5" stroke="#1a6fa8" stroke-width="1.5"/>
+                      </svg>
+                    </div>
+                    <div className="flip-back">
+                      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                        <circle cx="8" cy="14" r="3" stroke="white" stroke-width="2"/>
+                        <circle cx="20" cy="7" r="3" stroke="white" stroke-width="2"/>
+                        <circle cx="20" cy="21" r="3" stroke="white" stroke-width="2"/>
+                        <line x1="11" y1="12.5" x2="17" y2="8.5" stroke="white" stroke-width="1.5"/>
+                        <line x1="11" y1="15.5" x2="17" y2="19.5" stroke="white" stroke-width="1.5"/>
+                      </svg>
+                    </div>
+                  </div>
+                </button>
                         <button className="ml-auto"><Bookmark className={`w-6 h-6 text-gray-800 dark:text-white ${selectedPost.saved ? 'fill-current text-amber-500' : ''}`} /></button>
                       </div>
                       <p className="font-semibold text-sm mt-2">{selectedPost.likes || 0} likes</p>
