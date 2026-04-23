@@ -1504,13 +1504,19 @@
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-share-flip:hover .flip-inner,
-.btn-share-flip:focus-visible .flip-inner {
-  transform: rotateY(180deg);
+/* Hover for desktop, active for mobile (touch) */
+@media (hover: hover) {
+  .btn-share-flip:hover .flip-inner {
+    transform: rotateY(180deg);
+  }
 }
 
 .btn-share-flip:active .flip-inner {
   transform: rotateY(180deg) scale(0.95);
+}
+
+.btn-share-flip:focus-visible .flip-inner {
+  transform: rotateY(180deg);
 }
 
 .flip-front,
