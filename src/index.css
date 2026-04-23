@@ -1519,6 +1519,13 @@
   transform: rotateY(180deg);
 }
 
+/* Mobile tap animation */
+@media (max-width: 640px) {
+  .btn-share-flip:active .flip-inner {
+    transform: rotateY(180deg);
+  }
+}
+
 .flip-front,
 .flip-back {
   position: absolute;
