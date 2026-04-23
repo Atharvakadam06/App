@@ -496,6 +496,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState(null);
   const [showCommentInput, setShowCommentInput] = useState(null);
+  const [shareFlipped, setShareFlipped] = useState(false);
   const [commentText, setCommentText] = useState('');
 
   const [showUploadPaper, setShowUploadPaper] = useState(false);
@@ -780,7 +781,21 @@ export default function Profile() {
                           <Heart className={`w-6 h-6 ${selectedPost.liked ? 'text-red-500 fill-current' : 'text-gray-800 dark:text-white'}`} />
                         </button>
                         <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)}><MessageCircle className="w-6 h-6 text-gray-800 dark:text-white" /></button>
-                        <button className="btn-share-flip" title="Share">
+                        <button 
+                  className={`btn-share-flip ${shareFlipped ? 'flipped' : ''}`} 
+                  title="Share"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShareFlipped(!shareFlipped);
+                    if (navigator.share) {
+                      navigator.share({ title: 'StuGrow Post', text: selectedPost.content, url: window.location.href });
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                      alert('Link copied!');
+                    }
+                    setTimeout(() => setShareFlipped(false), 1000);
+                  }}
+                >
                   <div className="flip-inner">
                     <div className="flip-front">
                       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">

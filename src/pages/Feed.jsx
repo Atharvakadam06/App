@@ -201,7 +201,22 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
             <MessageCircle className="w-[19px] h-[19px]" />
             <span className="text-sm font-semibold">{post.comments?.length || 0}</span>
           </button>
-          <button onClick={handleShare} className="btn-share-flip" title="Share">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              const btn = e.currentTarget;
+              btn.classList.toggle('flipped');
+              if (navigator.share) {
+                navigator.share({ title: 'StuGrow Post', text: post.content, url: window.location.href });
+              } else {
+                navigator.clipboard.writeText(window.location.href);
+                alert('Link copied!');
+              }
+              setTimeout(() => btn.classList.remove('flipped'), 1000);
+            }}
+            className="btn-share-flip" 
+            title="Share"
+          >
             <div className="flip-inner">
               <div className="flip-front">
                 <Share2 className="w-4 h-4 text-[#1a6fa8]" />

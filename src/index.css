@@ -1494,6 +1494,7 @@
   height: 36px;
   perspective: 300px;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
 
 .flip-inner {
@@ -1501,29 +1502,16 @@
   height: 100%;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: rotateY(0deg);
 }
 
-/* Hover for desktop, active for mobile (touch) */
-@media (hover: hover) {
-  .btn-share-flip:hover .flip-inner {
-    transform: rotateY(180deg);
-  }
+.btn-share-flip.flipped .flip-inner {
+  transform: rotateY(180deg);
 }
 
 .btn-share-flip:active .flip-inner {
   transform: rotateY(180deg) scale(0.95);
-}
-
-.btn-share-flip:focus-visible .flip-inner {
-  transform: rotateY(180deg);
-}
-
-/* Mobile tap animation */
-@media (max-width: 640px) {
-  .btn-share-flip:active .flip-inner {
-    transform: rotateY(180deg);
-  }
 }
 
 .flip-front,
