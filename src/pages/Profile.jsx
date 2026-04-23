@@ -600,21 +600,16 @@ export default function Profile() {
     const targetUserId = isOwnProfile ? currentUser.id : userId;
     if (!targetUserId) return;
     
-    if (!initialized) {
-      await syncAllPosts(currentUser.id);
-    }
-    
     const posts = await getAllPosts();
     const userPostsFiltered = posts.filter(p => p.userId === targetUserId);
+    
     if (isOwnProfile && currentUser?.id) {
       const postsWithLikes = await Promise.all(userPostsFiltered.map(async (p) => {
-        const { liked, likes } = getLikeState(p.id);
-        const dbLiked = await isPostLiked(p.id, currentUser.id);
-        const actualLikes = likesCountMap[p.id] ?? p.likes ?? 0;
+        const liked = await isPostLiked(p.id, currentUser.id);
         return {
           ...p,
-          liked: liked ?? dbLiked,
-          likes: actualLikes
+          liked: liked,
+          likes: p.likes ?? 0
         };
       }));
       setUserPosts(postsWithLikes);
