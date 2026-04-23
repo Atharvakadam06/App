@@ -743,16 +743,93 @@ export default function Profile() {
                 </div>
               </button>
             ))}</div>
-            {selectedPost && (
-              <div className="fixed inset-0 z-[999] flex items-center justify-center">
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedPost(null)} style={{ animationDuration: '200ms' }} />
-                <div className="relative w-[92vw] max-w-[980px] h-[90vh] max-h-[680px] bg-white dark:bg-[#0e1322] rounded-[18px] overflow-hidden shadow-2xl animate-scale-in flex flex-col sm:flex-row" style={{ boxShadow: '0 24px 80px rgba(0,0,0,0.4)', animationDuration: '260ms' }} onClick={e => e.stopPropagation()}>
-                  <div className="flex-1 bg-black flex items-center justify-center min-h-0 sm:rounded-l-[18px]">
+{selectedPost && (
+              <div className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-4">
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-[12px] animate-fade-in" onClick={() => setSelectedPost(null)} style={{ animationDuration: '200ms' }} />
+                <div className="relative w-full max-w-[900px] h-[85vh] sm:h-[80vh] bg-white dark:bg-[#0e1322] rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col sm:flex-row" style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.35)', animationDuration: '280ms' }} onClick={e => e.stopPropagation()}>
+                  <div className="flex-1 bg-black flex items-center justify-center min-h-[40vh] sm:min-h-0 sm:rounded-l-2xl">
                     {selectedPost.image ? (
-                      <img src={selectedPost.image} alt="" className="w-full h-full object-contain" />
+                      <img src={selectedPost.image} alt="" className="max-w-full max-h-full object-contain p-2" />
                     ) : (
-                      <div className="p-8"><p className="text-white text-center text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
+                      <div className="p-6 sm:p-8"><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
                     )}
+                  </div>
+                  <div className="w-full sm:w-[380px] flex flex-col bg-white dark:bg-[#0e1322] border-t sm:border-t-0 sm:border-l dark:border-gray-700">
+                    <div className="p-4 border-b dark:border-gray-700 flex items-center gap-3">
+                      <img src={profileUser?.avatar} alt="" className="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-blue-500/30" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{profileUser?.name}</p>
+                        <p className="text-xs text-gray-500 truncate">@{profileUser?.username}</p>
+                      </div>
+                      <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><MoreHorizontal className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                      <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">{selectedPost.content}</p>
+                      {selectedPost.comments?.length > 0 && (
+                        <div className="pt-4 border-t dark:border-gray-700">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Comments</p>
+                          <div className="space-y-3">
+                            {selectedPost.comments.map((c, i) => (
+                              <div key={i} className="flex gap-2.5">
+                                <img src={c.avatar} alt="" className="w-7 h-7 rounded-full shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm"><span className="font-semibold text-gray-900 dark:text-white">{c.name}</span> <span className="text-gray-600 dark:text-gray-300">{c.text}</span></p>
+                                  <p className="text-xs text-gray-400 mt-0.5">{formatTimeAgo(c.timestamp)}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 border-t dark:border-gray-700">
+                      <div className="flex items-center gap-4 sm:gap-5">
+                        <button onClick={() => handleLikePost(selectedPost.id)} className={`like-btn transition-transform hover:scale-110 active:scale-95 ${selectedPost.liked ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'}`}>
+                          <Heart className="w-6 h-6" fill={selectedPost.liked ? 'currentColor' : 'none'} />
+                        </button>
+                        <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)} className="text-gray-700 dark:text-gray-300 hover:text-blue-500 transition-transform hover:scale-110 active:scale-95">
+                          <MessageCircle className="w-6 h-6" />
+                        </button>
+                        <button className="text-gray-700 dark:text-gray-300 hover:text-green-500 transition-transform hover:scale-110 active:scale-95">
+                          <Send className="w-6 h-6" />
+                        </button>
+                        <button className={`ml-auto transition-transform hover:scale-110 active:scale-95 ${selectedPost.saved ? 'text-amber-500' : 'text-gray-700 dark:text-gray-300'}`}>
+                          <Bookmark className="w-6 h-6" fill={selectedPost.saved ? 'currentColor' : 'none'} />
+                        </button>
+                      </div>
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm mt-3">{selectedPost.likes || 0} likes</p>
+                      <p className="text-xs text-gray-500 mt-1">{formatTimeAgo(selectedPost.timestamp)}</p>
+                      {showCommentInput === selectedPost.id && (
+                        <div className="flex gap-2.5 mt-4 items-center">
+                          <img src={currentUser?.avatar} alt="" className="w-7 h-7 rounded-full shrink-0" />
+                          <input 
+                            type="text" 
+                            value={commentText} 
+                            onChange={e => setCommentText(e.target.value)} 
+                            onKeyDown={e => { if (e.key === 'Enter' && commentText.trim()) handlePostComment(selectedPost.id); }}
+                            placeholder="Add a comment..." 
+                            className="flex-1 text-sm px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border-0 focus:ring-2 focus:ring-blue-500/30 focus:outline-none" 
+                          />
+                          <button 
+                            onClick={() => handlePostComment(selectedPost.id)} 
+                            disabled={!commentText.trim()}
+                            className="text-blue-500 text-sm font-semibold disabled:opacity-40 hover:text-blue-600 transition-colors"
+                          >
+                            Post
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedPost(null)} 
+                  className="absolute top-4 right-4 z-[1000] p-2.5 rounded-full bg-black/50 hover:bg-black/70 transition-all duration-200 hover:rotate-90"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
+            )}
                   </div>
                   <div className="w-full sm:w-[340px] flex flex-col border-l dark:border-gray-800">
                     <div className="p-3 border-b dark:border-gray-800 flex items-center justify-between">
