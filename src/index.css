@@ -1490,9 +1490,10 @@
   border: none;
   background: none;
   padding: 0;
-  width: 56px;
-  height: 56px;
+  width: 36px;
+  height: 36px;
   perspective: 300px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .flip-inner {
@@ -1500,30 +1501,42 @@
   height: 100%;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-share-flip:hover .flip-inner {
+.btn-share-flip:hover .flip-inner,
+.btn-share-flip:focus-visible .flip-inner {
   transform: rotateY(180deg);
+}
+
+.btn-share-flip:active .flip-inner {
+  transform: rotateY(180deg) scale(0.95);
 }
 
 .flip-front,
 .flip-back {
   position: absolute;
   inset: 0;
-  border-radius: 14px;
+  border-radius: 10px 10px 10px 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   backface-visibility: hidden;
+  transition: box-shadow 0.2s ease;
 }
 
 .flip-front {
-  background: #e8f4f9;
-  border: 1.5px solid #b0d4e8;
+  background: #f0f7ff;
+  border: 1.5px solid #c7d2fe;
+  box-shadow: 0 1px 3px rgba(26, 111, 168, 0.08);
+}
+
+.flip-front:hover {
+  box-shadow: 0 2px 8px rgba(26, 111, 168, 0.15);
 }
 
 .flip-back {
   background: #1a6fa8;
   transform: rotateY(180deg);
+  box-shadow: 0 1px 3px rgba(26, 111, 168, 0.2);
 }

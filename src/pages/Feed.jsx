@@ -201,8 +201,15 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
             <MessageCircle className="w-[19px] h-[19px]" />
             <span className="text-sm font-semibold">{post.comments?.length || 0}</span>
           </button>
-          <button onClick={handleShare} className="flex items-center gap-2 px-4 py-2 rounded-full text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300">
-            <Share2 className="w-[19px] h-[19px]" />
+          <button onClick={handleShare} className="btn-share-flip" title="Share">
+            <div className="flip-inner">
+              <div className="flip-front">
+                <Share2 className="w-4 h-4 text-[#1a6fa8]" />
+              </div>
+              <div className="flip-back">
+                <Share2 className="w-4 h-4 text-white" />
+              </div>
+            </div>
           </button>
         </div>
         <button onClick={() => onSave(post.id)} className={`p-2.5 rounded-full transition-all duration-300 ${post.saved ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'}`}>
