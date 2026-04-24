@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { PostLikeProvider } from './context/PostLikeContext';
+import { PostSaveProvider } from './context/PostSaveContext';
 import { ToastProvider } from './components/Toast';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -121,15 +122,17 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider>
         <PostLikeProvider>
-          <AuthProvider>
-            <NotificationProvider>
-              <ToastProvider>
-                <Router>
-                  <AuthGate />
-                </Router>
-              </ToastProvider>
-            </NotificationProvider>
-          </AuthProvider>
+          <PostSaveProvider>
+            <AuthProvider>
+              <NotificationProvider>
+                <ToastProvider>
+                  <Router>
+                    <AuthGate />
+                  </Router>
+                </ToastProvider>
+              </NotificationProvider>
+            </AuthProvider>
+          </PostSaveProvider>
         </PostLikeProvider>
       </ThemeProvider>
     </ErrorBoundary>

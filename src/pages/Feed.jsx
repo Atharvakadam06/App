@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getAllPosts, deletePost, updatePost, likePost, isPostLiked, savePost, isPostSaved, addComment, getPostComments, deleteComment, createReport } from '../services/data';
 import { usePostLike } from '../context/PostLikeContext';
+import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo } from '../utils/timeUtils';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 
@@ -318,6 +319,7 @@ function SkeletonPost() {
 export default function Feed() {
   const { user } = useAuth();
   const { likeMap, likesCountMap, toggleLike, getLikeState, syncAllPosts, initialized } = usePostLike();
+  const { savedMap, toggleSave, getSaveState, syncAllPosts: syncAllSaves, initialized: savesInitialized } = usePostSave();
   const [loading, setLoading] = useState(true);
   const [allPosts, setAllPosts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -344,18 +346,22 @@ export default function Feed() {
 
   const loadPosts = async () => {
     try {
-      if (user?.id && !initialized) {
-        await syncAllPosts(user.id);
+      if (user?.id) {
+        await Promise.all([
+          syncAllPosts(user.id),
+          syncAllSaves(user.id)
+        ]);
       }
       const posts = await getAllPosts();
       const enriched = await Promise.all(posts.map(async (p) => {
         const comments = await getPostComments(p.id);
         const liked = await isPostLiked(p.id, user?.id);
+        const saved = await isPostSaved(p.id, user?.id);
         return {
           ...p,
           liked,
+          saved,
           likes: p.likes ?? 0,
-          saved: await isPostSaved(p.id, user?.id),
           comments
         };
       }));
@@ -390,9 +396,16 @@ export default function Feed() {
   };
 
   const handleSave = async (postId) => {
+    if (!user?.id) return;
     try {
-      const isSaved = await savePost(postId, user.id);
-      setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, saved: isSaved } : p));
+      const post = allPosts.find(p => p.id === postId);
+      if (!post) return;
+      const currentSaved = post.saved || false;
+      
+      const newSaved = await toggleSave(postId, user.id, currentSaved);
+      await savePost(postId, user.id);
+      
+      setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, saved: newSaved } : p));
     } catch (e) { console.error(e); }
   };
 
