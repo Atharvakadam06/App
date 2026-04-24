@@ -811,14 +811,10 @@ export default function Profile() {
               >
                 {post.image ? (
                   <img src={post.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center p-2 text-center text-xs text-gray-600 dark:text-gray-300 break-words">{post.content?.substring(0, 50)}</div>
-                )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100">
-                  <span className="flex items-center gap-1 text-white font-semibold text-sm"><Heart className="w-4 h-4 fill-current" />{post.likes || 0}</span>
-                  <span className="flex items-center gap-1 text-white font-semibold text-sm"><MessageCircle className="w-4 h-4" />{post.comments?.length || 0}</span>
-                </div>
-              </button>
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center p-2 text-center text-xs text-gray-600 dark:text-gray-300 break-words">{post.content?.substring(0, 50)}</div>
+                 )}
+               </button>
             ))}</div>
 {selectedPost && (
               <div className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-4">
