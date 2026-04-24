@@ -42,7 +42,7 @@ export function PostLikeProvider({ children }) {
   const getLikeState = useCallback((postId) => {
     return {
       liked: likeMap[postId] ?? null,
-      likes: likesCountMap[postId] ?? 0
+      likes: likesCountMap[postId] ?? null
     };
   }, [likeMap, likesCountMap]);
 

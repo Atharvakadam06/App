@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Send, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { uploadToCloudinary } from '../services/cloudinary';
 import { uploadToGofile } from '../services/gofile';
-import { createPost, createPaper, createBook, getAllPosts, getAllPapers, getAllBooks, isPostSaved, getLinks, getUser, createConversation, isPostLiked, likePost, addComment, getPostComments } from '../services/data';
+import { createPost, createPaper, createBook, getAllPosts, getAllPapers, getAllBooks, isPostSaved, savePost, getLinks, getUser, createConversation, isPostLiked, likePost, addComment, getPostComments } from '../services/data';
 import { usePostLike } from '../context/PostLikeContext';
 import { formatTimeAgo, getCurrentTimestamp } from '../utils/timeUtils';
 import { branches, semesters } from '../data/mockData';
@@ -576,13 +576,26 @@ export default function Profile() {
     if (!post) return;
     const wasLiked = post.liked || false;
     
-    await likePost(postId, !wasLiked);
+    await likePost(postId, currentUser.id);
     const result = await toggleLike(postId, currentUser.id, wasLiked, post.likes || 0);
     
     const updated = userPosts.map(p => p.id === postId ? { ...p, likes: result.likes, liked: result.liked } : p);
     setUserPosts(updated);
     if (selectedPost?.id === postId) {
       setSelectedPost({ ...selectedPost, likes: result.likes, liked: result.liked });
+    }
+  };
+
+  const handleSavePost = async (postId) => {
+    if (!currentUser?.id) return;
+    try {
+      const isSaved = await savePost(postId, currentUser.id);
+      setUserPosts(prev => prev.map(p => p.id === postId ? { ...p, saved: isSaved } : p));
+      if (selectedPost?.id === postId) {
+        setSelectedPost(prev => prev ? { ...prev, saved: isSaved } : null);
+      }
+    } catch (e) {
+      console.error('Save failed:', e);
     }
   };
 
@@ -606,11 +619,20 @@ export default function Profile() {
     
     if (isOwnProfile && currentUser?.id) {
       const postsWithLikes = await Promise.all(userPostsFiltered.map(async (p) => {
-        const liked = await isPostLiked(p.id, currentUser.id);
+        const state = getLikeState(p.id);
+        let liked = state.liked;
+        let likes = state.likes;
+        
+        // If not yet in context, fetch from DB
+        if (liked === null || likes === null) {
+          liked = await isPostLiked(p.id, currentUser.id);
+          likes = p.likes ?? 0;
+        }
+        
         return {
           ...p,
           liked: liked,
-          likes: p.likes ?? 0
+          likes: likes
         };
       }));
       setUserPosts(postsWithLikes);
@@ -633,11 +655,20 @@ export default function Profile() {
         const userPostsFiltered = posts.filter(p => p.userId === targetUserId);
         if (isOwnProfile && currentUser?.id) {
           const postsWithLikes = await Promise.all(userPostsFiltered.map(async (p) => {
-            const { liked, likes } = getLikeState(p.id);
+            const state = getLikeState(p.id);
+            let liked = state.liked;
+            let likes = state.likes;
+            
+            // If not yet in context, fetch from DB
+            if (liked === null || likes === null) {
+              liked = await isPostLiked(p.id, currentUser.id);
+              likes = p.likes ?? 0;
+            }
+            
             return {
               ...p,
-              liked: liked ?? await isPostLiked(p.id, currentUser.id),
-              likes: likes ?? p.likes ?? 0
+              liked: liked,
+              likes: likes
             };
           }));
           setUserPosts(postsWithLikes);
@@ -790,10 +821,39 @@ export default function Profile() {
                         <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)} className="text-gray-700 dark:text-gray-300 hover:text-blue-500 transition-transform hover:scale-110 active:scale-95">
                           <MessageCircle className="w-6 h-6" />
                         </button>
-                        <button className="text-gray-700 dark:text-gray-300 hover:text-green-500 transition-transform hover:scale-110 active:scale-95">
-                          <Send className="w-6 h-6" />
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const btn = e.currentTarget;
+                            btn.classList.toggle('flipped');
+                            if (navigator.share) {
+                              navigator.share({ 
+                                title: 'StuGrow Post', 
+                                text: selectedPost.content, 
+                                url: window.location.origin + '/post/' + selectedPost.id 
+                              });
+                            } else {
+                              navigator.clipboard.writeText(window.location.origin + '/post/' + selectedPost.id);
+                              addToast('Link copied to clipboard', 'success');
+                            }
+                            setTimeout(() => btn.classList.remove('flipped'), 1000);
+                          }}
+                          className="btn-share-flip" 
+                          title="Share"
+                        >
+                          <div className="flip-inner">
+                            <div className="flip-front">
+                              <Share2 className="w-6 h-6 text-[#1a6fa8]" />
+                            </div>
+                            <div className="flip-back">
+                              <Share2 className="w-6 h-6 text-white" />
+                            </div>
+                          </div>
                         </button>
-                        <button className={`ml-auto transition-transform hover:scale-110 active:scale-95 ${selectedPost.saved ? 'text-amber-500' : 'text-gray-700 dark:text-gray-300'}`}>
+                        <button 
+                          onClick={() => handleSavePost(selectedPost.id)}
+                          className={`ml-auto transition-transform hover:scale-110 active:scale-95 ${selectedPost.saved ? 'text-amber-500' : 'text-gray-700 dark:text-gray-300'}`}
+                        >
                           <Bookmark className="w-6 h-6" fill={selectedPost.saved ? 'currentColor' : 'none'} />
                         </button>
                       </div>
@@ -826,89 +886,6 @@ export default function Profile() {
                   onClick={() => setSelectedPost(null)} 
                   className="absolute top-4 right-4 z-[1000] p-2.5 rounded-full bg-black/50 hover:bg-black/70 transition-all duration-200 hover:rotate-90"
                 >
-                  <X className="w-5 h-5 text-white" />
-                </button>
-              </div>
-            )}
-                  </div>
-                  <div className="w-full sm:w-[340px] flex flex-col border-l dark:border-gray-800">
-                    <div className="p-3 border-b dark:border-gray-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <img src={profileUser?.avatar} alt="" className="w-8 h-8 rounded-full" />
-                        <div><p className="font-semibold text-sm">{profileUser?.name}</p><p className="text-xs text-gray-500">@{profileUser?.username}</p></div>
-                      </div>
-                      <button className="p-1"><MoreHorizontal className="w-5 h-5" /></button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-                      <p className="text-sm">{selectedPost.content}</p>
-                      {selectedPost.comments?.length > 0 && (
-                        <div className="pt-2 border-t dark:border-gray-700 space-y-3">
-                          {selectedPost.comments.map((c, i) => (
-                            <div key={i} className="flex gap-2">
-                              <img src={c.avatar} alt="" className="w-6 h-6 rounded-full" />
-                              <div><p className="text-xs"><span className="font-semibold">{c.name}</span> <span className="text-gray-600 dark:text-gray-300">{c.text}</span></p><p className="text-xs text-gray-400">{formatTimeAgo(c.timestamp)}</p></div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3 border-t dark:border-gray-800">
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => handleLikePost(selectedPost.id)} className={`like-btn ${selectedPost.liked ? 'liked' : ''}`}>
-                          <Heart className={`w-6 h-6 ${selectedPost.liked ? 'text-red-500 fill-current' : 'text-gray-800 dark:text-white'}`} />
-                        </button>
-                        <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)}><MessageCircle className="w-6 h-6 text-gray-800 dark:text-white" /></button>
-                        <button 
-                  className={`btn-share-flip ${shareFlipped ? 'flipped' : ''}`} 
-                  title="Share"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShareFlipped(!shareFlipped);
-                    if (navigator.share) {
-                      navigator.share({ title: 'StuGrow Post', text: selectedPost.content, url: window.location.href });
-                    } else {
-                      navigator.clipboard.writeText(window.location.href);
-                      alert('Link copied!');
-                    }
-                    setTimeout(() => setShareFlipped(false), 1000);
-                  }}
-                >
-                  <div className="flip-inner">
-                    <div className="flip-front">
-                      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                        <circle cx="8" cy="14" r="3" stroke="#1a6fa8" stroke-width="2"/>
-                        <circle cx="20" cy="7" r="3" stroke="#1a6fa8" stroke-width="2"/>
-                        <circle cx="20" cy="21" r="3" stroke="#1a6fa8" stroke-width="2"/>
-                        <line x1="11" y1="12.5" x2="17" y2="8.5" stroke="#1a6fa8" stroke-width="1.5"/>
-                        <line x1="11" y1="15.5" x2="17" y2="19.5" stroke="#1a6fa8" stroke-width="1.5"/>
-                      </svg>
-                    </div>
-                    <div className="flip-back">
-                      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                        <circle cx="8" cy="14" r="3" stroke="white" stroke-width="2"/>
-                        <circle cx="20" cy="7" r="3" stroke="white" stroke-width="2"/>
-                        <circle cx="20" cy="21" r="3" stroke="white" stroke-width="2"/>
-                        <line x1="11" y1="12.5" x2="17" y2="8.5" stroke="white" stroke-width="1.5"/>
-                        <line x1="11" y1="15.5" x2="17" y2="19.5" stroke="white" stroke-width="1.5"/>
-                      </svg>
-                    </div>
-                  </div>
-                </button>
-                        <button className="ml-auto"><Bookmark className={`w-6 h-6 text-gray-800 dark:text-white ${selectedPost.saved ? 'fill-current text-amber-500' : ''}`} /></button>
-                      </div>
-                      <p className="font-semibold text-sm mt-2">{selectedPost.likes || 0} likes</p>
-                      <p className="text-xs text-gray-500">{formatTimeAgo(selectedPost.timestamp)}</p>
-                      {showCommentInput === selectedPost.id && (
-                        <div className="flex gap-2 mt-3 items-center">
-                          <img src={currentUser?.avatar} alt="" className="w-6 h-6 rounded-full" />
-                          <input value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Add a comment..." className="flex-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-2" />
-                          <button onClick={() => handlePostComment(selectedPost.id)} disabled={!commentText.trim()} className="text-blue-500 text-sm font-semibold disabled:opacity-40">Post</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedPost(null)} className="absolute top-4 right-4 z-[1000] p-2 bg-white/20 rounded-full hover:bg-white/30 transition-all">
                   <X className="w-5 h-5 text-white" />
                 </button>
               </div>

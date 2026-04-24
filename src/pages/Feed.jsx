@@ -382,7 +382,7 @@ export default function Feed() {
       if (!post) return;
       const wasLiked = post.liked || false;
       
-      await likePost(postId, !wasLiked);
+      await likePost(postId, user.id);
       const result = await toggleLike(postId, user.id, wasLiked, post.likes || 0);
       
       setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: result.liked, likes: result.likes } : p));
