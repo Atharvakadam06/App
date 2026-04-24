@@ -11,6 +11,8 @@ import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo, getCurrentTimestamp } from '../utils/timeUtils';
 import { branches, semesters } from '../data/mockData';
 import CustomSelect from '../components/CustomSelect';
+import PermissionRequestModal from '../components/PermissionRequestModal';
+import { requestCameraPermission, requestPhotoPermission, requestDocumentPermission, showPermissionDeniedGuide, hasMediaDevices } from '../utils/mediaPermissions';
 
 const branchGradients = {
   'Computer Science': 'profile-cover-container',
@@ -234,9 +236,12 @@ function CreatePost({ onPost, user }) {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
+  const [showPermissions, setShowPermissions] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
   const { addToast } = useToast();
   const selectedFileRef = useRef(null);
   const menuRef = useRef(null);
+  const cameraStreamRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -250,139 +255,281 @@ function CreatePost({ onPost, user }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMediaMenu]);
 
-const requestCameraPermission = async () => {
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // Permission request flow
+  const handleMediaAccess = (action) => {
+    setPendingAction(action);
+    setShowPermissions(true);
+  };
+
+   const handlePermissionResult = async (permissionType) => {
+     const result = await requestPermission(permissionType);
+     return result;
+   };
+
+   // Legacy handlers removed - using permission flow now
+   const openCamera = () => handleMediaAccess('camera');
+   const selectFromGallery = () => handleMediaAccess('photos');
+   const selectDocument = () => handleMediaAccess('documents');
+
+   // Permission modal actions
+   const handleAllowCamera = () => {
+    if (pendingAction === 'camera') {
+      executeMediaAction('camera');
+    }
+  };
+
+  const handleAllowPhotos = () => {
+    if (pendingAction === 'photos') {
+      executeMediaAction('photos');
+    }
+  };
+
+  const handleAllowDocuments = () => {
+    if (pendingAction === 'documents') {
+      executeMediaAction('documents');
+    }
+  };
+
+  const handleAllowAll = async () => {
+    // Request all permissions in sequence
+    await handlePermissionResult('camera');
+    await handlePermissionResult('photos');
+    await handlePermissionResult('documents');
+    
+    setShowPermissions(false);
+    // Execute the originally pending action
+    if (pendingAction) {
+      await executeMediaAction(pendingAction);
+    }
+  };
+
+  const executeMediaAction = async (action) => {
+    setShowPermissions(false);
+    
+    if (action === 'camera') {
+      await startCameraSession();
+    } else if (action === 'photos') {
+      await openPhotoLibrary();
+    } else if (action === 'documents') {
+      await openDocumentPicker();
+    }
+  };
+
+  const requestPermission = async (type) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach(track => track.stop());
-      return true;
+      if (type === 'camera') {
+        return await requestCameraPermission();
+      } else if (type === 'photos') {
+        return await requestPhotoPermission();
+      } else if (type === 'documents') {
+        return await requestDocumentPermission();
+      }
+      return false;
     } catch (err) {
-      console.log('Camera permission denied:', err);
+      console.error(`${type} permission error:`, err);
+      showPermissionDeniedGuide(type);
       return false;
     }
   };
 
-  const handleFileChange = (e, type) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    if (type === 'camera' && !file.type.startsWith('image/')) {
-      addToast('Please select an image from camera', 'error');
+  // Camera session with preview (iOS compatible)
+  const startCameraSession = async () => {
+    if (!hasMediaDevices()) {
+      addToast('Camera not supported in this browser', 'error');
+      fallbackToFileInput('camera');
       return;
     }
-    
-    if (type === 'document') {
-      const allowedTypes = ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      const isAllowed = allowedTypes.some(t => file.type.match(t) || file.name.match(/\.(pdf|doc|docx)$/i));
-      if (!isAllowed) {
-        addToast('Please select an image or document (PDF, Word)', 'error');
-        return;
+
+    try {
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      cameraStreamRef.current = stream;
+
+      // Create camera preview UI
+      const overlay = document.createElement('div');
+      overlay.id = 'camera-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:black;z-index:9998;display:flex;align-items:flex-end;justify-content:center;padding-bottom:40px;';
+      
+      const video = document.createElement('video');
+      video.id = 'camera-preview';
+      video.setAttribute('playsinline', '');
+      video.setAttribute('autoplay', '');
+      video.setAttribute('muted', '');
+      video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+      video.srcObject = stream;
+      overlay.appendChild(video);
+      document.body.appendChild(overlay);
+
+      // Capture button
+      const captureBtn = document.createElement('button');
+      captureBtn.innerHTML = '📸';
+      captureBtn.style.cssText = 'position:relative;z-index:9999;background:white;border-radius:50%;width:70px;height:70px;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);border:4px solid rgba(255,255,255,0.3);';
+      overlay.appendChild(captureBtn);
+
+      // Cancel button
+      const cancelBtn = document.createElement('button');
+      cancelBtn.innerHTML = '✕';
+      cancelBtn.style.cssText = 'position:fixed;top:20px;right:20px;z-index:10000;background:rgba(0,0,0,0.6);color:white;border-radius:50%;width:44px;height:44px;font-size:20px;display:flex;align-items:center;justify-content:center;border:none;';
+      overlay.appendChild(cancelBtn);
+
+      const cleanup = () => {
+        if (cameraStreamRef.current) {
+          cameraStreamRef.current.getTracks().forEach(track => track.stop());
+          cameraStreamRef.current = null;
+        }
+        if (overlay.parentNode) {
+          overlay.remove();
+        }
+      };
+
+      captureBtn.onclick = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+          handleMediaFile(file, 'camera');
+          cleanup();
+        }, 'image/jpeg', 0.9);
+      };
+
+      cancelBtn.onclick = cleanup;
+
+    } catch (err) {
+      console.error('Camera error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showPermissionDeniedGuide('camera');
+        fallbackToFileInput('camera');
+      } else if (err.name === 'NotFoundError') {
+        addToast('No camera found on this device', 'error');
+        fallbackToFileInput('camera');
+      } else if (err.name === 'NotReadableError') {
+        showPermissionInUseError();
+        fallbackToFileInput('camera');
+      } else {
+        addToast('Failed to open camera', 'error');
+        fallbackToFileInput('camera');
       }
-    } else if (!file.type.startsWith('image/')) {
-      addToast('Please select an image', 'error');
-      return;
     }
-    
+  };
+
+  const handleMediaFile = (file, mediaType = 'image') => {
+    // Validate size (20MB max)
     if (file.size > 20 * 1024 * 1024) {
       addToast('File must be less than 20MB', 'error');
       return;
     }
-    
+
+    // Validate type based on mediaType
+    if (mediaType === 'image' || mediaType === 'camera') {
+      if (!file.type.startsWith('image/')) {
+        addToast('Please select an image', 'error');
+        return;
+      }
+    } else if (mediaType === 'photos') {
+      // Accept images and videos
+      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        addToast('Please select an image or video', 'error');
+        return;
+      }
+    } else if (mediaType === 'documents') {
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'text/plain'];
+      const isAllowed = allowedTypes.some(t => file.type === t) || 
+                        file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx|ppt|pptx)$/i);
+      if (!isAllowed && !file.type.startsWith('image/')) {
+        addToast('Please select a document (PDF, Word, Excel, PowerPoint, TXT)', 'error');
+        return;
+      }
+    }
+
     selectedFileRef.current = file;
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target.result);
     reader.readAsDataURL(file);
-    
-    setShowMediaMenu(false);
-    e.target.value = '';
   };
 
-  const openCamera = async () => {
-    const hasPermission = await requestCameraPermission();
+  const openPhotoLibrary = async () => {
+    const hasPermission = await requestPhotoPermission();
     if (!hasPermission) {
-      addToast('Camera permission denied. Please allow camera access in your browser settings.', 'error');
+      addToast('Photo access denied', 'error');
       return;
     }
+    // Trigger file input for photos
     const input = document.createElement('input');
     input.type = 'file';
-    input.id = 'camera-input-' + Math.random().toString(36).substr(2, 9);
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    input.style.cssText = 'display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
-    input.addEventListener('change', function(e) {
-      setTimeout(() => input.remove(), 100);
+    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/heic,image/*';
+    input.multiple = true;
+    input.onchange = (e) => {
       const file = e.target.files?.[0];
-      if (!file) return;
-      if (!file.type.startsWith('image/')) {
-        addToast('Please select an image from camera', 'error');
-        return;
-      }
-      if (file.size > 20 * 1024 * 1024) {
-        addToast('File must be less than 20MB', 'error');
-        return;
-      }
-      selectedFileRef.current = file;
-      const reader = new FileReader();
-      reader.onload = (ev) => setImagePreview(ev.target.result);
-      reader.readAsDataURL(file);
-      setShowMediaMenu(false);
-    });
+      if (file) handleMediaFile(file, 'photos');
+      input.remove();
+    };
     document.body.appendChild(input);
     input.click();
   };
 
-  const selectFromGallery = () => {
+  const openDocumentPicker = async () => {
+    const hasPermission = await requestDocumentPermission();
+    if (!hasPermission) {
+      addToast('Document access denied', 'error');
+      return;
+    }
+    // Trigger file input for documents
     const input = document.createElement('input');
     input.type = 'file';
-    input.id = 'gallery-input-' + Math.random().toString(36).substr(2, 9);
-    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/heic';
-    input.style.cssText = 'display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
-    input.addEventListener('change', function(e) {
-      setTimeout(() => input.remove(), 100);
+    input.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    input.multiple = true;
+    input.onchange = (e) => {
       const file = e.target.files?.[0];
-      if (!file) return;
-      if (file.size > 20 * 1024 * 1024) {
-        addToast('File must be less than 20MB', 'error');
-        return;
-      }
-      selectedFileRef.current = file;
-      const reader = new FileReader();
-      reader.onload = (ev) => setImagePreview(ev.target.result);
-      reader.readAsDataURL(file);
-      setShowMediaMenu(false);
-    });
+        if (file) handleMediaFile(file, 'documents');
+      input.remove();
+    };
     document.body.appendChild(input);
     input.click();
   };
 
-  const selectDocument = async () => {
+  // Fallback: trigger file input directly (native camera on iOS/Android)
+  function fallbackToFileInput(type) {
     const input = document.createElement('input');
     input.type = 'file';
-    input.id = 'doc-input-' + Math.random().toString(36).substr(2, 9);
-    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx';
-    input.style.cssText = 'display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
-    input.addEventListener('change', function(e) {
-      setTimeout(() => input.remove(), 100);
+    
+    if (type === 'camera' || type === 'photos') {
+      input.accept = 'image/*,video/*';
+      input.capture = type === 'camera' ? 'environment' : undefined;
+    } else if (type === 'documents') {
+      input.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
+    }
+    
+    input.onchange = (e) => {
       const file = e.target.files?.[0];
-      if (!file) return;
-      const allowedTypes = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      const isAllowed = allowedTypes.some(t => file.type.startsWith(t.replace('/*','')) || file.name.match(/\.(pdf|doc|docx)$/i));
-      if (!isAllowed && !file.type.startsWith('image/')) {
-        addToast('Please select an image or document (PDF, Word)', 'error');
-        return;
+      if (file) {
+        handleMediaFile(file, type);
       }
-      if (file.size > 20 * 1024 * 1024) {
-        addToast('File must be less than 20MB', 'error');
-        return;
-      }
-      selectedFileRef.current = file;
-      const reader = new FileReader();
-      reader.onload = (ev) => setImagePreview(ev.target.result);
-      reader.readAsDataURL(file);
-      setShowMediaMenu(false);
-    });
+      input.remove();
+    };
+    
     document.body.appendChild(input);
     input.click();
-  };
+  }
 
   const handlePost = async () => {
     if (!content.trim() && !selectedFileRef.current) return;
@@ -413,47 +560,56 @@ const requestCameraPermission = async () => {
   };
 
   return (
-    <div className={`profile-post-card ${isFocused || imagePreview ? 'ring-2 ring-indigo-500/30' : ''}`}>
-      <div className="flex gap-3">
-        <img src={user?.avatar} alt={user?.name} className="profile-post-avatar ring-1 ring-slate-100 dark:ring-slate-700" />
-        <div className="flex-1 flex flex-col">
-          <textarea 
-            value={content} 
-            onChange={(e) => setContent(e.target.value)} 
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => !content && !imagePreview && setIsFocused(false)}
-            placeholder="Share something with your campus..." 
-            className="profile-post-textarea" 
-          />
+    <>
+      <PermissionRequestModal
+        isOpen={showPermissions}
+        onClose={() => setShowPermissions(false)}
+        onAllowAll={handleAllowAll}
+        onAllowCamera={handleAllowCamera}
+        onAllowPhotos={handleAllowPhotos}
+        onAllowDocuments={handleAllowDocuments}
+      />
+      <div className={`profile-post-card ${isFocused || imagePreview ? 'ring-2 ring-indigo-500/30' : ''}`}>
+        <div className="flex gap-3">
+          <img src={user?.avatar} alt={user?.name} className="profile-post-avatar ring-1 ring-slate-100 dark:ring-slate-700" />
+          <div className="flex-1 flex flex-col">
+            <textarea 
+              value={content} 
+              onChange={(e) => setContent(e.target.value)} 
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => !content && !imagePreview && setIsFocused(false)}
+              placeholder="Share something with your campus..." 
+              className="profile-post-textarea" 
+            />
 
-          {imagePreview && (
-            <div className="profile-image-preview">
-              <img src={imagePreview} alt="Preview" />
-              <button onClick={() => { setImagePreview(null); selectedFileRef.current = null; }}>
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+            {imagePreview && (
+              <div className="profile-image-preview">
+                <img src={imagePreview} alt="Preview" />
+                <button onClick={() => { setImagePreview(null); selectedFileRef.current = null; }}>
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
-          <div className="profile-post-actions mt-2">
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={openCamera} 
-                className="profile-media-icon-btn"
-                title="Take Photo"
-              >
-                <Camera className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={selectFromGallery} 
-                className="profile-media-icon-btn"
-                title="Choose from Photos"
-              >
-                <Image className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={selectDocument} 
-                className="profile-media-icon-btn"
+            <div className="profile-post-actions mt-2">
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={openCamera} 
+                  className="profile-media-icon-btn"
+                  title="Take Photo"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={selectFromGallery} 
+                  className="profile-media-icon-btn"
+                  title="Choose from Photos"
+                >
+                  <Image className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={selectDocument} 
+                  className="profile-media-icon-btn"
                 title="Add Document"
               >
                 <FileText className="w-5 h-5" />
@@ -465,7 +621,8 @@ const requestCameraPermission = async () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -1182,3 +1339,6 @@ case 'books':
     </div>
   );
 }
+
+
+
