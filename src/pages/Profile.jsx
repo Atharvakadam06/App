@@ -321,29 +321,7 @@ function CreatePost({ onPost, user }) {
     }
   };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-
-      // Attach stream to video element immediately
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-    } catch (err) {
-      console.error('Camera error:', err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setCameraError('Camera access denied. Tap "Choose from Photos" to upload from your gallery instead.');
-      } else if (err.name === 'NotFoundError') {
-        setCameraError('No camera found on this device. You can upload photos from your gallery instead.');
-      } else if (err.name === 'NotReadableError') {
-        setCameraError('Camera is in use by another application.');
-      } else {
-        setCameraError('Failed to open camera. Please try again.');
-      }
-    }
-  };
-
-   const capturePhoto = () => {
+  const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
