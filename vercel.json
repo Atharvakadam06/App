@@ -8,19 +8,19 @@
       "VITE_TURSO_AUTH_TOKEN": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzUxNTYzMDMsImlkIjoiMDE5ZDRmOGUtOTgwMS03ZjdjLWJjMmUtZjMwNDI0ZjdlMzY0IiwicmlkIjoiMGU2OTUxZWMtMGIyZS00MDliLTgxZGItYzY3YWFlNDhmYTVkIn0.pGf4qTkXhdDiKxuYkXSTKMDB7bW3nxJMvfhyiCMeP-0iQeoQ3Pm0I-E9RSSgi9Ez5u_5XxhaGgJZvro0dsTrAw"
     }
   },
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=*, microphone=*, geolocation=*, payment=*, usb=*, magnetometer=*, accelerometer=*, ambient-light-sensor=*, gyroscope=*, speaker=*, vibrate=*, layout-animations=*, reader=*, serial=*, picture-in-picture=*, publickey-credentials-get=*"
-        },
-        {
-          "key": "Feature-Policy",
-          "value": "camera *; microphone *; geolocation *"
-        }
-      ]
-    }
-  ]
+   "headers": [
+     {
+       "source": "/(.*)",
+       "headers": [
+         {
+           "key": "Permissions-Policy",
+           "value": "microphone=*, geolocation=*, payment=*, usb=*, magnetometer=*, accelerometer=*, ambient-light-sensor=*, gyroscope=*, speaker=*, vibrate=*, layout-animations=*, reader=*, serial=*, picture-in-picture=*, publickey-credentials-get=*"
+         },
+         {
+           "key": "Feature-Policy",
+           "value": "microphone *; geolocation *"
+         }
+       ]
+     }
+   ]
 }
