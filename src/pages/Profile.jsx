@@ -234,9 +234,24 @@ function CreatePost({ onPost, user }) {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [isCapturing, setIsCapturing] = useState(false);
   const { addToast } = useToast();
   const selectedFileRef = useRef(null);
   const menuRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -249,6 +264,113 @@ function CreatePost({ onPost, user }) {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMediaMenu]);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const openCamera = async () => {
+    setShowCamera(true);
+    setCapturedPhoto(null);
+    setCameraError('');
+
+    // Check for getUserMedia support
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      // Fallback to file input with capture
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.click();
+      input.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          selectedFileRef.current = file;
+          const reader = new FileReader();
+          reader.onload = (ev) => setImagePreview(ev.target.result);
+          reader.readAsDataURL(file);
+          setShowCamera(false);
+        }
+      });
+      return;
+    }
+
+    try {
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      console.error('Camera error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraError('Camera access denied. Please allow camera in browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        setCameraError('No camera found on this device.');
+      } else if (err.name === 'NotReadableError') {
+        setCameraError('Camera is in use by another application.');
+      } else {
+        setCameraError('Failed to open camera. Please try again.');
+      }
+      setShowCamera(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+        setCapturedPhoto(file);
+        setImagePreview(URL.createObjectURL(blob));
+        setIsCapturing(true);
+      }
+    }, 'image/jpeg', 0.9);
+  };
+
+  const retakePhoto = () => {
+    setCapturedPhoto(null);
+    setIsCapturing(false);
+  };
+
+  const useCapturedPhoto = () => {
+    if (capturedPhoto) {
+      selectedFileRef.current = capturedPhoto;
+      setShowCamera(false);
+      stopCamera();
+    }
+  };
+
+  const closeCamera = () => {
+    setShowCamera(false);
+    stopCamera();
+    setCapturedPhoto(null);
+    setIsCapturing(false);
+    setCameraError('');
+  };
 
   const selectFromGallery = () => {
     const input = document.createElement('input');
@@ -327,52 +449,150 @@ function CreatePost({ onPost, user }) {
   };
 
   return (
-    <div className={`profile-post-card ${isFocused || imagePreview ? 'ring-2 ring-indigo-500/30' : ''}`}>
-      <div className="flex gap-3">
-        <img src={user?.avatar} alt={user?.name} className="profile-post-avatar ring-1 ring-slate-100 dark:ring-slate-700" />
-        <div className="flex-1 flex flex-col">
-          <textarea 
-            value={content} 
-            onChange={(e) => setContent(e.target.value)} 
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => !content && !imagePreview && setIsFocused(false)}
-            placeholder="Share something with your campus..." 
-            className="profile-post-textarea" 
-          />
+    <>
+      {/* Camera Modal */}
+      {showCamera && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm" onClick={closeCamera}>
+          <div className="relative w-full h-full sm:max-w-2xl sm:max-h-[90vh] sm:rounded-2xl bg-black overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Camera Error Message */}
+            {cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/90">
+                <div className="text-center p-6">
+                  <Camera className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                  <p className="text-white text-lg font-semibold mb-2">Camera Unavailable</p>
+                  <p className="text-gray-400 text-sm mb-4">{cameraError}</p>
+                  <button onClick={closeCamera} className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-full font-semibold transition-colors">
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
 
-          {imagePreview && (
-            <div className="profile-image-preview">
-              <img src={imagePreview} alt="Preview" />
-              <button onClick={() => { setImagePreview(null); selectedFileRef.current = null; }}>
-                <X className="w-3.5 h-3.5" />
+            {/* Live Camera Feed */}
+            {!capturedPhoto && !cameraError && (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+            )}
+
+            {/* Captured Photo Preview */}
+            {capturedPhoto && !cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black">
+                <img src={imagePreview} alt="Captured" className="max-w-full max-h-full object-contain" />
+              </div>
+            )}
+
+            {/* Hidden canvas for capture */}
+            <canvas ref={canvasRef} className="hidden" />
+
+            {/* Camera Controls */}
+            {!cameraError && (
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                <div className="flex items-center justify-center gap-4">
+                  {/* Cancel/Close Button */}
+                  <button
+                    onClick={closeCamera}
+                    className="flex items-center justify-center w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    title="Cancel"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+
+                  {/* Capture Button */}
+                  {!isCapturing ? (
+                    <button
+                      onClick={capturePhoto}
+                      className="flex items-center justify-center w-16 h-16 rounded-full border-4 border-white/80 hover:border-white transition-all"
+                      title="Take Photo"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-white" />
+                    </button>
+                  ) : (
+                    <>
+                      {/* Retake Button */}
+                      <button
+                        onClick={retakePhoto}
+                        className="flex items-center justify-center w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                        title="Retake"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
+
+                      {/* Use Photo Button */}
+                      <button
+                        onClick={useCapturedPhoto}
+                        className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+                        title="Use Photo"
+                      >
+                        <Check className="w-6 h-6" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className={`profile-post-card ${isFocused || imagePreview ? 'ring-2 ring-indigo-500/30' : ''}`}>
+        <div className="flex gap-3">
+          <img src={user?.avatar} alt={user?.name} className="profile-post-avatar ring-1 ring-slate-100 dark:ring-slate-700" />
+          <div className="flex-1 flex flex-col">
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => !content && !imagePreview && setIsFocused(false)}
+              placeholder="Share something with your campus..."
+              className="profile-post-textarea"
+            />
+
+            {imagePreview && (
+              <div className="profile-image-preview">
+                <img src={imagePreview} alt="Preview" />
+                <button onClick={() => { setImagePreview(null); selectedFileRef.current = null; }}>
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            <div className="profile-post-actions mt-2">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={openCamera}
+                  className="profile-media-icon-btn"
+                  title="Take Photo"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={selectFromGallery}
+                  className="profile-media-icon-btn"
+                  title="Choose from Photos"
+                >
+                  <Image className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={selectDocument}
+                  className="profile-media-icon-btn"
+                  title="Add Document"
+                >
+                  <FileText className="w-5 h-5" />
+                </button>
+              </div>
+              <button onClick={() => onPost?.()} disabled={(!content.trim() && !imagePreview) || uploading} className="profile-post-btn">
+                {uploading ? 'Publishing...' : 'Post'}
               </button>
             </div>
-          )}
-
-          <div className="profile-post-actions mt-2">
-          <div className="flex items-center gap-1">
-              <button
-                onClick={selectFromGallery}
-                className="profile-media-icon-btn"
-                title="Choose from Photos"
-              >
-                <Image className="w-5 h-5" />
-              </button>
-              <button
-                onClick={selectDocument}
-                className="profile-media-icon-btn"
-                title="Add Document"
-              >
-                <FileText className="w-5 h-5" />
-              </button>
-            </div>
-            <button onClick={() => onPost?.()} disabled={(!content.trim() && !imagePreview) || uploading} className="profile-post-btn">
-              {uploading ? 'Publishing...' : 'Post'}
-            </button>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
