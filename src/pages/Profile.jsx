@@ -321,31 +321,9 @@ function CreatePost({ onPost, user }) {
       }
       // Keep modal open with error message - don't close
     }
-  };
+   };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (err) {
-      console.error('Camera error:', err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setCameraError('Camera access denied. Tap below to use photo library instead, or allow camera in browser settings.');
-      } else if (err.name === 'NotFoundError') {
-        setCameraError('No camera found on this device. You can upload photos from your gallery instead.');
-      } else if (err.name === 'NotReadableError') {
-        setCameraError('Camera is in use by another application.');
-      } else {
-        setCameraError('Failed to open camera. Please try again.');
-      }
-      // Keep modal open with error message - don't close
-    }
-  };
-
-  const capturePhoto = () => {
+   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
