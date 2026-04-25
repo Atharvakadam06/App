@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Compass } from 'lucide-react';
+import { UserPlus, Compass, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { toggleLink, getLinks, createConversation } from '../services/data';
@@ -117,6 +117,7 @@ export default function Network() {
                 key={u.id} 
                 user={u} 
                 delay={i * 30}
+                isLinked={!!linkedUsers[u.id]}
                 onProfile={() => navigateToProfile(u.id)}
                 onConnect={() => toggleConnect(u.id)}
               />
@@ -140,7 +141,7 @@ export default function Network() {
   );
 }
 
-function SuggestionRow({ user, delay, onProfile, onConnect }) {
+function SuggestionRow({ user, delay, isLinked, onProfile, onConnect }) {
   return (
     <div 
       className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-[#0e1322] border border-gray-100 dark:border-[#151a28] hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm transition-all duration-200 animate-fade-in"
@@ -164,10 +165,19 @@ function SuggestionRow({ user, delay, onProfile, onConnect }) {
       </div>
       <button
         onClick={onConnect}
-        className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 active:scale-95 transition-all duration-200"
+        className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full ${isLinked ? 'bg-gray-500 text-gray-300 hover:bg-gray-600' : 'bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 active:scale-95'} transition-all duration-200`}
       >
-        <UserPlus className="w-4 h-4" />
-        <span className="hidden sm:inline">Bind</span>
+        {isLinked ? (
+          <>
+            <X className="w-4 h-4" />
+            <span className="hidden sm:inline">Unbind</span>
+          </>
+        ) : (
+          <>
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden sm:inline">Bind</span>
+          </>
+        )}
       </button>
     </div>
   );
