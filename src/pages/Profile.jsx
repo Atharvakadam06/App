@@ -277,24 +277,10 @@ function CreatePost({ onPost, user }) {
     setCapturedPhoto(null);
     setCameraError('');
 
-    // Check for getUserMedia support
+    // Check for getUserMedia support first
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      // Fallback to file input with capture
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.capture = 'environment';
-      input.click();
-      input.addEventListener('change', (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-          selectedFileRef.current = file;
-          const reader = new FileReader();
-          reader.onload = (ev) => setImagePreview(ev.target.result);
-          reader.readAsDataURL(file);
-          setShowCamera(false);
-        }
-      });
+      // No getUserMedia support - show error with fallback option
+      setCameraError('Camera API not available on this browser. You can still upload photos from your gallery.');
       return;
     }
 
@@ -318,15 +304,15 @@ function CreatePost({ onPost, user }) {
     } catch (err) {
       console.error('Camera error:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setCameraError('Camera access denied. Please allow camera in browser settings.');
+        setCameraError('Camera access denied. Tap below to use photo library instead, or allow camera in browser settings.');
       } else if (err.name === 'NotFoundError') {
-        setCameraError('No camera found on this device.');
+        setCameraError('No camera found on this device. You can upload photos from your gallery instead.');
       } else if (err.name === 'NotReadableError') {
         setCameraError('Camera is in use by another application.');
       } else {
         setCameraError('Failed to open camera. Please try again.');
       }
-      setShowCamera(false);
+      // Keep modal open with error message - don't close
     }
   };
 
@@ -365,8 +351,8 @@ function CreatePost({ onPost, user }) {
   };
 
   const closeCamera = () => {
-    setShowCamera(false);
     stopCamera();
+    setShowCamera(false);
     setCapturedPhoto(null);
     setIsCapturing(false);
     setCameraError('');
@@ -454,16 +440,44 @@ function CreatePost({ onPost, user }) {
       {showCamera && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm" onClick={closeCamera}>
           <div className="relative w-full h-full sm:max-w-2xl sm:max-h-[90vh] sm:rounded-2xl bg-black overflow-hidden" onClick={e => e.stopPropagation()}>
-            {/* Camera Error Message */}
+            {/* Camera Error/No-Camera Fallback */}
             {cameraError && (
               <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/90">
-                <div className="text-center p-6">
+                <div className="text-center p-6 max-w-sm">
                   <Camera className="w-16 h-16 text-red-400 mx-auto mb-4" />
                   <p className="text-white text-lg font-semibold mb-2">Camera Unavailable</p>
-                  <p className="text-gray-400 text-sm mb-4">{cameraError}</p>
-                  <button onClick={closeCamera} className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-full font-semibold transition-colors">
-                    Close
-                  </button>
+                  <p className="text-gray-400 text-sm mb-6">{cameraError}</p>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => {
+                        // Trigger photo library fallback
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.click();
+                        input.addEventListener('change', (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            selectedFileRef.current = file;
+                            const reader = new FileReader();
+                            reader.onload = (ev) => setImagePreview(ev.target.result);
+                            reader.readAsDataURL(file);
+                            setShowCamera(false);
+                            stopCamera();
+                          }
+                        });
+                      }}
+                      className="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-semibold transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Image className="w-5 h-5" /> Choose from Photos
+                    </button>
+                    <button
+                      onClick={closeCamera}
+                      className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full font-semibold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
