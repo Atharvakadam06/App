@@ -238,6 +238,7 @@ function CreatePost({ onPost, user }) {
   const [cameraError, setCameraError] = useState('');
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [flashOpacity, setFlashOpacity] = useState(0);
   const { addToast } = useToast();
   const selectedFileRef = useRef(null);
   const menuRef = useRef(null);
@@ -321,26 +322,34 @@ function CreatePost({ onPost, user }) {
     }
   };
 
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+   const capturePhoto = () => {
+     if (!videoRef.current || !canvasRef.current) return;
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
+     // Trigger flash effect
+     triggerFlash();
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+     const video = videoRef.current;
+     const canvas = canvasRef.current;
+     const context = canvas.getContext('2d');
 
-    canvas.toBlob((blob) => {
-      if (blob) {
-        const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
-        setCapturedPhoto(file);
-        setImagePreview(URL.createObjectURL(blob));
-        setIsCapturing(true);
-      }
-    }, 'image/jpeg', 0.9);
-  };
+     canvas.width = video.videoWidth;
+     canvas.height = video.videoHeight;
+     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+     canvas.toBlob((blob) => {
+       if (blob) {
+         const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+         setCapturedPhoto(file);
+         setImagePreview(URL.createObjectURL(blob));
+         setIsCapturing(true);
+       }
+     }, 'image/jpeg', 0.9);
+   };
+
+   const triggerFlash = () => {
+     setFlashOpacity(1);
+     setTimeout(() => setFlashOpacity(0), 80);
+   };
 
   const retakePhoto = () => {
     setCapturedPhoto(null);
@@ -354,13 +363,14 @@ function CreatePost({ onPost, user }) {
     }
   };
 
-  const closeCamera = () => {
-    stopCamera();
-    setShowCamera(false);
-    setCapturedPhoto(null);
-    setIsCapturing(false);
-    setCameraError('');
-  };
+   const closeCamera = () => {
+     stopCamera();
+     setShowCamera(false);
+     setCapturedPhoto(null);
+     setIsCapturing(false);
+     setCameraError('');
+     setFlashOpacity(0);
+   };
 
   const selectFromGallery = () => {
     const input = document.createElement('input');
@@ -442,20 +452,25 @@ function CreatePost({ onPost, user }) {
     <>
       {/* Camera Modal */}
       {showCamera && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black" onClick={closeCamera}>
-          {/* Camera Error / Fallback UI */}
-          {cameraError && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/95 backdrop-blur-md" onClick={e => e.stopPropagation()}>
-              <div className="w-full max-w-sm mx-4 p-8 bg-[#1a1a1a] rounded-3xl border border-white/10 shadow-2xl">
-                <div className="text-center">
-                  <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-500/10 flex items-center justify-center">
-                    <Camera className="w-10 h-10 text-red-500" />
-                  </div>
-                  <h2 className="text-xl font-bold text-white mb-2">Camera Unavailable</h2>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-8">{cameraError}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm" onClick={closeCamera}>
+          <div className="relative w-full h-full sm:max-w-2xl sm:max-h-[90vh] sm:rounded-2xl bg-black overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Flash overlay for shutter effect */}
+            <div
+              className="absolute inset-0 z-50 pointer-events-none bg-white transition-opacity duration-75"
+              style={{ opacity: flashOpacity }}
+              onTransitionEnd={() => setFlashOpacity(0)}
+            ></div>
+            {/* Camera Error/No-Camera Fallback */}
+            {cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/90">
+                <div className="text-center p-6 max-w-sm">
+                  <Camera className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                  <p className="text-white text-lg font-semibold mb-2">Camera Unavailable</p>
+                  <p className="text-gray-400 text-sm mb-6">{cameraError}</p>
                   <div className="space-y-3">
                     <button
                       onClick={() => {
+                        // Trigger photo library fallback
                         const input = document.createElement('input');
                         input.type = 'file';
                         input.accept = 'image/*';
@@ -467,143 +482,94 @@ function CreatePost({ onPost, user }) {
                             const reader = new FileReader();
                             reader.onload = (ev) => setImagePreview(ev.target.result);
                             reader.readAsDataURL(file);
-                            closeCamera();
+                            setShowCamera(false);
+                            stopCamera();
                           }
                         });
                       }}
-                      className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-semibold transition-all active:scale-[0.98]"
+                      className="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-semibold transition-colors flex items-center justify-center gap-2"
                     >
-                      <Image className="w-5 h-5" />
-                      Choose from Photos
+                      <Image className="w-5 h-5" /> Choose from Photos
                     </button>
                     <button
                       onClick={closeCamera}
-                      className="w-full px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-medium transition-all active:scale-[0.98]"
+                      className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full font-semibold transition-colors"
                     >
                       Cancel
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Live Camera Feed */}
-          {!capturedPhoto && !cameraError && (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{ transform: 'scaleX(1)' }}
-            />
-          )}
+            {/* Live Camera Feed */}
+            {!capturedPhoto && !cameraError && (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+            )}
 
-          {/* Captured Photo Preview */}
-          {capturedPhoto && !cameraError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black">
-              <img src={imagePreview} alt="Captured" className="max-w-full max-h-full object-contain" />
-            </div>
-          )}
-
-          {/* Hidden canvas for capture */}
-          <canvas ref={canvasRef} className="hidden" />
-
-          {/* Top Bar - Close Button */}
-          {!cameraError && (
-            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/60 to-transparent">
-              <button
-                onClick={closeCamera}
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 text-white transition-all active:scale-95"
-                aria-label="Close camera"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <div className="w-10" /> {/* Spacer for center alignment */}
-            </div>
-          )}
-
-          {/* Bottom Controls */}
-          {!cameraError && (
-            <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center pb-8 pt-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-              {/* Capture Mode Indicator */}
-              {!isCapturing && (
-                <div className="mb-4 px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs text-white/70">
-                  Tap shutter to capture
-                </div>
-              )}
-
-              {/* Control Buttons */}
-              <div className="flex items-center justify-center gap-8">
-                {/* Gallery Fallback (small) */}
-                <button
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.click();
-                    input.addEventListener('change', (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        selectedFileRef.current = file;
-                        const reader = new FileReader();
-                        reader.onload = (ev) => setImagePreview(ev.target.result);
-                        reader.readAsDataURL(file);
-                        closeCamera();
-                      }
-                    });
-                  }}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-95"
-                  title="Gallery"
-                >
-                  <Image className="w-5 h-5" />
-                </button>
-
-                {/* Main Shutter Button */}
-                {!isCapturing ? (
-                  <button
-                    onClick={capturePhoto}
-                    className="relative flex items-center justify-center w-16 h-16 rounded-full border-4 border-white/90 hover:border-white transition-all active:scale-95 shadow-lg"
-                    aria-label="Take photo"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-white" />
-                  </button>
-                ) : (
-                  <>
-                    {/* Retake Button */}
-                    <button
-                      onClick={retakePhoto}
-                      className="flex items-center justify-center w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-95"
-                      title="Retake"
-                    >
-                      <ChevronLeft className="w-6 h-6" />
-                    </button>
-
-                    {/* Use Photo Button */}
-                    <button
-                      onClick={useCapturedPhoto}
-                      className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-400 text-white transition-all active:scale-95 shadow-lg"
-                      title="Use photo"
-                    >
-                      <Check className="w-6 h-6" />
-                    </button>
-                  </>
-                )}
-
-                {/* Spacer for balance */}
-                <div className="w-10" />
+            {/* Captured Photo Preview */}
+            {capturedPhoto && !cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black">
+                <img src={imagePreview} alt="Captured" className="max-w-full max-h-full object-contain" />
               </div>
+            )}
 
-              {/* Flash/Info hint */}
-              {!isCapturing && (
-                <div className="mt-4 flex items-center gap-2 text-white/50 text-xs">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <span>Rear camera</span>
+            {/* Hidden canvas for capture */}
+            <canvas ref={canvasRef} className="hidden" />
+
+            {/* Camera Controls */}
+            {!cameraError && (
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                <div className="flex items-center justify-center gap-4">
+                  {/* Cancel/Close Button */}
+                  <button
+                    onClick={closeCamera}
+                    className="flex items-center justify-center w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    title="Cancel"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+
+                  {/* Capture Button */}
+                  {!isCapturing ? (
+                    <button
+                      onClick={capturePhoto}
+                      className="flex items-center justify-center w-16 h-16 rounded-full border-4 border-white/80 hover:border-white transition-all"
+                      title="Take Photo"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-white" />
+                    </button>
+                  ) : (
+                    <>
+                      {/* Retake Button */}
+                      <button
+                        onClick={retakePhoto}
+                        className="flex items-center justify-center w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                        title="Retake"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
+
+                      {/* Use Photo Button */}
+                      <button
+                        onClick={useCapturedPhoto}
+                        className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+                        title="Use Photo"
+                      >
+                        <Check className="w-6 h-6" />
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
