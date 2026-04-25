@@ -250,94 +250,13 @@ function CreatePost({ onPost, user }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMediaMenu]);
 
-const requestCameraPermission = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach(track => track.stop());
-      return true;
-    } catch (err) {
-      console.log('Camera permission denied:', err);
-      return false;
-    }
-  };
-
-  const handleFileChange = (e, type) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    if (type === 'camera' && !file.type.startsWith('image/')) {
-      addToast('Please select an image from camera', 'error');
-      return;
-    }
-    
-    if (type === 'document') {
-      const allowedTypes = ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      const isAllowed = allowedTypes.some(t => file.type.match(t) || file.name.match(/\.(pdf|doc|docx)$/i));
-      if (!isAllowed) {
-        addToast('Please select an image or document (PDF, Word)', 'error');
-        return;
-      }
-    } else if (!file.type.startsWith('image/')) {
-      addToast('Please select an image', 'error');
-      return;
-    }
-    
-    if (file.size > 20 * 1024 * 1024) {
-      addToast('File must be less than 20MB', 'error');
-      return;
-    }
-    
-    selectedFileRef.current = file;
-    const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target.result);
-    reader.readAsDataURL(file);
-    
-    setShowMediaMenu(false);
-    e.target.value = '';
-  };
-
-  const openCamera = async () => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      addToast('Camera permission denied. Please allow camera access in your browser settings.', 'error');
-      return;
-    }
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.id = 'camera-input-' + Math.random().toString(36).substr(2, 9);
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    input.style.cssText = 'display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
-    input.addEventListener('change', function(e) {
-      setTimeout(() => input.remove(), 100);
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (!file.type.startsWith('image/')) {
-        addToast('Please select an image from camera', 'error');
-        return;
-      }
-      if (file.size > 20 * 1024 * 1024) {
-        addToast('File must be less than 20MB', 'error');
-        return;
-      }
-      selectedFileRef.current = file;
-      const reader = new FileReader();
-      reader.onload = (ev) => setImagePreview(ev.target.result);
-      reader.readAsDataURL(file);
-      setShowMediaMenu(false);
-    });
-    document.body.appendChild(input);
-    input.click();
-  };
-
   const selectFromGallery = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.id = 'gallery-input-' + Math.random().toString(36).substr(2, 9);
     input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/heic';
-    input.style.cssText = 'display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
+    input.click();
+
     input.addEventListener('change', function(e) {
-      setTimeout(() => input.remove(), 100);
       const file = e.target.files?.[0];
       if (!file) return;
       if (file.size > 20 * 1024 * 1024) {
@@ -350,18 +269,15 @@ const requestCameraPermission = async () => {
       reader.readAsDataURL(file);
       setShowMediaMenu(false);
     });
-    document.body.appendChild(input);
-    input.click();
   };
 
   const selectDocument = async () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.id = 'doc-input-' + Math.random().toString(36).substr(2, 9);
-    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx';
-    input.style.cssText = 'display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
+    input.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
+    input.click();
+
     input.addEventListener('change', function(e) {
-      setTimeout(() => input.remove(), 100);
       const file = e.target.files?.[0];
       if (!file) return;
       const allowedTypes = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
@@ -380,8 +296,6 @@ const requestCameraPermission = async () => {
       reader.readAsDataURL(file);
       setShowMediaMenu(false);
     });
-    document.body.appendChild(input);
-    input.click();
   };
 
   const handlePost = async () => {
@@ -436,23 +350,16 @@ const requestCameraPermission = async () => {
           )}
 
           <div className="profile-post-actions mt-2">
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={openCamera} 
-                className="profile-media-icon-btn"
-                title="Take Photo"
-              >
-                <Camera className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={selectFromGallery} 
+          <div className="flex items-center gap-1">
+              <button
+                onClick={selectFromGallery}
                 className="profile-media-icon-btn"
                 title="Choose from Photos"
               >
                 <Image className="w-5 h-5" />
               </button>
-              <button 
-                onClick={selectDocument} 
+              <button
+                onClick={selectDocument}
                 className="profile-media-icon-btn"
                 title="Add Document"
               >
