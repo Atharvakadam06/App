@@ -870,8 +870,6 @@ export default function Profile() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            const btn = e.currentTarget;
-                            btn.classList.toggle('flipped');
                             if (navigator.share) {
                               navigator.share({ 
                                 title: 'StuGrow Post', 
@@ -882,19 +880,11 @@ export default function Profile() {
                               navigator.clipboard.writeText(window.location.origin + '/post/' + selectedPost.id);
                               addToast('Link copied to clipboard', 'success');
                             }
-                            setTimeout(() => btn.classList.remove('flipped'), 1000);
                           }}
-                          className="btn-share-flip" 
+                          className="text-gray-700 dark:text-gray-300 hover:text-green-500 transition-transform hover:scale-110 active:scale-95"
                           title="Share"
                         >
-                          <div className="flip-inner">
-                            <div className="flip-front">
-                              <Share2 className="w-6 h-6 text-[#1a6fa8]" />
-                            </div>
-                            <div className="flip-back">
-                              <Share2 className="w-6 h-6 text-white" />
-                            </div>
-                          </div>
+                          <Share2 className="w-6 h-6" />
                         </button>
                         <button 
                           onClick={() => handleSavePost(selectedPost.id)}
