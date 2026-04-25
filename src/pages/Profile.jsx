@@ -238,7 +238,6 @@ function CreatePost({ onPost, user }) {
   const [cameraError, setCameraError] = useState('');
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [cameraStream, setCameraStream] = useState(null);
   const { addToast } = useToast();
   const selectedFileRef = useRef(null);
   const menuRef = useRef(null);
@@ -253,14 +252,6 @@ function CreatePost({ onPost, user }) {
       }
     };
   }, []);
-
-  // Attach camera stream to video element when available
-  useEffect(() => {
-    if (videoRef.current && cameraStream) {
-      videoRef.current.srcObject = cameraStream;
-      videoRef.current.play().catch(e => console.error('Video play error:', e));
-    }
-  }, [cameraStream, showCamera]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -285,12 +276,16 @@ function CreatePost({ onPost, user }) {
     setShowCamera(true);
     setCapturedPhoto(null);
     setCameraError('');
-    setCameraStream(null); // clear previous stream
+
+    // Stop any existing stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
 
     // Check for getUserMedia support first
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      // No getUserMedia support - show error with fallback option
-      setCameraError('Camera API not available on this browser. You can still upload photos from your gallery.');
+      setCameraError('Camera API not available. You can still upload photos from your gallery.');
       return;
     }
 
@@ -298,20 +293,24 @@ function CreatePost({ onPost, user }) {
       const constraints = {
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 }
         },
         audio: false
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-      setCameraStream(stream);
 
+      // Attach stream to video element immediately
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
     } catch (err) {
       console.error('Camera error:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setCameraError('Camera access denied. Tap below to use photo library instead, or allow camera in browser settings.');
+        setCameraError('Camera access denied. Tap "Choose from Photos" to upload from your gallery instead.');
       } else if (err.name === 'NotFoundError') {
         setCameraError('No camera found on this device. You can upload photos from your gallery instead.');
       } else if (err.name === 'NotReadableError') {
@@ -319,9 +318,30 @@ function CreatePost({ onPost, user }) {
       } else {
         setCameraError('Failed to open camera. Please try again.');
       }
-      // Keep modal open with error message - don't close
     }
-   };
+  };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+
+      // Attach stream to video element immediately
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      console.error('Camera error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraError('Camera access denied. Tap "Choose from Photos" to upload from your gallery instead.');
+      } else if (err.name === 'NotFoundError') {
+        setCameraError('No camera found on this device. You can upload photos from your gallery instead.');
+      } else if (err.name === 'NotReadableError') {
+        setCameraError('Camera is in use by another application.');
+      } else {
+        setCameraError('Failed to open camera. Please try again.');
+      }
+    }
+  };
 
    const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -358,7 +378,6 @@ function CreatePost({ onPost, user }) {
 
   const closeCamera = () => {
     stopCamera();
-    setCameraStream(null);
     setShowCamera(false);
     setCapturedPhoto(null);
     setIsCapturing(false);
