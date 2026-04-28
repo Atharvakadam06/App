@@ -234,27 +234,9 @@ function CreatePost({ onPost, user }) {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
-  const [cameraError, setCameraError] = useState('');
-  const [capturedPhoto, setCapturedPhoto] = useState(null);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [flashOpacity, setFlashOpacity] = useState(0);
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [mirrorFlip, setMirrorFlip] = useState(false);
   const { addToast } = useToast();
   const selectedFileRef = useRef(null);
   const menuRef = useRef(null);
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -268,117 +250,34 @@ function CreatePost({ onPost, user }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMediaMenu]);
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
+  const openCamera = () => {
+    // Opens phone's native camera app
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.click();
+
+    input.addEventListener('change', function(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        addToast('Please select an image', 'error');
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        addToast('File must be less than 20MB', 'error');
+        return;
+      }
+      selectedFileRef.current = file;
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target.result);
+      reader.readAsDataURL(file);
+      setShowMediaMenu(false);
+    });
   };
 
-   const openCamera = async () => {
-     setShowCamera(true);
-     setCapturedPhoto(null);
-     setCameraError('');
-     setIsCameraReady(false);
-     stopCamera();
-
-     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-       setCameraError('Camera not supported on this browser. Please use the photo gallery instead.');
-       return;
-     }
-
-     try {
-       const constraints = {
-         video: {
-           facingMode: { ideal: 'environment' },
-           width: { ideal: 1920, max: 1920 },
-           height: { ideal: 1080, max: 1080 },
-           aspectRatio: { ideal: 16/9 }
-         },
-         audio: false
-       };
-
-       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-       streamRef.current = stream;
-
-       if (videoRef.current) {
-         videoRef.current.srcObject = stream;
-         videoRef.current.setAttribute('playsinline', '');
-         videoRef.current.setAttribute('webkit-playsinline', '');
-         await videoRef.current.play();
-         setIsCameraReady(true);
-       }
-     } catch (err) {
-       console.error('Camera error:', err);
-       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-         setCameraError('Camera access denied. Allow camera in browser settings or use photo gallery.');
-       } else if (err.name === 'NotFoundError') {
-         setCameraError('No camera found on this device.');
-       } else if (err.name === 'NotReadableError') {
-         setCameraError('Camera is in use by another app.');
-       } else {
-         setCameraError('Failed to start camera. Please try again.');
-       }
-     }
-   };
-
-   const capturePhoto = () => {
-     if (!videoRef.current || !canvasRef.current || !isCameraReady) return;
-
-     triggerFlash();
-
-     const video = videoRef.current;
-     const canvas = canvasRef.current;
-     const context = canvas.getContext('2d');
-
-     canvas.width = video.videoWidth;
-     canvas.height = video.videoHeight;
-     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-     canvas.toBlob((blob) => {
-       if (blob) {
-         const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
-         setCapturedPhoto(file);
-         setImagePreview(URL.createObjectURL(blob));
-         setIsCapturing(true);
-       }
-     }, 'image/jpeg', 0.92);
-   };
-
-   const triggerFlash = () => {
-     setFlashOpacity(1);
-     setTimeout(() => setFlashOpacity(0), 80);
-   };
-
-   const retakePhoto = () => {
-     setCapturedPhoto(null);
-     setIsCapturing(false);
-     if (imagePreview) {
-       URL.revokeObjectURL(imagePreview);
-     }
-   };
-
-  const useCapturedPhoto = () => {
-    if (capturedPhoto) {
-      selectedFileRef.current = capturedPhoto;
-      closeCamera();
-    }
-  };
-
-   const closeCamera = () => {
-     stopCamera();
-     setIsCameraReady(false);
-     setShowCamera(false);
-     setCapturedPhoto(null);
-     setIsCapturing(false);
-     setCameraError('');
-     setFlashOpacity(0);
-     if (imagePreview) {
-       URL.revokeObjectURL(imagePreview);
-     }
-    };
-
-    const selectFromGallery = () => {
+  const selectFromGallery = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/heic';
@@ -399,7 +298,7 @@ function CreatePost({ onPost, user }) {
     });
   };
 
-  const selectDocument = async () => {
+  const selectDocument = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
@@ -408,7 +307,7 @@ function CreatePost({ onPost, user }) {
     input.addEventListener('change', function(e) {
       const file = e.target.files?.[0];
       if (!file) return;
-      const allowedTypes = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
       const isAllowed = allowedTypes.some(t => file.type.startsWith(t.replace('/*','')) || file.name.match(/\.(pdf|doc|docx)$/i));
       if (!isAllowed && !file.type.startsWith('image/')) {
         addToast('Please select an image or document (PDF, Word)', 'error');
@@ -456,210 +355,6 @@ function CreatePost({ onPost, user }) {
 
   return (
     <>
-      {/* Camera Modal */}
-      {showCamera && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm" onClick={closeCamera}>
-        <div className="relative w-full h-full sm:max-w-2xl sm:max-h-[90vh] sm:rounded-2xl bg-black overflow-hidden" onClick={e => e.stopPropagation()}>
-          {/* Flash Overlay */}
-          <div
-            className="absolute inset-0 z-50 pointer-events-none bg-white transition-opacity duration-100"
-            style={{ opacity: flashOpacity }}
-            onTransitionEnd={() => setFlashOpacity(0)}
-          />
-
-          {/* Camera Error / No Camera */}
-          {cameraError && !capturedPhoto && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/95 backdrop-blur-md">
-              <div className="w-full max-w-sm mx-4 p-8 bg-[#1a1a1a]/95 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl">
-                <div className="text-center">
-                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                    <Camera className="w-12 h-12 text-red-500" />
-                  </div>
-                  <h2 className="text-xl font-bold text-white mb-2 tracking-tight">Camera Unavailable</h2>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-8">{cameraError}</p>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = 'image/*';
-                        input.click();
-                        input.addEventListener('change', (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            selectedFileRef.current = file;
-                            const reader = new FileReader();
-                            reader.onload = (ev) => setImagePreview(ev.target.result);
-                            reader.readAsDataURL(file);
-                            closeCamera();
-                          }
-                        });
-                      }}
-                      className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-400 text-white rounded-2xl font-semibold transition-all active:scale-[0.98] shadow-lg shadow-blue-600/25"
-                    >
-                      <Image className="w-5 h-5" />
-                      Choose from Photos
-                    </button>
-                    <button
-                      onClick={closeCamera}
-                      className="w-full px-6 py-4 bg-white/5 hover:bg-white/10 active:bg-white/15 text-white rounded-2xl font-medium transition-all active:scale-[0.98] border border-white/5"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Live Camera Feed */}
-          {!cameraError && !capturedPhoto && (
-            <div className="absolute inset-0 bg-black">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-                style={{ transform: mirrorFlip ? 'scaleX(-1)' : 'scaleX(1)' }}
-              />
-            </div>
-          )}
-
-          {/* Captured Photo Preview */}
-          {capturedPhoto && !cameraError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black">
-              <img src={imagePreview} alt="Captured" className="max-w-full max-h-full object-contain" />
-              <div className="absolute top-6 right-6 px-4 py-1.5 bg-black/50 backdrop-blur-md rounded-full border border-white/10">
-                <span className="text-white/90 text-xs font-medium tracking-wide">Captured</span>
-              </div>
-            </div>
-          )}
-
-          {/* Hidden Canvas */}
-          <canvas ref={canvasRef} className="hidden" />
-
-          {/* Top Bar */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 py-5 bg-gradient-to-b from-black/70 via-black/20 to-transparent">
-            {/* Close Button */}
-            <button
-              onClick={closeCamera}
-              className="w-11 h-11 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm flex items-center justify-center transition-all active:scale-95 border border-white/10"
-              aria-label="Close camera"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
-
-            {/* Title */}
-            <h2 className="text-white font-semibold text-lg tracking-tight">Camera</h2>
-
-            {/* Spacer for balance */}
-            <div className="w-11" />
-          </div>
-
-          {/* Bottom Controls - Only when camera is ready and no error */}
-          {!cameraError && !capturedPhoto && isCameraReady && (
-            <div className="absolute bottom-0 left-0 right-0 z-20 pb-10 pt-8 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
-              {/* Control Buttons Row */}
-              <div className="flex items-center justify-center gap-16">
-                {/* Gallery Button */}
-                <button
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.click();
-                    input.addEventListener('change', (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        selectedFileRef.current = file;
-                        const reader = new FileReader();
-                        reader.onload = (ev) => setImagePreview(ev.target.result);
-                        reader.readAsDataURL(file);
-                        closeCamera();
-                      }
-                    });
-                  }}
-                  className="flex items-center justify-center w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-all active:scale-95 border border-white/10"
-                  aria-label="Open gallery"
-                >
-                  <Image className="w-5 h-5 text-white" />
-                </button>
-
-                {/* Shutter Button */}
-                <button
-                  onClick={capturePhoto}
-                  className="relative flex items-center justify-center w-20 h-20 rounded-full border-4 border-white/95 hover:border-white transition-all active:scale-95 shadow-2xl shadow-white/20"
-                  aria-label="Take photo"
-                >
-                  <div className="w-16 h-16 rounded-full bg-white" />
-                  {/* Outer ring animation */}
-                  <div className="absolute inset-0 rounded-full border-2 border-white/30 animate-ping" />
-                </button>
-
-                {/* Spacer for symmetric layout */}
-                <div className="w-12" />
-              </div>
-
-              {/* Camera Info Bar */}
-              <div className="flex items-center justify-center gap-4 mt-5 text-white/60 text-xs tracking-wide">
-                <span className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  Rear Camera
-                </span>
-                <span className="w-1 h-1 bg-white/20 rounded-full" />
-                <span>Auto</span>
-                <span className="w-1 h-1 bg-white/20 rounded-full" />
-                <span>HD</span>
-              </div>
-            </div>
-          )}
-
-          {/* Captured State Controls */}
-          {capturedPhoto && !cameraError && (
-            <div className="absolute bottom-0 left-0 right-0 z-20 pb-10 pt-8 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
-              <div className="flex items-center justify-center gap-8">
-                {/* Retake Button */}
-                <button
-                  onClick={retakePhoto}
-                  className="flex items-center justify-center w-13 h-13 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-all active:scale-95 border border-white/10"
-                  aria-label="Retake photo"
-                >
-                  <ChevronLeft className="w-6 h-6 text-white" />
-                </button>
-
-                {/* Use Photo Button */}
-                <button
-                  onClick={useCapturedPhoto}
-                  className="flex items-center justify-center w-13 h-13 rounded-full bg-blue-500 hover:bg-blue-400 active:bg-blue-300 shadow-lg shadow-blue-500/30 transition-all active:scale-95"
-                  aria-label="Use photo"
-                >
-                  <Check className="w-6 h-6 text-white" />
-                </button>
-
-                {/* Spacer for balance */}
-                <div className="w-13" />
-              </div>
-
-              <div className="flex items-center justify-center mt-4 text-white/60 text-xs">
-                <span>Photo captured</span>
-              </div>
-            </div>
-          )}
-
-          {/* Loading / Initializing State */}
-          {!cameraError && !capturedPhoto && !isCameraReady && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/90">
-              <div className="text-center">
-                <div className="w-16 h-16 border-4 border-white/20 border-t-white/80 rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-white/80 text-sm font-medium">Initializing camera...</p>
-              </div>
-            </div>
-          )}
-        </div>
-        </div>
-      )}
-
       <div className={`profile-post-card ${isFocused || imagePreview ? 'ring-2 ring-indigo-500/30' : ''}`}>
         <div className="flex gap-3">
           <img src={user?.avatar} alt={user?.name} className="profile-post-avatar ring-1 ring-slate-100 dark:ring-slate-700" />
@@ -687,7 +382,7 @@ function CreatePost({ onPost, user }) {
                 <button
                   onClick={openCamera}
                   className="profile-media-icon-btn"
-                  title="Take Photo"
+                  title="Take Photo (opens camera app)"
                 >
                   <Camera className="w-5 h-5" />
                 </button>
@@ -716,7 +411,6 @@ function CreatePost({ onPost, user }) {
     </>
   );
 }
-
 function EmptyTab({ icon, title, description }) {
   const Icon = icon;
   return (
