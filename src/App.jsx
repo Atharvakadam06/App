@@ -47,6 +47,7 @@ class ErrorBoundary extends Component {
 
 const pageMeta = {
   '/': { title: 'Feed', subtitle: "What's happening on campus" },
+  '/bind': { title: 'Binds', subtitle: 'Your connections' },
   '/connect': { title: 'Explore', subtitle: 'Discover and connect with students' },
   '/vault': { title: 'PYQ Vault', subtitle: 'Previous Year Question Papers' },
   '/library': { title: 'Book Exchange', subtitle: 'Free textbooks for everyone' },
