@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { UserPlus, Users, Search, X, MessageCircle, UserMinus, Compass, BadgeCheck } from 'lucide-react';
+import { UserPlus, Users, Search, X, MessageCircle, UserMinus, Link2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
-import { toggleLink, getLinks, createConversation } from '../services/data';
+import { toggleLink, getLinks, createConversation, getUser } from '../services/data';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 
 export default function Network() {
@@ -215,70 +215,78 @@ export default function Network() {
             </div>
           )
         ) : isBindPage ? (
-          // On /bind page: show grid of connections
+          // On /bind page: show horizontal connections list
           following.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3">
-              {following.map((u, i) => (
+            <div className="space-y-2">
+              {following.map((u) => (
                 <div
                   key={u.id}
-                  className="group bg-white dark:bg-[#0e1322] rounded-xl border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-500/50 hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer"
-                  style={{ animationDelay: `${Math.min(i * 50, 300)}ms`, animationName: 'scaleIn', animationDuration: '0.3s', animationFillMode: 'backwards' }}
+                  className="group flex items-center gap-4 p-4 bg-white dark:bg-[#0e1322] rounded-xl border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-500/30 hover:shadow-sm transition-all duration-200"
                 >
-                  {/* Profile Image */}
+                  {/* Avatar */}
                   <button
                     onClick={() => navigateToProfile(u.id)}
-                    className="w-full aspect-square bg-gray-50 dark:bg-gray-800/50 relative overflow-hidden"
-                    aria-label={`View ${u.name}'s profile`}
+                    className="relative shrink-0 focus:outline-none"
                   >
-                    {u.avatar ? (
-                      <img
-                        src={u.avatar}
-                        alt={u.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full rounded-full bg-[#2d3748] flex items-center justify-center">
-                        <span className="text-2xl font-bold text-white">{u.name?.charAt(0)}</span>
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 p-[2px]">
+                      <div className="w-full h-full rounded-full bg-white dark:bg-[#0e1322] flex items-center justify-center overflow-hidden">
+                        {u.avatar ? (
+                          <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-[#2d3748] flex items-center justify-center">
+                            <span className="text-lg font-bold text-white">{u.name?.charAt(0)}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {/* Online dot */}
-                    <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#0e1322]" />
+                    </div>
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#0e1322]" />
                   </button>
 
-                  {/* Profile Info */}
-                  <div className="p-3">
-                    <button onClick={() => navigateToProfile(u.id)} className="block text-left w-full">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">
+                  {/* Info */}
+                  <div className="flex-1 min-w-0" onClick={() => navigateToProfile(u.id)}>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {u.name}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">@{u.username}</p>
-                      {u.branch && (
-                        <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
-                          {u.branch}
-                        </span>
-                      )}
-                    </button>
-                    {/* Message button on mobile */}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">@{u.username}</p>
+                    {u.college && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{u.college}</p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); navigateToInbox(u); }}
-                      className="md:hidden mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-sm font-medium"
+                      className="p-2.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                      aria-label="Message"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      Message
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleConnect(u.id); }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                    >
+                      <UserMinus className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Unbind</span>
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No connections yet</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Start building your network</p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                <Users className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No connections yet</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 text-center max-w-xs">
+                Start building your network by connecting with other students
+              </p>
               <button
                 onClick={() => navigate('/connect')}
-                className="px-6 py-2.5 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all"
+                className="px-6 py-2.5 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all shadow-sm"
               >
                 Find Students
               </button>

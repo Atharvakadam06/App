@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Users, UserPlus, MessageCircle, UserMinus } from 'lucide-react';
+import { UserPlus, Users, Search, X, MessageCircle, UserMinus, Link2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { toggleLink, getLinks, createConversation, getUser } from '../services/data';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 
 export default function Bind() {
-  const { user, refreshUsers } = useAuth();
+  const { user } = useAuth();
   const { addNotification } = useNotifications();
   const navigate = useNavigate();
   const [linkedUserData, setLinkedUserData] = useState([]);
@@ -34,10 +34,12 @@ export default function Bind() {
     try {
       await toggleLink(user.id, userId);
       setLinkedUserData(prev => prev.filter(u => u.id !== userId));
-      // Optionally add notification for unbind
-      // Could enhance with user name if needed
+      const target = linkedUserData.find(u => u.id === userId);
+      if (target) {
+        addNotification({ userId: user.id, type: 'link', message: `Unbound from ${target.name}` });
+      }
     } catch (e) { console.error('Failed to unbind:', e); }
-  }, [user?.id]);
+  }, [user?.id, linkedUserData, addNotification]);
 
   const navigateToInbox = useCallback(async (targetUser) => {
     if (!user?.id || !targetUser?.id) return;
@@ -63,20 +65,22 @@ export default function Bind() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700 -mx-3 sm:-mx-6 px-3 sm:px-6">
-          <div>
-            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2" />
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20" />
-          </div>
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-full w-28" />
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32" />
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-full w-28" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-[#0e1322] rounded-xl p-4 animate-pulse" style={{ borderRadius: '18px' }}>
-              <div className="w-16 h-16 mx-auto rounded-full bg-gray-200 dark:bg-gray-700 mb-3" />
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mx-auto mb-2" />
-              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto" />
+            <div key={i} className="bg-white dark:bg-[#0e1322] rounded-xl p-4 animate-pulse">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
+                </div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-full w-20" />
+              </div>
             </div>
           ))}
         </div>
@@ -85,133 +89,106 @@ export default function Bind() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6 overflow-x-hidden">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700 -mx-3 sm:-mx-6 px-3 sm:px-6">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 overflow-x-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Your Binds</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{linkedUserData.length} connections</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Your Binds</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{linkedUserData.length} active connection{linkedUserData.length !== 1 ? 's' : ''}</p>
         </div>
         <button
           onClick={() => navigate('/connect')}
-          className="px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all duration-200"
+          className="px-5 py-2.5 rounded-full bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
         >
-          + Find Friends
+          <span className="flex items-center gap-2">
+            <UserPlus className="w-4 h-4" />
+            Find Friends
+          </span>
         </button>
       </div>
 
-      {/* Stories Row */}
-      {linkedUserData.length > 0 && (
-        <div className="stories-row flex gap-3 overflow-x-auto pb-2 -mx-3 px-3 mb-4">
-          {linkedUserData.map((u) => (
-            <button key={u.id} onClick={() => navigateToProfile(u.id)} className="flex flex-col items-center gap-1.5 flex-shrink-0">
-              <div className="relative">
-                <div className="w-12 h-12 p-[2px] rounded-full bg-gradient-to-r from-blue-400 to-blue-600">
-                  <div className="w-full h-full rounded-full bg-white dark:bg-[#0e1322] flex items-center justify-center">
-                    {u.avatar ? (
-                      <img src={u.avatar} alt={u.name} className="w-full h-full rounded-full object-cover" />
-                    ) : (
-                      <span className="text-lg font-bold text-gray-800 dark:text-gray-200">{u.name?.charAt(0)}</span>
-                    )}
-                  </div>
-                </div>
-                {/* Online indicator */}
-                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white dark:border-[#0e1322]" />
-              </div>
-              <span className="text-xs text-gray-700 dark:text-gray-300 max-w-[48px] truncate">{u.name?.split(' ')[0]}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Search Bar */}
-      <div className="mb-4">
+      {/* Search */}
+      <div className="mb-4 relative">
         <ProfessionalSearch
-          placeholder="Search by username..."
+          placeholder="Search connections..."
           value={searchQuery}
           onChange={setSearchQuery}
-          className="w-full bg-white dark:bg-[#0e1322] border border-gray-200 dark:border-gray-700 rounded-xl"
+          className="w-full bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
           inputMode="search"
         />
       </div>
 
       {/* Content */}
-      <div className="mt-2">
+      <div>
         {filtered.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {filtered.map((u, i) => (
+          <div className="space-y-2">
+            {filtered.map((u) => (
               <div
                 key={u.id}
-                className="group bg-white dark:bg-[#0e1322] rounded-xl border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-500/50 hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer"
-                style={{ animationDelay: `${Math.min(i * 50, 300)}ms`, animationName: 'scaleIn', animationDuration: '0.3s', animationFillMode: 'backwards' }}
+                className="group flex items-center gap-4 p-4 bg-white dark:bg-[#0e1322] rounded-xl border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-500/30 hover:shadow-sm transition-all duration-200"
               >
-                {/* Profile Image */}
+                {/* Avatar */}
                 <button
                   onClick={() => navigateToProfile(u.id)}
-                  className="w-full aspect-square bg-gray-50 dark:bg-gray-800/50 relative overflow-hidden"
-                  aria-label={`View ${u.name}'s profile`}
+                  className="relative shrink-0 focus:outline-none"
                 >
-                  {u.avatar ? (
-                    <img
-                      src={u.avatar}
-                      alt={u.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full rounded-full bg-[#2d3748] flex items-center justify-center">
-                      <span className="text-2xl font-bold text-white">{u.name?.charAt(0)}</span>
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 p-[2px]">
+                    <div className="w-full h-full rounded-full bg-white dark:bg-[#0e1322] flex items-center justify-center overflow-hidden">
+                      {u.avatar ? (
+                        <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-lg font-bold text-gray-800 dark:text-gray-200">{u.name?.charAt(0)}</span>
+                      )}
                     </div>
-                  )}
-                  {/* Online dot */}
-                  <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#0e1322]" />
-                  {/* Message button on mobile */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigateToInbox(u); }}
-                    className="md:hidden absolute top-2 right-2 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center shadow-md"
-                    aria-label="Message"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 text-white" />
-                  </button>
+                  </div>
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#0e1322]" />
                 </button>
 
-                {/* Profile Info */}
-                <div className="p-3">
-                  <button onClick={() => navigateToProfile(u.id)} className="block text-left w-full">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">
+                {/* Info */}
+                <div className="flex-1 min-w-0" onClick={() => navigateToProfile(u.id)}>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {u.name}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">@{u.username}</p>
-                  </button>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">{u.college}</p>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigateToInbox(u); }}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-sm font-medium"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Message
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleBind(u.id); }}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm font-medium"
-                    >
-                      <UserMinus className="w-4 h-4" />
-                      Unbind
-                    </button>
                   </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">@{u.username}</p>
+                  {u.college && (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{u.college}</p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigateToInbox(u); }}
+                    className="p-2.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                    aria-label="Message"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleBind(u.id); }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                  >
+                    <UserMinus className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Unbind</span>
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No connections yet</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Start building your network</p>
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+              <Users className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No connections yet</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 text-center max-w-xs">
+              Start building your network by connecting with other students
+            </p>
             <button
               onClick={() => navigate('/connect')}
-              className="px-6 py-2.5 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all"
+              className="px-6 py-2.5 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all shadow-sm"
             >
               Find Students
             </button>
