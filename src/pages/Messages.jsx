@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Send, Paperclip, Image as ImageIcon, Smile, ArrowLeft, Inbox, X, Plus, Phone, Video } from 'lucide-react';
-import React from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Send, Paperclip, Image as ImageIcon, Smile, ArrowLeft, Inbox, X, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -13,15 +12,13 @@ import ProfessionalSearch from '../components/ProfessionalSearch';
 function EmojiPicker({ onSelect, onClose }) {
   const emojis = ['😀','😂','❤️','👍','👋','🎉','🔥','💯','😊','🤔','👏','🙏','💪','✨','🚀','📚','🎓','💡','⭐','🌟','😍','🥳','😎','🤝'];
   return (
-    <div className="absolute bottom-20 left-3 right-3 sm:left-auto sm:right-0 sm:bottom-auto sm:top-full sm:mb-2 sm:w-72 bg-white dark:bg-[#0c1018] border border-gray-200/80 dark:border-gray-700/60 p-3 z-40 shadow-2xl dark:shadow-black/50 rounded-2xl animate-scale-in">
+    <div className="absolute bottom-20 left-2 right-2 sm:left-auto sm:right-0 sm:bottom-auto sm:top-full sm:mb-2 sm:w-72 bg-white dark:bg-[#0c1018] border border-gray-200/80 dark:border-gray-700/60 p-2.5 z-50 shadow-2xl dark:shadow-black/50 rounded-2xl animate-scale-in">
       <div className="flex items-center justify-between mb-2 px-0.5">
         <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Emojis</span>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/70 transition-colors"><X className="w-3.5 h-3.5 text-gray-400" /></button>
+        <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/70"><X className="w-3.5 h-3.5 text-gray-400" /></button>
       </div>
       <div className="grid grid-cols-7 gap-0.5">
-        {emojis.map(e => (
-          <button key={e} onClick={() => { onSelect(e); onClose(); }} className="h-9 flex items-center justify-center text-[18px] hover:bg-gray-100 dark:hover:bg-gray-800/70 rounded-lg transition-colors active:scale-90">{e}</button>
-        ))}
+        {emojis.map(e => <button key={e} onClick={() => { onSelect(e); onClose(); }} className="h-9 flex items-center justify-center text-[18px] hover:bg-gray-100 dark:hover:bg-gray-800/70 rounded-lg active:scale-90 transition-all">{e}</button>)}
       </div>
     </div>
   );
@@ -34,7 +31,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
       <div className="p-4 sm:p-5 border-b border-gray-200/70 dark:border-gray-700/50 shrink-0">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[17px] font-bold text-gray-900 dark:text-white tracking-tight">Messages</h2>
-          <button onClick={onNewChat} className="w-9 h-9 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 flex items-center justify-center hover:opacity-80 active:scale-90 transition-all shadow-sm">
+          <button onClick={onNewChat} className="w-9 h-9 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 flex items-center justify-center active:scale-90 transition-all shadow-sm">
             <Plus className="w-4 h-4" strokeWidth={2.5} />
           </button>
         </div>
@@ -57,7 +54,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
               <button
                 key={conv.id}
                 onClick={() => onSelect(conv.id)}
-                className={`w-full flex items-center gap-3 p-3 sm:p-4 transition-all duration-150 active:scale-[0.98] ${selectedId === conv.id ? 'bg-gray-100 dark:bg-[#151b2a]' : 'hover:bg-gray-50 dark:hover:bg-[#0f131f]/60'}`}
+                className={`w-full flex items-center gap-3 p-3 sm:p-4 transition-all active:scale-[0.98] ${selectedId === conv.id ? 'bg-gray-100 dark:bg-[#151b2a]' : 'hover:bg-gray-50 dark:hover:bg-[#0f131f]/60'}`}
                 style={{ animationName: 'fadeInUp', animationDuration: '0.3s', animationFillMode: 'backwards', animationDelay: `${i * 25}ms`, animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
               >
                 <div className="relative shrink-0">
@@ -71,7 +68,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
                   </div>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{conv.lastMessage || 'Start a conversation'}</p>
                 </div>
-                {conv.unread > 0 && <span className="min-w-[18px] h-[18px] rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] flex items-center justify-center font-bold px-1 shadow-sm ml-1">{conv.unread}</span>}
+                {conv.unread > 0 && <span className="min-w-[18px] h-[18px] rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] flex items-center justify-center font-bold px-1.5 shadow-sm ml-1">{conv.unread}</span>}
               </button>
             ))}
           </div>
@@ -89,7 +86,7 @@ function NewChatModal({ users, currentUser, onClose, onStart }) {
       <div className="bg-white dark:bg-[#0c1018] border border-gray-200/80 dark:border-gray-700/60 p-5 sm:p-6 w-full max-w-sm max-h-[60vh] sm:max-h-[70vh] flex flex-col animate-scale-in rounded-t-2xl sm:rounded-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-[15px] font-bold text-gray-900 dark:text-white">New Conversation</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/70 flex items-center justify-center transition-colors active:scale-90"><X className="w-5 h-5 text-gray-500" /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/70 flex items-center justify-center active:scale-90"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
         <div className="mb-4">
           <ProfessionalSearch placeholder="Search students..." value={search} onChange={setSearch} className="bg-gray-50 dark:bg-[#0f131f] border-gray-200/70 dark:border-gray-700/50 rounded-xl text-[13px]" />
@@ -107,29 +104,12 @@ function NewChatModal({ users, currentUser, onClose, onStart }) {
   );
 }
 
-function EmptyState({ onNewChat }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-6 bg-white dark:bg-[#080b14]">
-      <div className="text-center">
-        <div className="w-20 h-20 rounded-3xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/60 dark:border-gray-700/40 flex items-center justify-center mx-auto mb-5">
-          <Send className="w-8 h-8 text-gray-400" strokeWidth={1.5} />
-        </div>
-        <h3 className="text-[15px] font-bold text-gray-900 dark:text-white mb-1">No chat selected</h3>
-        <p className="text-[13px] text-gray-500 dark:text-gray-400 mb-5 max-w-[200px] mx-auto">Choose a conversation or start a new one</p>
-        <button onClick={onNewChat} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[13px] font-semibold hover:opacity-80 active:scale-95 transition-all shadow-sm">
-          <Plus className="w-4 h-4" /> New Chat
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const ChatView = React.memo(function ChatView({ conversation, user, chatMessages, messagesEndRef, onBack, onSend, onImagePicker, onFilePicker, onEmojiToggle, showEmoji, newMessage, setNewMessage, handleKeyPress }) {
+function ChatView({ conversation, user, chatMessages, messagesEndRef, onBack, onSend, onImagePicker, onFilePicker, onEmojiToggle, showEmoji, newMessage, setNewMessage, handleKeyPress }) {
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#080b14]">
       <div className="flex items-center justify-between px-3 sm:px-4 h-14 sm:h-[60px] border-b border-gray-200/70 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14] shrink-0">
         <div className="flex items-center gap-2.5 sm:gap-3">
-          <button onClick={onBack} className="sm:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors active:scale-90">
+          <button onClick={onBack} className="sm:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
             <ArrowLeft className="w-5 h-5 text-gray-500" strokeWidth={2} />
           </button>
           <div className="relative">
@@ -140,14 +120,6 @@ const ChatView = React.memo(function ChatView({ conversation, user, chatMessages
             <h3 className="text-[13px] sm:text-[14px] font-semibold text-gray-900 dark:text-white truncate leading-tight">{conversation.user?.name}</h3>
             <p className="text-[10px] sm:text-[11px] text-emerald-500 font-medium mt-0.5">Online</p>
           </div>
-        </div>
-        <div className="flex items-center gap-0.5 sm:gap-1">
-          <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors active:scale-90">
-            <Phone className="w-[18px] h-[18px] text-gray-500" strokeWidth={1.8} />
-          </button>
-          <button className="w-9 h-9 items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors active:scale-90 hidden sm:flex">
-            <Video className="w-[18px] h-[18px] text-gray-500" strokeWidth={1.8} />
-          </button>
         </div>
       </div>
 
@@ -185,7 +157,7 @@ const ChatView = React.memo(function ChatView({ conversation, user, chatMessages
                       </a>
                     ) : (
                       <div className={`px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-2xl shadow-sm border ${isMine ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white rounded-br-sm' : 'bg-white dark:bg-[#0c1018] text-gray-900 dark:text-white border-gray-200/80 dark:border-gray-700/60 rounded-bl-sm'}`}>
-                        <p className="text-[13px] sm:text-[13px] leading-relaxed break-words">{message.content}</p>
+                        <p className="text-[13px] leading-relaxed break-words">{message.content}</p>
                       </div>
                     )}
                     <p className={`text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 font-medium ${isMine ? 'text-right' : ''}`}>{formatTimeAgo(message.timestamp)}</p>
@@ -198,13 +170,13 @@ const ChatView = React.memo(function ChatView({ conversation, user, chatMessages
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="shrink-0 px-2.5 sm:px-3 pt-2 pb-2.5 sm:pb-3 border-t border-gray-200/70 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14] safe-area-bottom">
+      <div className="shrink-0 px-2.5 sm:px-3 pt-2 pb-2.5 sm:pb-3 border-t border-gray-200/70 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14]">
         <div className="flex items-end gap-1.5 sm:gap-2">
           <div className="flex items-center gap-0.5 shrink-0">
-            <button onClick={onFilePicker} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors active:scale-90 hidden sm:flex">
+            <button onClick={onFilePicker} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all hidden sm:flex">
               <Paperclip className="w-[17px] h-[17px] text-gray-500" strokeWidth={1.8} />
             </button>
-            <button onClick={onImagePicker} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors active:scale-90 hidden sm:flex">
+            <button onClick={onImagePicker} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all hidden sm:flex">
               <ImageIcon className="w-[17px] h-[17px] text-gray-500" strokeWidth={1.8} />
             </button>
           </div>
@@ -217,7 +189,7 @@ const ChatView = React.memo(function ChatView({ conversation, user, chatMessages
               placeholder="Message..."
               className="w-full pl-3.5 sm:pl-4 pr-11 sm:pr-12 py-2.5 sm:py-3 rounded-[18px] sm:rounded-2xl bg-gray-50 dark:bg-[#0f131f] border border-gray-200/70 dark:border-gray-700/50 text-[13px] sm:text-[14px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/5 dark:focus:ring-white/10 focus:border-gray-300 dark:focus:border-gray-600 transition-all duration-200"
             />
-            <button onClick={onEmojiToggle} className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors active:scale-90">
+            <button onClick={onEmojiToggle} className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
               <Smile className="w-[17px] h-[17px] text-gray-400" strokeWidth={1.8} />
             </button>
             {showEmoji && <EmojiPicker onSelect={(e) => setNewMessage(p => p + e)} onClose={() => {}} />}
@@ -225,7 +197,7 @@ const ChatView = React.memo(function ChatView({ conversation, user, chatMessages
           <button
             onClick={onSend}
             disabled={!newMessage.trim()}
-            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[18px] sm:rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 active:scale-90 transition-all duration-150 shadow-sm disabled:opacity-40 disabled:active:scale-100"
+            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[18px] sm:rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 active:scale-90 transition-all duration-150 shadow-sm disabled:opacity-40"
           >
             <Send className="w-4 h-4" strokeWidth={2.5} />
           </button>
@@ -233,14 +205,13 @@ const ChatView = React.memo(function ChatView({ conversation, user, chatMessages
       </div>
     </div>
   );
-});
+}
 
 export default function Messages() {
   const { user, users, refreshUsers } = useAuth();
   const { addToast } = useToast();
   const { addNotification } = useNotifications();
   const location = useLocation();
-  const navigate = useNavigate();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -249,7 +220,7 @@ export default function Messages() {
   const [showEmoji, setShowEmoji] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [mobileView, setMobileView] = useState('list');
+  const [mobileOpenChat, setMobileOpenChat] = useState(false);
   const messagesEndRef = useRef(null);
 
   const conversation = conversations.find(c => c.id === selectedConversation);
@@ -274,7 +245,7 @@ export default function Messages() {
       const convs = await getConversations(user.id);
       setConversations(convs);
       setSelectedConversation(convId);
-      setMobileView('chat');
+      setMobileOpenChat(true);
     } catch (e) { console.error('Failed to start chat:', e); }
   }, [user?.id]);
 
@@ -283,7 +254,7 @@ export default function Messages() {
       const foundConv = conversations.find(c => c.user?.id === location.state.targetUser.id);
       if (foundConv) {
         setSelectedConversation(foundConv.id);
-        setMobileView('chat');
+        setMobileOpenChat(true);
       } else if (!loading && conversations.length > 0) {
         startChat(location.state.targetUser);
       }
@@ -382,18 +353,30 @@ export default function Messages() {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-white dark:bg-[#080b14]">
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
+
+      {/* Mobile: show either list OR chat; Desktop: both side by side */}
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <div className={`${mobileView === 'list' || !conversation ? 'flex' : 'hidden'} w-full sm:w-80 sm:flex-col flex-col shrink-0`}>
-          <ConversationList conversations={conversations} selectedId={selectedConversation} onSelect={(id) => { setSelectedConversation(id); setMobileView('chat'); }} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onNewChat={() => setShowNewChat(true)} />
+        {/* List panel - hidden on mobile when chat is open */}
+        <div className={`${mobileOpenChat ? 'hidden' : 'flex'} sm:flex w-full sm:w-auto flex-col shrink-0`}>
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedConversation}
+            onSelect={(id) => { setSelectedConversation(id); setMobileOpenChat(true); }}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onNewChat={() => setShowNewChat(true)}
+          />
         </div>
-        <div className={`${mobileView === 'chat' && conversation ? 'flex' : 'hidden'} sm:flex flex-1 flex-col h-full w-full min-w-0`}>
+
+        {/* Chat panel - hidden on mobile when list is shown */}
+        <div className={`${mobileOpenChat ? 'flex' : 'hidden'} sm:flex flex-1 flex-col h-full w-full min-w-0`}>
           {conversation ? (
             <ChatView
               conversation={conversation}
               user={user}
               chatMessages={chatMessages}
               messagesEndRef={messagesEndRef}
-              onBack={() => { setSelectedConversation(null); setMobileView('list'); setShowEmoji(false); }}
+              onBack={() => { setMobileOpenChat(false); setShowEmoji(false); }}
               onSend={handleSend}
               onImagePicker={openImagePicker}
               onFilePicker={openFilePicker}
@@ -404,7 +387,18 @@ export default function Messages() {
               handleKeyPress={handleKeyPress}
             />
           ) : (
-            <EmptyState onNewChat={() => setShowNewChat(true)} />
+            <div className="flex-1 flex items-center justify-center p-6 bg-white dark:bg-[#080b14]">
+              <div className="text-center">
+                <div className="w-20 h-20 rounded-3xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/60 dark:border-gray-700/40 flex items-center justify-center mx-auto mb-5">
+                  <Send className="w-8 h-8 text-gray-400" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-[15px] font-bold text-gray-900 dark:text-white mb-1">No chat selected</h3>
+                <p className="text-[13px] text-gray-500 dark:text-gray-400 mb-5">Choose a conversation or start a new one</p>
+                <button onClick={() => setShowNewChat(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[13px] font-semibold active:scale-95 transition-all shadow-sm">
+                  <Plus className="w-4 h-4" /> New Chat
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
