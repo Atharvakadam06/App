@@ -12,7 +12,7 @@ import ProfessionalSearch from '../components/ProfessionalSearch';
 function EmojiPicker({ onSelect, onClose }) {
   const emojis = ['😀','😂','❤️','👍','👋','🎉','🔥','💯','😊','🤔','👏','🙏','💪','✨','🚀','📚','🎓','💡','⭐','🌟','😍','🥳','😎','🤝'];
   return (
-    <div className="absolute bottom-20 left-2 right-2 sm:left-auto sm:right-0 sm:bottom-auto sm:top-full sm:mb-2 sm:w-72 bg-white dark:bg-[#0c1018] border border-gray-200/80 dark:border-gray-700/60 p-2.5 z-50 shadow-2xl dark:shadow-black/50 rounded-2xl animate-scale-in">
+    <div className="absolute bottom-20 left-2 right-2 sm:left-auto sm:right-0 sm:bottom-auto sm:top-full sm:mb-2 sm:w-72 bg-white dark:bg-[#0c1018] border border-gray-200/80 dark:border-gray-700/60 p-2.5 z-[60] shadow-2xl rounded-2xl animate-scale-in">
       <div className="flex items-center justify-between mb-2 px-0.5">
         <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Emojis</span>
         <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/70"><X className="w-3.5 h-3.5 text-gray-400" /></button>
@@ -27,8 +27,9 @@ function EmojiPicker({ onSelect, onClose }) {
 function ConversationList({ conversations, selectedId, onSelect, searchQuery, setSearchQuery, onNewChat }) {
   const filtered = conversations.filter(c => c.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()));
   return (
-    <div className="flex flex-col h-full flex-shrink-0 bg-white dark:bg-[#0a0d14] sm:border-r border-gray-200/70 dark:border-gray-700/50 w-full sm:w-80">
-      <div className="p-4 sm:p-5 border-b border-gray-200/70 dark:border-gray-700/50 shrink-0">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0a0d14] sm:border-r border-gray-200/70 dark:border-gray-700/50 w-full sm:w-80">
+      {/* Fixed Header */}
+      <div className="shrink-0 p-4 sm:p-5 border-b border-gray-200/70 dark:border-gray-700/50">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[17px] font-bold text-gray-900 dark:text-white tracking-tight">Messages</h2>
           <button onClick={onNewChat} className="w-9 h-9 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 flex items-center justify-center active:scale-90 transition-all shadow-sm">
@@ -37,7 +38,8 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
         </div>
         <ProfessionalSearch placeholder="Search..." value={searchQuery} onChange={setSearchQuery} className="bg-gray-50 dark:bg-[#0f131f] border-gray-200/70 dark:border-gray-700/50 rounded-xl text-[13px]" />
       </div>
-      <div className="flex-1 overflow-y-auto -webkit-overflow-scrolling: touch">
+      {/* Scrollable List */}
+      <div className="flex-1 overflow-y-auto -webkit-overflow-scrolling: touch overscroll-none">
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center p-6 h-full">
             <div className="text-center">
@@ -53,7 +55,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
             <button
               key={conv.id}
               onClick={() => onSelect(conv.id)}
-              className="w-full flex items-center gap-3 p-3 sm:p-4 transition-all border-b border-gray-100/60 dark:border-gray-800/40 last:border-0"
+              className="w-full flex items-center gap-3 p-3 sm:p-4 transition-all border-b border-gray-100/60 dark:border-gray-800/40 last:border-0 active:scale-[0.98]"
               style={{ animationName: i === 0 ? 'none' : 'fadeInUp', animationDuration: '0.3s', animationFillMode: 'backwards', animationDelay: `${Math.min(i * 20, 200)}ms`, animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
             >
               <div className="relative shrink-0">
@@ -104,9 +106,9 @@ function NewChatModal({ users, currentUser, onClose, onStart }) {
 
 function ChatView({ conversation, user, chatMessages, messagesEndRef, onBack, onSend, onImagePicker, onFilePicker, onEmojiToggle, showEmoji, newMessage, setNewMessage, handleKeyPress }) {
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#080b14]">
+    <div className="flex flex-col h-full min-h-0 bg-white dark:bg-[#080b14]">
       {/* Fixed Chat Header */}
-      <div className="flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 h-14 sm:h-[60px] border-b border-gray-200/70 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14] shrink-0">
+      <div className="shrink-0 flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 h-14 sm:h-[60px] border-b border-gray-200/70 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14]">
         <button onClick={onBack} className="sm:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
           <ArrowLeft className="w-5 h-5 text-gray-500" strokeWidth={2} />
         </button>
@@ -129,7 +131,7 @@ function ChatView({ conversation, user, chatMessages, messagesEndRef, onBack, on
       </div>
 
       {/* Scrollable Messages Only */}
-      <div className="flex-1 h-full overflow-y-auto -webkit-overflow-scrolling: touch px-3 sm:px-4 py-3 space-y-1.5 bg-gray-50/40 dark:bg-[#080b14]">
+      <div className="flex-1 h-full overflow-y-auto -webkit-overflow-scrolling: touch overscroll-none px-3 sm:px-4 py-3 space-y-1.5 bg-gray-50/40 dark:bg-[#080b14]">
         {chatMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -339,12 +341,12 @@ export default function Messages() {
 
   if (loading) {
     return (
-      <div className="h-[100dvh] flex flex-col overflow-hidden bg-white dark:bg-[#080b14]">
-        <div className="p-4 sm:p-5 border-b border-gray-200/70 dark:border-gray-700/50 shrink-0">
+      <div className="h-[100dvh] flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
+        <div className="shrink-0 p-4 sm:p-5 border-b border-gray-200/70 dark:border-gray-700/50">
           <div className="h-5 bg-gray-100 dark:bg-gray-800/60 rounded-lg w-24 mb-3" />
           <div className="h-10 bg-gray-100 dark:bg-gray-800/60 rounded-2xl w-full" />
         </div>
-        <div className="flex-1 overflow-hidden p-4 space-y-3">
+        <div className="flex-1 overflow-hidden p-4 space-y-3 overscroll-none">
           {[...Array(6)].map((_, i) => (
             <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[70%] ${i % 2 === 0 ? 'order-2' : ''}`}>
@@ -358,12 +360,12 @@ export default function Messages() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none" onWheel={e => e.preventDefault()}>
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
 
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="flex-1 flex overflow-hidden min-h-0 overscroll-none">
         {/* List Panel */}
-        <div className={`${mobileOpenChat ? 'hidden' : 'flex'} sm:flex w-full sm:w-80 flex-col shrink-0`}>
+        <div className={`${mobileOpenChat ? 'hidden' : 'flex'} sm:flex w-full sm:w-80 flex-col shrink-0 h-full`}>
           <ConversationList
             conversations={conversations}
             selectedId={selectedConversation}
@@ -375,7 +377,7 @@ export default function Messages() {
         </div>
 
         {/* Chat Panel */}
-        <div className={`${mobileOpenChat ? 'flex' : 'hidden'} sm:flex flex-1 flex-col h-full w-full min-w-0`}>
+        <div className={`${mobileOpenChat ? 'flex' : 'hidden'} sm:flex flex-1 flex-col h-full w-full min-w-0 overscroll-none`}>
           {conversation ? (
             <ChatView
               conversation={conversation}
