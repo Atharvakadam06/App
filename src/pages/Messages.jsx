@@ -12,7 +12,7 @@ import ProfessionalSearch from '../components/ProfessionalSearch';
 function EmojiPicker({ onSelect, onClose }) {
   const emojis = ['😀','😂','❤️','👍','👋','🎉','🔥','💯','😊','🤔','👏','🙏','💪','✨','🚀','📚','🎓','💡','⭐','🌟','😍','🥳','😎','🤝'];
   return (
-    <div className="absolute bottom-12 right-0 bg-white dark:bg-[#0c1018] border border-gray-200/60 dark:border-gray-700/50 p-3 z-30 shadow-xl rounded-2xl animate-scale-in w-64 max-w-[calc(100vw-3rem)]">
+    <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-[#0c1018] border border-gray-200/60 dark:border-gray-700/50 p-3 z-30 shadow-xl rounded-2xl animate-scale-in w-64 max-w-[calc(100vw-2rem)] sm:right-0 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 sm:left-auto">
       <div className="flex items-center justify-between mb-2 px-1">
         <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Emojis</span>
         <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors"><X className="w-3.5 h-3.5 text-gray-400" /></button>
@@ -264,7 +264,7 @@ export default function Messages() {
 
   if (loading) {
     return (
-      <div className="h-[calc(100vh-49px)] sm:h-[calc(100vh-65px)] flex flex-col overflow-x-hidden">
+      <div className="h-[100dvh] flex flex-col overflow-x-hidden">
         <div className="p-4 sm:p-5 border-b border-gray-200/60 dark:border-gray-700/50">
           <div className="h-5 bg-gray-100 dark:bg-gray-800/60 rounded-lg w-24 mb-3" />
           <div className="h-10 bg-gray-100 dark:bg-gray-800/60 rounded-xl w-full" />
@@ -283,7 +283,7 @@ export default function Messages() {
   }
 
   return (
-    <div className="h-[calc(100vh-49px)] sm:h-[calc(100vh-65px)] flex flex-col overflow-x-hidden bg-white dark:bg-[#080b14]">
+    <div className="h-[100dvh] flex flex-col overflow-x-hidden bg-white dark:bg-[#080b14]">
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
       <div className="flex-1 flex overflow-hidden">
         <div className={`${selectedConversation ? 'hidden sm:flex' : 'flex'} w-full sm:w-auto`}>
@@ -360,8 +360,8 @@ export default function Messages() {
                 )}
                 <div ref={messagesEndRef} />
               </div>
-              <div className="p-3 sm:p-4 border-t border-gray-200/60 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14]">
-                <div className="flex items-end gap-2 sm:gap-3">
+              <div className="p-2.5 sm:p-4 border-t border-gray-200/60 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14] safe-area-bottom">
+                <div className="flex items-end gap-1.5 sm:gap-3">
                   <div className="flex items-center gap-0.5">
                     <button onClick={openFilePicker} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors hidden sm:block"><Paperclip className="w-[18px] h-[18px] text-gray-500" strokeWidth={1.8} /></button>
                     <button onClick={openImagePicker} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors hidden sm:block"><ImageIcon className="w-[18px] h-[18px] text-gray-500" strokeWidth={1.8} /></button>
@@ -373,10 +373,10 @@ export default function Messages() {
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={handleKeyPress}
                       placeholder="Message..."
-                      className="w-full px-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#0f131f] border border-gray-200/60 dark:border-gray-700/50 text-[13px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900/5 dark:focus:ring-white/10 focus:border-gray-300 dark:focus:border-gray-600 transition-all duration-200"
+                      className="w-full pl-4 pr-12 sm:pr-14 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#0f131f] border border-gray-200/60 dark:border-gray-700/50 text-[13px] sm:text-[14px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900/5 dark:focus:ring-white/10 focus:border-gray-300 dark:focus:border-gray-600 transition-all duration-200"
                     />
                     <div className="relative">
-                      <button onClick={() => setShowEmoji(!showEmoji)} className="absolute -right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors"><Smile className="w-[18px] h-[18px] text-gray-400" strokeWidth={1.8} /></button>
+                      <button onClick={() => setShowEmoji(!showEmoji)} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors"><Smile className="w-[18px] h-[18px] text-gray-400" strokeWidth={1.8} /></button>
                       {showEmoji && <EmojiPicker onSelect={(e) => setNewMessage(prev => prev + e)} onClose={() => setShowEmoji(false)} />}
                     </div>
                   </div>
