@@ -360,7 +360,7 @@ export default function Messages() {
   }
 
   return (
-    <div className="h-[calc(100dvh-49px)] sm:h-[calc(100dvh-65px)] flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
+    <div className="h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
 
       <div className="flex-1 flex overflow-hidden min-h-0 overscroll-none">
