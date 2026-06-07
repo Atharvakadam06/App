@@ -122,14 +122,14 @@ function ChatView({ conversation, user, chatMessages, messagesEndRef, onBack, on
           <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
             <Phone className="w-[18px] h-[18px] text-gray-500" strokeWidth={2} />
           </button>
-          <button className="hidden sm:flex w-9 h-9 items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
+          <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
             <Video className="w-[18px] h-[18px] text-gray-500" strokeWidth={2} />
           </button>
         </div>
       </div>
 
       {/* Scrollable Messages Only */}
-      <div className="flex-1 overflow-y-auto -webkit-overflow-scrolling: touch px-3 sm:px-4 py-3 space-y-1.5 bg-gray-50/40 dark:bg-[#080b14]">
+      <div className="flex-1 h-full overflow-y-auto -webkit-overflow-scrolling: touch px-3 sm:px-4 py-3 space-y-1.5 bg-gray-50/40 dark:bg-[#080b14]">
         {chatMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -179,7 +179,7 @@ function ChatView({ conversation, user, chatMessages, messagesEndRef, onBack, on
       {/* Fixed Input Bar */}
       <div className="shrink-0 px-2.5 sm:px-3 pt-2 pb-2.5 sm:pb-3 border-t border-gray-200/70 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14]">
         <div className="flex items-end gap-1.5 sm:gap-2">
-          <div className="hidden sm:flex items-center gap-0.5 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0">
             <button onClick={onFilePicker} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
               <Paperclip className="w-[17px] h-[17px] text-gray-500" strokeWidth={1.8} />
             </button>
@@ -358,7 +358,7 @@ export default function Messages() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-white dark:bg-[#080b14]">
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none" onWheel={e => e.preventDefault()}>
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
 
       <div className="flex-1 flex overflow-hidden min-h-0">
