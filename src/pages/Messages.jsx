@@ -341,7 +341,7 @@ export default function Messages() {
 
   if (loading) {
     return (
-      <div className="h-[calc(100dvh-49px)] sm:h-[calc(100dvh-65px)] flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
+      <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
         <div className="shrink-0 p-4 sm:p-5 border-b border-gray-200/70 dark:border-gray-700/50">
           <div className="h-5 bg-gray-100 dark:bg-gray-800/60 rounded-lg w-24 mb-3" />
           <div className="h-10 bg-gray-100 dark:bg-gray-800/60 rounded-2xl w-full" />
@@ -360,11 +360,10 @@ export default function Messages() {
   }
 
   return (
-    <div className="h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
+    <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
 
-      <div className="flex-1 flex overflow-hidden min-h-0 overscroll-none">
-        {/* List Panel */}
+      <div className="flex-1 flex min-h-0 overscroll-none">
         <div className={`${mobileOpenChat ? 'hidden' : 'flex'} sm:flex w-full sm:w-80 flex-col shrink-0 h-full`}>
           <ConversationList
             conversations={conversations}
@@ -376,7 +375,6 @@ export default function Messages() {
           />
         </div>
 
-        {/* Chat Panel */}
         <div className={`${mobileOpenChat ? 'flex' : 'hidden'} sm:flex flex-1 flex-col h-full w-full min-w-0 overscroll-none`}>
           {conversation ? (
             <ChatView
