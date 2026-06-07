@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Send, Paperclip, Image as ImageIcon, Smile, ArrowLeft, Inbox, X, Plus } from 'lucide-react';
+import { Send, Paperclip, Image as ImageIcon, Smile, ArrowLeft, Inbox, X, Plus, Phone, Video } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
