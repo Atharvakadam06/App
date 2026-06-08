@@ -326,21 +326,20 @@ function CreatePost({ onPost, user }) {
   };
 
   const handlePost = async () => {
-    if (!content.trim() && !selectedFileRef.current) return;
+    if (!content.trim()) return;
     let imageUrl = null;
     setUploading(true);
 
     try {
       if (selectedFileRef.current) {
-        imageUrl = await uploadToCloudinary(selectedFileRef.current, 'stugrow/posts');
+        try {
+          imageUrl = await uploadToCloudinary(selectedFileRef.current, 'stugrow/posts');
+        } catch (uploadError) {
+          const reason = uploadError?.message || 'Unknown upload error';
+          addToast(`Image upload failed: ${reason}`, 'error');
+        }
       }
-    } catch {
-      addToast('Image upload failed', 'error');
-      setUploading(false);
-      return;
-    }
 
-    try {
       onPost?.(content, imageUrl, null, 'general');
       setContent('');
       setImagePreview(null);
