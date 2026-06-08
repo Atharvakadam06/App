@@ -100,7 +100,7 @@ function AuthGate() {
       <Sidebar />
       <main className="lg:ml-[72px] xl:ml-[240px] flex flex-col h-full transition-all duration-300 overflow-hidden">
         <Header title={meta.title} subtitle={meta.subtitle} />
-        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-none">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <Routes>
             <Route path="/" element={<Feed />} />
             <Route path="/connect" element={<Network />} />
