@@ -96,24 +96,14 @@ export async function createPost(post) {
   await ensureDb();
   const id = post.id || Date.now().toString();
   const timestamp = post.timestamp || getCurrentTimestamp();
-  const content = typeof post.content === 'string' ? post.content : '';
-  const image = typeof post.image === 'string' ? post.image : null;
-  const video = typeof post.video === 'string' ? post.video : null;
-  const tags = typeof post.tags === 'string' ? post.tags : JSON.stringify(post.tags || []);
+  const content = typeof post.content === 'string' ? post.content.trim() : '';
+  const image = typeof post.image === 'string' && post.image.trim() ? post.image.trim() : null;
+  const video = typeof post.video === 'string' && post.video.trim() ? post.video.trim() : null;
+  const tags = Array.isArray(post.tags) ? JSON.stringify(post.tags) : '[]';
   await execute(
     `INSERT INTO posts (id, user_id, content, image, video, likes, shares, tags, timestamp)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      post.userId,
-      content,
-      image,
-      video,
-      post.likes || 0,
-      post.shares || 0,
-      tags,
-      timestamp,
-    ]
+    [id, post.userId, content, image, video, post.likes || 0, post.shares || 0, tags, timestamp]
   );
   return id;
 }

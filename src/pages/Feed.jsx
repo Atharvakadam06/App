@@ -163,11 +163,12 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
 
       {post.image && (
         <div className="relative bg-gray-100 dark:bg-gray-900">
-          <img 
-            src={post.image} 
-            alt="" 
+          <img
+            src={post.image}
+            alt=""
             loading="lazy"
-            className="w-full max-h-[500px] object-contain cursor-pointer" 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            className="w-full max-h-[500px] object-contain cursor-pointer"
             onClick={handleImageTap}
           />
           {showHeartOverlay && (
