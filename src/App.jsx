@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { PostLikeProvider } from './context/PostLikeContext';
 import { PostSaveProvider } from './context/PostSaveContext';
-import { ToastProvider } from './components/Toast';
+import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Feed from './pages/Feed';
