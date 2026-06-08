@@ -96,11 +96,11 @@ function AuthGate() {
   const meta = pageMeta[location.pathname] || pageMeta['/'];
 
   return (
-    <div className="h-dvh flex flex-col bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300 overflow-hidden">
+    <div className="h-dvh flex flex-col bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300">
       <Sidebar />
-      <main className="lg:ml-[72px] xl:ml-[240px] flex flex-col h-full transition-all duration-300">
+      <main className="lg:ml-[72px] xl:ml-[240px] flex flex-col h-full transition-all duration-300 overflow-hidden">
         <Header title={meta.title} subtitle={meta.subtitle} />
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-none">
           <Routes>
             <Route path="/" element={<Feed />} />
             <Route path="/connect" element={<Network />} />
