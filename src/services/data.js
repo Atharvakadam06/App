@@ -9,13 +9,14 @@ export async function initDatabase() {
       await initTursoDb();
       console.log('Database initialized successfully');
     } catch (e) {
-      console.warn('Database connection failed:', e);
+      console.warn('Database init failed:', e);
+      throw e;
     }
     dbInitialized = true;
   }
 }
 
-async function ensureDb() {
+export async function ensureDb() {
   if (!dbInitialized) {
     await initDatabase();
   }
@@ -27,7 +28,19 @@ export async function createUser(user) {
   await execute(
     `INSERT INTO users (id, name, username, email, avatar, bio, college, branch, year, badges, joined_date)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [user.id, user.name, user.username, user.email, user.avatar, user.bio || '', user.college || '', user.branch || '', user.year || '', JSON.stringify(user.badges || ['New Member']), user.joinedDate || new Date().getFullYear().toString()]
+    [
+      user.id,
+      user.name,
+      user.username,
+      user.email,
+      user.avatar,
+      user.bio || '',
+      user.college || '',
+      user.branch || '',
+      user.year || '',
+      JSON.stringify(user.badges || ['New Member']),
+      user.joinedDate || new Date().getFullYear().toString(),
+    ]
   );
 }
 
@@ -78,81 +91,60 @@ export async function deleteUser(userId) {
   await execute('DELETE FROM users WHERE id = ?', [userId]);
 }
 
-function formatUser(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    username: row.username,
-    email: row.email,
-    avatar: row.avatar,
-    bio: row.bio,
-    college: row.college,
-    branch: row.branch,
-    year: row.year,
-    coverPhoto: row.cover_photo,
-    badges: JSON.parse(row.badges || '[]'),
-    connections: row.connections,
-    resources: row.resources,
-    joinedDate: row.joined_date,
-  };
-}
-
 // ---- Posts ----
 export async function createPost(post) {
+  await ensureDb();
   const id = post.id || Date.now().toString();
   const timestamp = post.timestamp || getCurrentTimestamp();
-  console.log('Creating post with timestamp:', timestamp);
-  
-  try {
-await ensureDb();
-    await execute(
-      `INSERT INTO posts (id, user_id, content, image, video, likes, shares, tags, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, post.userId, post.content, post.image || null, post.video || null, post.likes || 0, post.shares || 0, JSON.stringify(post.tags || []), timestamp]
-    );
-    return id;
-  } catch (e) {
-    console.error('createPost failed:', e);
-    throw e;
-  }
+  await execute(
+    `INSERT INTO posts (id, user_id, content, image, video, likes, shares, tags, timestamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      post.userId,
+      post.content,
+      post.image || null,
+      post.video || null,
+      post.likes || 0,
+      post.shares || 0,
+      JSON.stringify(post.tags || []),
+      timestamp,
+    ]
+  );
+  return id;
 }
 
 export async function getAllPosts() {
-  try {
-    await ensureDb();
-    const rows = await query('SELECT * FROM posts ORDER BY created_at DESC');
-    const posts = [];
-    for (const row of rows) {
+  await ensureDb();
+  const rows = await query('SELECT * FROM posts ORDER BY created_at DESC');
+  const posts = [];
+  for (const row of rows) {
+    try {
+      let user = null;
       try {
-        let user = null;
-        try {
-          user = await getUser(row.user_id);
-        } catch (e) {
-          user = { id: row.user_id, name: 'Unknown User', avatar: '' };
-        }
-        const comments = await getPostComments(row.id);
-        posts.push({
-          id: row.id,
-          userId: row.user_id,
-          user,
-          content: row.content,
-          image: row.image,
-          video: row.video,
-          likes: row.likes,
-          shares: row.shares,
-          tags: JSON.parse(row.tags || '[]'),
-          timestamp: row.timestamp,
-          comments,
-        });
-      } catch (rowErr) {
-        console.warn('Skipping post due to error:', row.id, rowErr);
+        user = await getUser(row.user_id);
+      } catch {
+        user = { id: row.user_id, name: 'Unknown User', avatar: '' };
       }
+      const comments = await getPostComments(row.id);
+      posts.push({
+        id: row.id,
+        userId: row.user_id,
+        user,
+        content: row.content,
+        image: row.image,
+        video: row.video,
+        likes: row.likes,
+        shares: row.shares,
+        tags: JSON.parse(row.tags || '[]'),
+        timestamp: row.timestamp,
+        comments,
+      });
+    } catch (rowErr) {
+      console.warn('Skipping post due to error:', row.id, rowErr);
     }
-    return posts;
-  } catch (e) {
-    console.error('getAllPosts failed:', e);
-    return [];
   }
+  return posts;
 }
 
 export async function deletePost(postId) {
@@ -172,11 +164,10 @@ export async function likePost(postId, userId) {
     await execute('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, userId]);
     await execute('UPDATE posts SET likes = likes - 1 WHERE id = ?', [postId]);
     return false;
-  } else {
-    await execute('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, userId]);
-    await execute('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId]);
-    return true;
   }
+  await execute('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, userId]);
+  await execute('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId]);
+  return true;
 }
 
 export async function isPostLiked(postId, userId) {
@@ -191,10 +182,9 @@ export async function savePost(postId, userId) {
   if (existing) {
     await execute('DELETE FROM post_saves WHERE post_id = ? AND user_id = ?', [postId, userId]);
     return false;
-  } else {
-    await execute('INSERT INTO post_saves (post_id, user_id) VALUES (?, ?)', [postId, userId]);
-    return true;
   }
+  await execute('INSERT INTO post_saves (post_id, user_id) VALUES (?, ?)', [postId, userId]);
+  return true;
 }
 
 export async function isPostSaved(postId, userId) {
@@ -205,7 +195,7 @@ export async function isPostSaved(postId, userId) {
 
 export async function getPostComments(postId) {
   await ensureDb();
-  const rows = await query('SELECT c.*, u.name, u.avatar FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = ? ORDER BY c.created_at ASC', [postId]);
+  const rows = await query('SELECT c.*, u.name, u.avatar FROM comments c JOIN users u ON c.user_id = u.id WHERE post_id = ? ORDER BY created_at ASC', [postId]);
   return rows.map(r => ({
     id: r.id,
     userId: r.user_id,
@@ -238,7 +228,22 @@ export async function createPaper(paper) {
   await execute(
     `INSERT INTO papers (id, title, subject, semester, year, college, uploaded_by, downloads, rating, file_size, file_name, file_type, file_url, tags)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, paper.title, paper.subject || 'General', paper.semester || 'N/A', paper.year || '', paper.college || '', paper.uploadedBy, paper.downloads || 0, paper.rating || 0, paper.fileSize || '', paper.fileName || '', paper.fileType || '', paper.fileUrl || null, JSON.stringify(paper.tags || [])]
+    [
+      id,
+      paper.title,
+      paper.subject || 'General',
+      paper.semester || 'N/A',
+      paper.year || '',
+      paper.college || '',
+      paper.uploadedBy,
+      paper.downloads || 0,
+      paper.rating || 0,
+      paper.fileSize || '',
+      paper.fileName || '',
+      paper.fileType || '',
+      paper.fileUrl || null,
+      JSON.stringify(paper.tags || []),
+    ]
   );
   return id;
 }
@@ -281,7 +286,19 @@ export async function createBook(book) {
   await execute(
     `INSERT INTO books (id, title, author, subject, price, uploaded_by, available, image, description, file_url, file_name)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, book.title, book.author, book.subject || 'General', book.price || 'Free', book.uploadedBy, book.available ? 1 : 0, book.image || null, book.description || '', book.fileUrl || null, book.fileName || null]
+    [
+      id,
+      book.title,
+      book.author,
+      book.subject || 'General',
+      book.price || 'Free',
+      book.uploadedBy,
+      book.available ? 1 : 0,
+      book.image || null,
+      book.description || '',
+      book.fileUrl || null,
+      book.fileName || null,
+    ]
   );
   return id;
 }
@@ -316,7 +333,16 @@ export async function createTip(tip) {
   await execute(
     `INSERT INTO tips (id, title, content, category, author_id, likes, read_time, timestamp)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, tip.title, tip.content, tip.category || 'Academic', tip.authorId, tip.likes || 0, tip.readTime || '5 min read', tip.timestamp || getCurrentTimestamp()]
+    [
+      id,
+      tip.title,
+      tip.content,
+      tip.category || 'Academic',
+      tip.authorId,
+      tip.likes || 0,
+      tip.readTime || '5 min read',
+      tip.timestamp || getCurrentTimestamp(),
+    ]
   );
   return id;
 }
@@ -349,7 +375,7 @@ export async function deleteTip(tipId) {
 
 export async function getTipComments(tipId) {
   await ensureDb();
-  const rows = await query('SELECT tc.*, u.name, u.avatar FROM tip_comments tc JOIN users u ON tc.user_id = u.id WHERE tc.tip_id = ? ORDER BY tc.created_at ASC', [tipId]);
+  const rows = await query('SELECT tc.*, u.name, u.avatar FROM tip_comments tc JOIN users u ON tc.user_id = u.id WHERE tip_id = ? ORDER tc.created_at ASC', [tipId]);
   return rows.map(r => ({
     id: r.id,
     userId: r.user_id,
@@ -380,13 +406,12 @@ export async function toggleLink(userId, linkedUserId) {
     await execute('UPDATE users SET connections = connections - 1 WHERE id = ?', [userId]);
     await execute('UPDATE users SET connections = connections - 1 WHERE id = ?', [linkedUserId]);
     return false;
-  } else {
-    await execute('INSERT INTO links (user_id, linked_user_id) VALUES (?, ?)', [userId, linkedUserId]);
-    await execute('INSERT INTO links (user_id, linked_user_id) VALUES (?, ?)', [linkedUserId, userId]);
-    await execute('UPDATE users SET connections = connections + 1 WHERE id = ?', [userId]);
-    await execute('UPDATE users SET connections = connections + 1 WHERE id = ?', [linkedUserId]);
-    return true;
   }
+  await execute('INSERT INTO links (user_id, linked_user_id) VALUES (?, ?)', [userId, linkedUserId]);
+  await execute('INSERT INTO links (user_id, linked_user_id) VALUES (?, ?)', [linkedUserId, userId]);
+  await execute('UPDATE users SET connections = connections + 1 WHERE id = ?', [userId]);
+  await execute('UPDATE users SET connections = connections + 1 WHERE id = ?', [linkedUserId]);
+  return true;
 }
 
 export async function getLinks(userId) {
@@ -404,11 +429,11 @@ export async function getConversations(userId) {
   await ensureDb();
   const rows = await query(
     `SELECT c.*,
-      CASE WHEN c.user1_id = ? THEN c.unread_user2 ELSE c.unread_user1 END as unread,
-      CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END as other_user_id
-     FROM conversations c
-     WHERE c.user1_id = ? OR c.user2_id = ?
-     ORDER BY c.created_at DESC`,
+       CASE WHEN c.user1_id = ? THEN c.unread_user2 ELSE c.unread_user1 END as unread,
+       CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END as other_user_id
+    FROM conversations c
+    WHERE c.user1_id = ? OR c.user2_id = ?
+    ORDER BY c.created_at DESC`,
     [userId, userId, userId, userId]
   );
   const convs = [];
@@ -448,10 +473,7 @@ export async function sendMessage(conversationId, senderId, content, fileUrl = n
     [msgId, conversationId, senderId, content, fileUrl, fileName, fileType, timestamp]
   );
   const lastMsg = fileUrl ? (fileType?.startsWith('image/') ? 'Photo' : `File: ${fileName}`) : content;
-  await execute(
-    'UPDATE conversations SET last_message = ?, timestamp = ? WHERE id = ?',
-    [lastMsg, timestamp, conversationId]
-  );
+  await execute('UPDATE conversations SET last_message = ?, timestamp = ? WHERE id = ?', [lastMsg, timestamp, conversationId]);
   return msgId;
 }
 
@@ -463,17 +485,14 @@ export async function createConversation(user1Id, user2Id) {
   );
   if (existing) return existing.id;
   const id = Date.now().toString();
-  await execute(
-    'INSERT INTO conversations (id, user1_id, user2_id) VALUES (?, ?, ?)',
-    [id, user1Id, user2Id]
-  );
+  await execute('INSERT INTO conversations (id, user1_id, user2_id) VALUES (?, ?, ?)', [id, user1Id, user2Id]);
   return id;
 }
 
 // ---- Notifications ----
 export async function addNotification(userId, type, message) {
   await ensureDb();
-  const id = Date.now().toString() + Math.random();
+  const id = Date.now().toString() + Math.random().toString(36).slice(2);
   await execute(
     'INSERT INTO notifications (id, user_id, type, message, timestamp) VALUES (?, ?, ?, ?, ?)',
     [id, userId, type, message, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })]
@@ -595,8 +614,10 @@ export async function getBlockedUsers(userId) {
 // ---- Reports ----
 export async function createReport(reporterId, contentId, contentType, reason) {
   await ensureDb();
-  await execute('INSERT INTO reports (reporter_id, content_id, content_type, reason, created_at) VALUES (?, ?, ?, ?, ?)', 
-    [reporterId, contentId, contentType, reason, new Date().toISOString()]);
+  await execute(
+    'INSERT INTO reports (reporter_id, content_id, content_type, reason, created_at) VALUES (?, ?, ?, ?, ?)',
+    [reporterId, contentId, contentType, reason, new Date().toISOString()]
+  );
 }
 
 // ---- Export Data ----
@@ -608,7 +629,7 @@ export async function exportUserData(userId) {
   const likedPosts = await query('SELECT post_id FROM post_likes WHERE user_id = ?', [userId]);
   const savedPosts = await query('SELECT post_id FROM post_saves WHERE user_id = ?', [userId]);
   const links = await query('SELECT linked_user_id FROM links WHERE user_id = ? AND is_linked = 1', [userId]);
-  
+
   return {
     profile: user,
     posts,
@@ -616,6 +637,25 @@ export async function exportUserData(userId) {
     likedPosts: likedPosts.map(l => l.post_id),
     savedPosts: savedPosts.map(s => s.post_id),
     connections: links.map(l => l.linked_user_id),
-    exportedAt: new Date().toISOString()
+    exportedAt: new Date().toISOString(),
+  };
+}
+
+function formatUser(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    username: row.username,
+    email: row.email,
+    avatar: row.avatar,
+    bio: row.bio,
+    college: row.college,
+    branch: row.branch,
+    year: row.year,
+    coverPhoto: row.cover_photo,
+    badges: JSON.parse(row.badges || '[]'),
+    connections: row.connections,
+    resources: row.resources,
+    joinedDate: row.joined_date,
   };
 }

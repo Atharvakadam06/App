@@ -669,73 +669,59 @@ export default function Profile() {
   const handleEdit = isOwnProfile ? updateProfile : () => {};
 
    const handlePost = async (content, image, video, category) => {
-    try {
-      const userId = currentUser?.id;
-      if (!userId) {
-        console.error('No user ID found');
-        return;
-      }
-      
-      const userData = { 
-        id: userId, 
-        name: currentUser?.name || 'Unknown', 
-        avatar: currentUser?.avatar || '', 
-        college: currentUser?.college || '' 
-      };
-      
-      console.log('Creating post with userData:', userData);
-      console.log('Content:', content, 'Image:', image ? 'yes' : 'no');
-      
-      await createPost({ 
-        userId, 
-        user: userData, 
-        content, 
-        image, 
-        video, 
-        category, 
-        tags: [], 
-        timestamp: getCurrentTimestamp() 
-      });
-      
-      console.log('Post created, refreshing...');
-      
-      // Force refresh with a slight delay to ensure DB is updated
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      const allPosts = await getAllPosts();
-      console.log('All posts count:', allPosts.length);
-      console.log('Looking for userId:', userId);
-      
-      const myPosts = allPosts.filter(p => p.userId === userId);
-      console.log('My posts count:', myPosts.length);
-      
-      // Enrich with like/save state from context/DB
-      const enrichedPosts = await Promise.all(myPosts.map(async (p) => {
-        const likeState = getLikeState(p.id);
-        const saveState = getSaveState(p.id);
-        let liked = likeState.liked;
-        let likes = likeState.likes;
-        let saved = saveState;
-        
-        if (liked === null || likes === null) {
-          liked = await isPostLiked(p.id, userId);
-          likes = p.likes ?? 0;
-        }
-        if (saved === null) {
-          saved = await isPostSaved(p.id, userId);
-        }
-        
-        return { ...p, liked, likes, saved };
-      }));
-      
-      // Force update to trigger re-render
-      setUserPosts(enrichedPosts);
-      
-      console.log('State updated, userPosts length:', enrichedPosts.length);
-    } catch (e) { 
-      console.error('handlePost error:', e); 
-    }
-  };
+     try {
+       const userId = currentUser?.id;
+       if (!userId) {
+         console.error('No user ID found');
+         return;
+       }
+
+       const userData = {
+         id: userId,
+         name: currentUser?.name || 'Unknown',
+         avatar: currentUser?.avatar || '',
+         college: currentUser?.college || ''
+       };
+
+       await createPost({
+         userId,
+         user: userData,
+         content,
+         image,
+         video,
+         category,
+         tags: [],
+         timestamp: getCurrentTimestamp()
+       });
+
+       await new Promise((r) => setTimeout(r, 250));
+
+       const allPosts = await getAllPosts();
+       const myPosts = allPosts.filter((p) => p.userId === userId);
+
+       const enrichedPosts = await Promise.all(
+         myPosts.map(async (p) => {
+           const likeState = getLikeState(p.id);
+           const saveState = getSaveState(p.id);
+           let liked = likeState.liked;
+           let likes = likeState.likes;
+           let saved = saveState;
+           if (liked === null || likes === null) {
+             liked = await isPostLiked(p.id, userId);
+             likes = p.likes ?? 0;
+           }
+           if (saved === null) {
+             saved = await isPostSaved(p.id, userId);
+           }
+           return { ...p, liked, likes, saved };
+         })
+       );
+       setUserPosts(enrichedPosts);
+     } catch (e) {
+       console.error('handlePost error:', e);
+       addToast(`Failed to publish post: ${e?.message || 'Database error'}`, 'error');
+     }
+   };
 
   const renderContent = () => {
     if (loading) return <div className="card p-6 animate-pulse"><div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/3" /></div>;
