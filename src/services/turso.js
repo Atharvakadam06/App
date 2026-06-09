@@ -16,12 +16,12 @@ function getClient() {
 
 export async function initDatabase() {
   if (dbInitialized) return;
-  
+
   const db = getClient();
   if (!db) {
-    console.warn('Turso not configured, using fallback');
-    dbInitialized = true;
-    return;
+    const error = new Error('Turso database is not configured. Check VITE_TURSO_DATABASE_URL and VITE_TURSO_AUTH_TOKEN.');
+    console.error(error.message);
+    throw error;
   }
 
   try {
@@ -232,8 +232,10 @@ export async function initDatabase() {
     dbInitialized = true;
     console.log('Turso database initialized');
   } catch (e) {
-    console.error('Failed to initialize Turso database:', e);
-    dbInitialized = true;
+    dbInitialized = false;
+    const error = new Error(`Turso database initialization failed: ${e.message}`);
+    console.error(error.message, e);
+    throw error;
   }
 }
 

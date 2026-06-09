@@ -2,17 +2,20 @@ import { query, queryOne, execute, initDatabase as initTursoDb } from './turso';
 import { getCurrentTimestamp } from '../utils/timeUtils';
 
 let dbInitialized = false;
+let dbInitError = null;
 
 export async function initDatabase() {
-  if (!dbInitialized) {
-    try {
-      await initTursoDb();
-      console.log('Database initialized successfully');
-    } catch (e) {
-      console.warn('Database init failed:', e);
-      throw e;
-    }
+  if (dbInitialized) return;
+  if (dbInitError) throw dbInitError;
+
+  try {
+    await initTursoDb();
+    console.log('Database initialized successfully');
     dbInitialized = true;
+  } catch (e) {
+    dbInitError = e;
+    console.error('Database init failed:', e);
+    throw e;
   }
 }
 
@@ -91,53 +94,97 @@ export async function deleteUser(userId) {
   await execute('DELETE FROM users WHERE id = ?', [userId]);
 }
 
+// ---- Local Fallback (works even if Turso is down) ----
+const FALLBACK_POSTS_KEY = 'stugrow_posts_fallback';
+
+function loadFallbackPosts() {
+  try { return JSON.parse(localStorage.getItem(FALLBACK_POSTS_KEY)) || []; }
+  catch { return []; }
+}
+function saveFallbackPosts(posts) {
+  try { localStorage.setItem(FALLBACK_POSTS_KEY, JSON.stringify(posts)); }
+  catch (e) { console.warn('localStorage fallback write failed:', e); }
+}
+
 // ---- Posts ----
 export async function createPost(post) {
-  await ensureDb();
-  const id = post.id || Date.now().toString();
-  const timestamp = post.timestamp || getCurrentTimestamp();
-  const content = typeof post.content === 'string' ? post.content.trim() : '';
-  const image = typeof post.image === 'string' && post.image.trim() ? post.image.trim() : null;
-  const video = typeof post.video === 'string' && post.video.trim() ? post.video.trim() : null;
-  const tags = Array.isArray(post.tags) ? JSON.stringify(post.tags) : '[]';
-  await execute(
-    `INSERT INTO posts (id, user_id, content, image, video, likes, shares, tags, timestamp)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, post.userId, content, image, video, post.likes || 0, post.shares || 0, tags, timestamp]
-  );
-  return id;
+  const record = {
+    id: post.id || Date.now().toString(),
+    user_id: post.userId,
+    content: typeof post.content === 'string' ? post.content.trim() : '',
+    image: typeof post.image === 'string' && post.image.trim() ? post.image.trim() : null,
+    video: typeof post.video === 'string' && post.video.trim() ? post.video.trim() : null,
+    category: typeof post.category === 'string' ? post.category : 'general',
+    likes: post.likes || 0,
+    shares: post.shares || 0,
+    tags: Array.isArray(post.tags) ? post.tags : [],
+    timestamp: post.timestamp || getCurrentTimestamp(),
+    created_at: getCurrentTimestamp(),
+  };
+
+  // Always save to localStorage fallback so posts are visible even if DB is down
+  const fallback = loadFallbackPosts();
+  fallback.unshift(record);
+  saveFallbackPosts(fallback);
+
+  // Try Turso if available
+  try {
+    await ensureDb();
+    await execute(
+      `INSERT INTO posts (id, user_id, content, image, video, category, likes, shares, tags, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [record.id, record.user_id, record.content, record.image, record.video, record.category, record.likes, record.shares, JSON.stringify(record.tags), record.timestamp]
+    );
+  } catch (e) {
+    console.warn('Turso write failed, using localStorage only:', e);
+  }
+
+  return record.id;
 }
 
 export async function getAllPosts() {
-  await ensureDb();
-  const rows = await query('SELECT * FROM posts ORDER BY created_at DESC');
   const posts = [];
-  for (const row of rows) {
-    try {
-      let user = null;
-      try {
-        user = await getUser(row.user_id);
-      } catch {
-        user = { id: row.user_id, name: 'Unknown User', avatar: '' };
-      }
-      const comments = await getPostComments(row.id);
-      posts.push({
-        id: row.id,
-        userId: row.user_id,
-        user,
-        content: row.content,
-        image: row.image,
-        video: row.video,
-        likes: row.likes,
-        shares: row.shares,
-        tags: JSON.parse(row.tags || '[]'),
-        timestamp: row.timestamp,
-        comments,
-      });
-    } catch (rowErr) {
-      console.warn('Skipping post due to error:', row.id, rowErr);
-    }
+
+  // Always try localStorage first (guaranteed to work)
+  const fallback = loadFallbackPosts();
+  for (const p of fallback) {
+    posts.push({
+      ...p,
+      likes: p.likes ?? 0,
+      comments: [],
+      liked: false,
+      saved: false,
+    });
   }
+
+  // Try to augment with Turso data if available
+  try {
+    await ensureDb();
+    const rows = await query('SELECT * FROM posts ORDER BY created_at DESC');
+    const tursoIds = new Set(posts.map(p => p.id));
+    for (const row of rows) {
+      if (!tursoIds.has(row.id)) {
+        posts.push({
+          id: row.id,
+          userId: row.user_id,
+          content: row.content || '',
+          image: row.image,
+          video: row.video,
+          category: row.category || 'general',
+          likes: row.likes ?? 0,
+          shares: row.shares ?? 0,
+          tags: JSON.parse(row.tags || '[]'),
+          timestamp: row.timestamp,
+          comments: [],
+          liked: false,
+          saved: false,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Turso read failed, using localStorage only:', e);
+  }
+
   return posts;
 }
 

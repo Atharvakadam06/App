@@ -11,6 +11,7 @@ import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo, getCurrentTimestamp } from '../utils/timeUtils';
 import { branches, semesters } from '../data/mockData';
 import CustomSelect from '../components/CustomSelect';
+import heic2any from 'heic2any';
 
 const branchGradients = {
   'Computer Science': 'profile-cover-container',
@@ -238,6 +239,33 @@ function CreatePost({ onPost, user }) {
   const selectedFileRef = useRef(null);
   const menuRef = useRef(null);
 
+  const convertHeicToJpeg = useCallback(async (file) => {
+    const isHeic = file.name.toLowerCase().endsWith('.heic') ||
+      file.name.toLowerCase().endsWith('.heif') ||
+      file.type === 'image/heic' || file.type === 'image/heif';
+
+    if (!isHeic) return file;
+
+    addToast('Converting HEIC image...', 'info');
+    try {
+      const jpegBlob = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.9,
+      });
+      const jpegFile = new File([jpegBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+      addToast('HEIC converted successfully', 'success');
+      return jpegFile;
+    } catch (err) {
+      console.error('HEIC conversion failed:', err);
+      addToast('Failed to convert image format. Please use JPG or PNG.', 'error');
+      return null;
+    }
+  }, [addToast]);
+
   useEffect(() => {
     function handleClickOutside(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -258,8 +286,10 @@ function CreatePost({ onPost, user }) {
     input.capture = 'environment';
     input.click();
 
-    input.addEventListener('change', function(e) {
-      const file = e.target.files?.[0];
+    input.addEventListener('change', async function(e) {
+      let file = e.target.files?.[0];
+      if (!file) return;
+      file = await convertHeicToJpeg(file);
       if (!file) return;
       if (!file.type.startsWith('image/')) {
         addToast('Please select an image', 'error');
@@ -280,11 +310,13 @@ function CreatePost({ onPost, user }) {
   const selectFromGallery = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/heic';
+    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/heic,image/heif';
     input.click();
 
-    input.addEventListener('change', function(e) {
-      const file = e.target.files?.[0];
+    input.addEventListener('change', async function(e) {
+      let file = e.target.files?.[0];
+      if (!file) return;
+      file = await convertHeicToJpeg(file);
       if (!file) return;
       if (file.size > 20 * 1024 * 1024) {
         addToast('File must be less than 20MB', 'error');
@@ -337,16 +369,19 @@ function CreatePost({ onPost, user }) {
         } catch (uploadError) {
           const reason = uploadError?.message || 'Unknown upload error';
           addToast(`Image upload failed: ${reason}`, 'error');
+            setUploading(false);
+          return;
         }
       }
 
-      onPost?.(content, imageUrl, null, 'general');
+      await onPost?.(content, imageUrl, null, 'general');
       setContent('');
       setImagePreview(null);
       selectedFileRef.current = null;
       addToast('Post published successfully', 'success');
-    } catch {
-      addToast('Failed to publish post', 'error');
+    } catch (e) {
+      console.error('handlePost error:', e);
+      addToast(`Failed to publish post: ${e?.message || 'Database error'}`, 'error');
     } finally {
       setUploading(false);
     }
@@ -737,7 +772,7 @@ export default function Profile() {
                 style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}
               >
                 {post.image ? (
-                  <img src={post.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  <img src={post.image} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center p-2 text-center text-xs text-gray-600 dark:text-gray-300 break-words">{post.content?.substring(0, 50)}</div>
                 )}
@@ -751,13 +786,16 @@ export default function Profile() {
               <div className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-4">
                 <div className="absolute inset-0 bg-black/70 backdrop-blur-[12px] animate-fade-in" onClick={() => setSelectedPost(null)} style={{ animationDuration: '200ms' }} />
                 <div className="relative w-full max-w-[900px] h-[85vh] sm:h-[80vh] bg-white dark:bg-[#0e1322] rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col sm:flex-row" style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.35)', animationDuration: '280ms' }} onClick={e => e.stopPropagation()}>
-                  <div className="flex-1 bg-black flex items-center justify-center min-h-[40vh] sm:min-h-0 sm:rounded-l-2xl">
-                    {selectedPost.image ? (
-                      <img src={selectedPost.image} alt="" className="max-w-full max-h-full object-contain p-2" />
-                    ) : (
-                      <div className="p-6 sm:p-8"><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
-                    )}
-                  </div>
+                   <div className="flex-1 bg-black flex items-center justify-center min-h-[40vh] sm:min-h-0 sm:rounded-l-2xl">
+                     {selectedPost.image ? (
+                       <img src={selectedPost.image} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }} className="max-w-full max-h-full object-contain p-2" />
+                     ) : (
+                       <div className="p-6 sm:p-8 hidden" style={{ display: 'none' }}><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
+                     )}
+                     {!selectedPost.image && (
+                       <div className="p-6 sm:p-8"><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
+                     )}
+                   </div>
                   <div className="w-full sm:w-[380px] flex flex-col bg-white dark:bg-[#0e1322] border-t sm:border-t-0 sm:border-l dark:border-gray-700">
                     <div className="p-4 border-b dark:border-gray-700 flex items-center gap-3">
                       <img src={profileUser?.avatar} alt="" className="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-blue-500/30" />
