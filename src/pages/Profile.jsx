@@ -365,10 +365,12 @@ function CreatePost({ onPost, user }) {
     try {
       if (selectedFileRef.current) {
         try {
+          console.log('Uploading file to Cloudinary...', selectedFileRef.current.name, selectedFileRef.current.type);
           imageUrl = await uploadToCloudinary(selectedFileRef.current, 'stugrow/posts');
-          console.log('Cloudinary URL:', imageUrl);
+          console.log('Cloudinary URL received:', imageUrl);
         } catch (uploadError) {
           const reason = uploadError?.message || 'Unknown upload error';
+          console.error('Cloudinary upload failed:', uploadError);
           addToast(`Image upload failed: ${reason}`, 'error');
             setUploading(false);
           return;
@@ -709,31 +711,32 @@ export default function Profile() {
 
   const handleEdit = isOwnProfile ? updateProfile : () => {};
 
-   const handlePost = async (content, image, video, category) => {
-     try {
-       const userId = currentUser?.id;
-       if (!userId) {
-         console.error('No user ID found');
-         return;
-       }
+const handlePost = async (content, image, video, category) => {
+      try {
+        const userId = currentUser?.id;
+        if (!userId) {
+          console.error('No user ID found');
+          return;
+        }
+        console.log('Creating post with:', { content: content?.substring(0, 20), hasImage: !!image, image });
 
-       const userData = {
-         id: userId,
-         name: currentUser?.name || 'Unknown',
-         avatar: currentUser?.avatar || '',
-         college: currentUser?.college || ''
-       };
+        const userData = {
+          id: userId,
+          name: currentUser?.name || 'Unknown',
+          avatar: currentUser?.avatar || '',
+          college: currentUser?.college || ''
+        };
 
-       await createPost({
-         userId,
-         user: userData,
-         content,
-         image,
-         video,
-         category,
-         tags: [],
-         timestamp: getCurrentTimestamp()
-       });
+        await createPost({
+          userId,
+          user: userData,
+          content,
+          image,
+          video,
+          category,
+          tags: [],
+          timestamp: getCurrentTimestamp()
+        });
 
        await new Promise((r) => setTimeout(r, 250));
 
