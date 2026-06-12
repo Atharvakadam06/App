@@ -4,7 +4,7 @@ const CLOUD_NAME = CLOUDINARY_CONFIG.cloudName;
 const UPLOAD_PRESET = CLOUDINARY_CONFIG.uploadPreset;
 const UPLOAD_FOLDER = CLOUDINARY_CONFIG.uploadFolder;
 
-export async function uploadToCloudinary(file, folder = 'stugrow') {
+export async function uploadToCloudinary(file, folder) {
   if (!file) {
     throw new Error('No file selected for upload');
   }
@@ -12,9 +12,7 @@ export async function uploadToCloudinary(file, folder = 'stugrow') {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', UPLOAD_PRESET);
-  if (folder) {
-    formData.append('folder', folder);
-  }
+  formData.append('folder', folder || 'stugrow');
 
   const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
   console.log('[Cloudinary] Uploading to:', url, 'file:', file.name, file.type, (file.size / 1024).toFixed(1) + 'KB');

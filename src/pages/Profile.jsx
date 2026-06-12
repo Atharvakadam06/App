@@ -489,6 +489,8 @@ export default function Profile() {
   const [bookPdfFile, setBookPdfFile] = useState(null);
   const [uploadingBook, setUploadingBook] = useState(false);
 
+  const bookCoverFileRef = useRef(null);
+
   const paperFileInputRef = useRef(null);
   const bookFileInputRef = useRef(null);
   const bookPdfInputRef = useRef(null);
@@ -949,31 +951,31 @@ export default function Profile() {
                       </button>
                       {paperFilePreview && <div className="relative mt-3"><img src={paperFilePreview} alt="Preview" className="w-full max-h-48 object-cover rounded-xl" /><button onClick={() => { setPaperFile(null); setPaperFilePreview(null); }} className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-4 h-4" /></button></div>}
                     </div>
-                    <button onClick={async () => {
-                      if (!uploadPaperForm.title.trim()) return;
-                      setUploadingPaper(true);
-                      let fileUrl = null, fileType = '', fileName = '', fileSize = '';
-                      try {
-                        if (paperFile) {
-                          if (paperFile.type.startsWith('video/')) fileUrl = await uploadToGofile(paperFile);
-                          else fileUrl = await uploadToCloudinary(paperFile, 'stugrow/papers');
-                          fileType = paperFile.type; fileName = paperFile.name; fileSize = `${(paperFile.size / 1024).toFixed(1)} KB`;
-                        }
-                        await createPaper({
-                          title: uploadPaperForm.title, subject: uploadPaperForm.branch || 'General', semester: uploadPaperForm.semester || 'N/A',
-                          year: uploadPaperForm.year || 'N/A', college: currentUser.college, uploadedBy: currentUser.id,
-                          fileUrl, fileType, fileName, fileSize
-                        });
-                        addToast('Paper uploaded successfully!', 'success');
-                        const papers = await getAllPapers();
-                        setUserPapers(papers.filter(p => p.uploadedBy?.id === currentUser.id));
-                        setShowUploadPaper(false);
-                        setUploadPaperForm({ title: '', branch: '', semester: '', year: '' });
-                        setPaperFile(null);
-                        setPaperFilePreview(null);
-                      } catch { addToast('Failed to upload paper', 'error'); }
-                      finally { setUploadingPaper(false); }
-                    }} disabled={!uploadPaperForm.title.trim() || uploadingPaper} className="upload-form-submit-btn w-full">{uploadingPaper ? 'Uploading...' : 'Submit Paper'}</button>
+<button onClick={async () => {
+                       if (!uploadPaperForm.title.trim()) return;
+                       setUploadingPaper(true);
+                       let fileUrl = null, fileType = '', fileName = '', fileSize = '';
+                       try {
+                         if (paperFile) {
+                           if (paperFile.type.startsWith('video/')) fileUrl = await uploadToGofile(paperFile);
+                           else fileUrl = await uploadToCloudinary(paperFile, 'stugrow/papers');
+                           fileType = paperFile.type; fileName = paperFile.name; fileSize = `${(paperFile.size / 1024).toFixed(1)} KB`;
+                         }
+                         await createPaper({
+                           title: uploadPaperForm.title, subject: uploadPaperForm.branch || 'General', semester: uploadPaperForm.semester || 'N/A',
+                           year: uploadPaperForm.year || 'N/A', college: currentUser.college, uploadedBy: currentUser.id,
+                           fileUrl, fileType, fileName, fileSize
+                         });
+                         addToast('Paper uploaded successfully!', 'success');
+                         const papers = await getAllPapers();
+                         setUserPapers(papers.filter(p => p.uploadedBy?.id === currentUser.id));
+                         setShowUploadPaper(false);
+                         setUploadPaperForm({ title: '', branch: '', semester: '', year: '' });
+                         setPaperFile(null);
+                         setPaperFilePreview(null);
+                       } catch (e) { addToast(`Failed to upload paper: ${e.message}`, 'error'); }
+                       finally { setUploadingPaper(false); }
+                     }} disabled={!uploadPaperForm.title.trim() || uploadingPaper} className="upload-form-submit-btn w-full">{uploadingPaper ? 'Uploading...' : 'Submit Paper'}</button>
                   </div>
                 )}
               </div>
@@ -1028,58 +1030,58 @@ case 'books':
                       </button>
                     </div>
 
-                    {/* Cover Image Upload - Optional */}
-                    <div>
-                      <label className="upload-form-label">Cover Image (Optional)</label>
-                      <input ref={bookFileInputRef} type="file" accept="image/*" className="hidden-input" onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => setBookImage(ev.target.result);
-                          reader.readAsDataURL(file);
-                          bookFileInputRef.current = file;
-                        }
-                      }} />
-                      <button onClick={() => bookFileInputRef.current?.click()} className={`upload-form-file-btn w-full ${bookImage ? 'file-selected' : ''}`}>
-                        {bookImage ? <><span className="text-green-600">✓</span> Change cover</> : <><Camera className="w-[18px] h-[18px]" />Upload cover image</>}
-                      </button>
-                      {bookImage && <div className="relative mt-3 inline-block"><img src={bookImage} alt="Book cover" className="w-32 h-40 object-cover rounded-xl" /><button onClick={() => { setBookImage(null); bookFileInputRef.current = null; }} className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-3.5 h-3.5" /></button></div>}
-                    </div>
+{/* Cover Image Upload - Optional */}
+                     <div>
+                       <label className="upload-form-label">Cover Image (Optional)</label>
+                       <input ref={bookFileInputRef} type="file" accept="image/*" className="hidden-input" onChange={(e) => {
+                         const file = e.target.files?.[0];
+                         if (file) {
+                           const reader = new FileReader();
+                           reader.onload = (ev) => setBookImage(ev.target.result);
+                           reader.readAsDataURL(file);
+                           bookCoverFileRef.current = file;
+                         }
+                       }} />
+                       <button onClick={() => bookFileInputRef.current?.click()} className={`upload-form-file-btn w-full ${bookImage ? 'file-selected' : ''}`}>
+                         {bookImage ? <><span className="text-green-600">✓</span> Change cover</> : <><Camera className="w-[18px] h-[18px]" />Upload cover image</>}
+                       </button>
+                       {bookImage && <div className="relative mt-3 inline-block"><img src={bookImage} alt="Book cover" className="w-32 h-40 object-cover rounded-xl" /><button onClick={() => { setBookImage(null); bookCoverFileRef.current = null; }} className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-3.5 h-3.5" /></button></div>}
+                     </div>
 
-                    <button onClick={async () => {
-                      if (!uploadBookForm.title.trim() || !uploadBookForm.author.trim() || !bookPdfFile) return;
-                      setUploadingBook(true);
-                      let imageUrl = null, fileUrl = null;
-                      try {
-                        // Upload cover image if provided
-                        if (bookFileInputRef.current) {
-                          imageUrl = await uploadToCloudinary(bookFileInputRef.current, 'stugrow/books/covers');
-                        }
-                        // Upload PDF file
-                        fileUrl = await uploadToGofile(bookPdfFile);
-                        
-                        await createBook({
-                          title: uploadBookForm.title,
-                          author: uploadBookForm.author,
-                          subject: uploadBookForm.subject || 'General',
-                          price: 'Free',
-                          uploadedBy: currentUser.id,
-                          available: true,
-                          image: imageUrl,
-                          description: uploadBookForm.description,
-                          fileUrl,
-                          fileName: bookPdfFile.name,
-                        });
-                        addToast('Book uploaded successfully!', 'success');
-                        const books = await getAllBooks();
-                        setUserBooks(books.filter(b => b.uploadedBy?.id === currentUser.id));
-                        setShowUploadBook(false);
-                        setUploadBookForm({ title: '', author: '', subject: '', description: '' });
-                        setBookImage(null);
-                        setBookPdfFile(null);
-                      } catch { addToast('Failed to upload book', 'error'); }
-                      finally { setUploadingBook(false); }
-                    }} disabled={!uploadBookForm.title.trim() || !uploadBookForm.author.trim() || !bookPdfFile || uploadingBook} className="upload-form-submit-btn w-full">{uploadingBook ? 'Uploading...' : 'Submit Book'}</button>
+                     <button onClick={async () => {
+                       if (!uploadBookForm.title.trim() || !uploadBookForm.author.trim() || !bookPdfFile) return;
+                       setUploadingBook(true);
+                       let imageUrl = null, fileUrl = null;
+                       try {
+                         // Upload cover image if provided
+                         if (bookCoverFileRef.current) {
+                           imageUrl = await uploadToCloudinary(bookCoverFileRef.current, 'stugrow/books/covers');
+                         }
+                         // Upload PDF file
+                         fileUrl = await uploadToGofile(bookPdfFile);
+                         
+                         await createBook({
+                           title: uploadBookForm.title,
+                           author: uploadBookForm.author,
+                           subject: uploadBookForm.subject || 'General',
+                           price: 'Free',
+                           uploadedBy: currentUser.id,
+                           available: true,
+                           image: imageUrl,
+                           description: uploadBookForm.description,
+                           fileUrl,
+                           fileName: bookPdfFile.name,
+                         });
+                         addToast('Book uploaded successfully!', 'success');
+                         const books = await getAllBooks();
+                         setUserBooks(books.filter(b => b.uploadedBy?.id === currentUser.id));
+                         setShowUploadBook(false);
+                         setUploadBookForm({ title: '', author: '', subject: '', description: '' });
+                         setBookImage(null);
+                         setBookPdfFile(null);
+                       } catch (e) { addToast(`Failed to upload book: ${e.message}`, 'error'); }
+                       finally { setUploadingBook(false); }
+                     }} disabled={!uploadBookForm.title.trim() || !uploadBookForm.author.trim() || !bookPdfFile || uploadingBook} className="upload-form-submit-btn w-full">{uploadingBook ? 'Uploading...' : 'Submit Book'}</button>
                   </div>
                 )}
               </div>
