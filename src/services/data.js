@@ -120,7 +120,10 @@ export async function createPost(post) {
     tags: Array.isArray(post.tags) ? post.tags : [],
     timestamp: post.timestamp || getCurrentTimestamp(),
     created_at: getCurrentTimestamp(),
+    user: post.user || null,
   };
+
+  console.log('createPost called with:', { id: record.id, content: record.content?.substring(0, 20), image: record.image?.substring(0, 50) });
 
   // Always save to localStorage fallback so posts are visible even if DB is down
   const fallback = loadFallbackPosts();
