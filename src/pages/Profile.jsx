@@ -358,7 +358,7 @@ function CreatePost({ onPost, user }) {
   };
 
   const handlePost = async () => {
-    if (!content.trim()) return;
+    if (!content.trim() && !selectedFileRef.current) return;
     let imageUrl = null;
     setUploading(true);
 
