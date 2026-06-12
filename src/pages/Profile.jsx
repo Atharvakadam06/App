@@ -358,7 +358,10 @@ function CreatePost({ onPost, user }) {
   };
 
   const handlePost = async () => {
-    if (!content.trim() && !selectedFileRef.current) return;
+    if (!content.trim() && !selectedFileRef.current) {
+      addToast('Add text or image to post', 'info');
+      return;
+    }
     let imageUrl = null;
     setUploading(true);
 
@@ -382,7 +385,7 @@ function CreatePost({ onPost, user }) {
       setImagePreview(null);
       selectedFileRef.current = null;
       if (imageUrl) {
-        addToast('Post with image published!', 'success');
+        addToast(`Post with image published! ${imageUrl.substring(0, 30)}...`, 'success');
       } else {
         addToast('Post published successfully', 'success');
       }
@@ -718,7 +721,7 @@ const handlePost = async (content, image, video, category) => {
           console.error('No user ID found');
           return;
         }
-        console.log('Creating post with:', { content: content?.substring(0, 20), hasImage: !!image, image });
+        console.log('Creating post with:', { content: content?.substring(0, 20), hasImage: !!image, image: image?.substring(0, 50) });
 
         const userData = {
           id: userId,
@@ -727,7 +730,7 @@ const handlePost = async (content, image, video, category) => {
           college: currentUser?.college || ''
         };
 
-        await createPost({
+        const postId = await createPost({
           userId,
           user: userData,
           content,
@@ -737,8 +740,9 @@ const handlePost = async (content, image, video, category) => {
           tags: [],
           timestamp: getCurrentTimestamp()
         });
+        console.log('Post created with ID:', postId);
 
-       await new Promise((r) => setTimeout(r, 250));
+        await new Promise((r) => setTimeout(r, 250));
 
        const allPosts = await getAllPosts();
        const myPosts = allPosts.filter((p) => p.userId === userId);
