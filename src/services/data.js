@@ -630,6 +630,7 @@ export async function clearAllData() {
   await execute('DELETE FROM books');
   await execute('DELETE FROM tips');
   await execute('DELETE FROM posts');
+  try { localStorage.removeItem(FALLBACK_POSTS_KEY); } catch (e) {}
 }
 
 // ---- Blocked Users ----

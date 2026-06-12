@@ -1,5 +1,8 @@
-const CLOUD_NAME = 'dkjryejcz';
-const UPLOAD_PRESET = 'hjgqkyhd';
+import { CLOUDINARY_CONFIG } from '../config';
+
+const CLOUD_NAME = CLOUDINARY_CONFIG.cloudName;
+const UPLOAD_PRESET = CLOUDINARY_CONFIG.uploadPreset;
+const UPLOAD_FOLDER = CLOUDINARY_CONFIG.uploadFolder;
 
 export async function uploadToCloudinary(file, folder = 'stugrow') {
   if (!file) {
