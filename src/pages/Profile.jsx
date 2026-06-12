@@ -366,6 +366,7 @@ function CreatePost({ onPost, user }) {
       if (selectedFileRef.current) {
         try {
           imageUrl = await uploadToCloudinary(selectedFileRef.current, 'stugrow/posts');
+          console.log('Cloudinary URL:', imageUrl);
         } catch (uploadError) {
           const reason = uploadError?.message || 'Unknown upload error';
           addToast(`Image upload failed: ${reason}`, 'error');
@@ -378,7 +379,11 @@ function CreatePost({ onPost, user }) {
       setContent('');
       setImagePreview(null);
       selectedFileRef.current = null;
-      addToast('Post published successfully', 'success');
+      if (imageUrl) {
+        addToast('Post with image published!', 'success');
+      } else {
+        addToast('Post published successfully', 'success');
+      }
     } catch (e) {
       console.error('handlePost error:', e);
       addToast(`Failed to publish post: ${e?.message || 'Database error'}`, 'error');
@@ -788,16 +793,13 @@ export default function Profile() {
               <div className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-4">
                 <div className="absolute inset-0 bg-black/70 backdrop-blur-[12px] animate-fade-in" onClick={() => setSelectedPost(null)} style={{ animationDuration: '200ms' }} />
                 <div className="relative w-full max-w-[900px] h-[85vh] sm:h-[80vh] bg-white dark:bg-[#0e1322] rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col sm:flex-row" style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.35)', animationDuration: '280ms' }} onClick={e => e.stopPropagation()}>
-                   <div className="flex-1 bg-black flex items-center justify-center min-h-[40vh] sm:min-h-0 sm:rounded-l-2xl">
-                     {selectedPost.image ? (
-                       <img src={selectedPost.image} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }} className="max-w-full max-h-full object-contain p-2" />
-                     ) : (
-                       <div className="p-6 sm:p-8 hidden" style={{ display: 'none' }}><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
-                     )}
-                     {!selectedPost.image && (
-                       <div className="p-6 sm:p-8"><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
-                     )}
-                   </div>
+<div className="flex-1 bg-black flex items-center justify-center min-h-[40vh] sm:min-h-0 sm:rounded-l-2xl">
+                      {selectedPost.image ? (
+                        <img src={selectedPost.image} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="max-w-full max-h-full object-contain p-2" />
+                      ) : (
+                        <div className="p-6 sm:p-8"><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
+                      )}
+                    </div>
                   <div className="w-full sm:w-[380px] flex flex-col bg-white dark:bg-[#0e1322] border-t sm:border-t-0 sm:border-l dark:border-gray-700">
                     <div className="p-4 border-b dark:border-gray-700 flex items-center gap-3">
                       <img src={profileUser?.avatar} alt="" className="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-blue-500/30" />

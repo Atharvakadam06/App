@@ -149,8 +149,17 @@ export async function getAllPosts() {
   const fallback = loadFallbackPosts();
   for (const p of fallback) {
     posts.push({
-      ...p,
+      id: p.id || p.postId,
+      userId: p.user_id || p.userId,
+      user: p.user || null,
+      content: p.content || '',
+      image: p.image || null,
+      video: p.video || null,
+      category: p.category || 'general',
       likes: p.likes ?? 0,
+      shares: p.shares ?? 0,
+      tags: p.tags || [],
+      timestamp: p.timestamp || p.created_at,
       comments: [],
       liked: false,
       saved: false,
@@ -167,6 +176,7 @@ export async function getAllPosts() {
         posts.push({
           id: row.id,
           userId: row.user_id,
+          user: null,
           content: row.content || '',
           image: row.image,
           video: row.video,
