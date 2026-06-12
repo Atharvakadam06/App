@@ -440,9 +440,9 @@ function CreatePost({ onPost, user }) {
                   <FileText className="w-5 h-5" />
                 </button>
               </div>
-              <button onClick={() => onPost?.()} disabled={(!content.trim() && !imagePreview) || uploading} className="profile-post-btn">
-                {uploading ? 'Publishing...' : 'Post'}
-              </button>
+<button onClick={handlePost} disabled={(!content.trim() && !imagePreview) || uploading} className="profile-post-btn">
+                 {uploading ? 'Publishing...' : 'Post'}
+               </button>
             </div>
           </div>
         </div>
