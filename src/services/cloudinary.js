@@ -12,7 +12,8 @@ export async function uploadToCloudinary(file, folder) {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', UPLOAD_PRESET);
-  formData.append('folder', folder || 'stugrow');
+  // Note: folder is optional - only send if provided and if preset allows it
+  // if (folder) { formData.append('folder', folder); }
 
   const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
   console.log('[Cloudinary] Uploading to:', url, 'file:', file.name, file.type, (file.size / 1024).toFixed(1) + 'KB');
