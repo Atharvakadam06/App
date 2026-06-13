@@ -3,7 +3,7 @@ import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Image, Send, Fi
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { getAllPosts, deletePost, updatePost, likePost, isPostLiked, savePost, isPostSaved, addComment, getPostComments, deleteComment, createReport } from '../services/data';
+import { getAllPosts, deletePost, updatePost, likePost, isPostLiked, savePost, isPostSaved, addComment, getPostComments, deleteComment, createReport, getUser } from '../services/data';
 import { usePostLike } from '../context/PostLikeContext';
 import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo } from '../utils/timeUtils';
@@ -358,8 +358,15 @@ export default function Feed() {
         const comments = await getPostComments(p.id);
         const liked = await isPostLiked(p.id, user?.id);
         const saved = await isPostSaved(p.id, user?.id);
+        // Enrich with user data if missing
+        let userData = p.user;
+        if (!userData && p.userId) {
+          const u = await getUser(p.userId);
+          userData = { id: u?.id, name: u?.name, avatar: u?.avatar, college: u?.college };
+        }
         return {
           ...p,
+          user: userData,
           liked,
           saved,
           likes: p.likes ?? 0,
