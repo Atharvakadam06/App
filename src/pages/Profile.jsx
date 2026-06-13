@@ -288,10 +288,16 @@ function CreatePost({ onPost, user }) {
 
     input.addEventListener('change', async function(e) {
       let file = e.target.files?.[0];
+      console.log('Camera file selected:', file?.name, file?.type, file?.size);
       if (!file) return;
       file = await convertHeicToJpeg(file);
-      if (!file) return;
+      console.log('After HEIC conversion:', file?.name, file?.type);
+      if (!file) {
+        console.error('HEIC conversion returned null');
+        return;
+      }
       if (!file.type.startsWith('image/')) {
+        console.error('Not an image after conversion:', file.type);
         addToast('Please select an image', 'error');
         return;
       }
@@ -315,9 +321,19 @@ function CreatePost({ onPost, user }) {
 
     input.addEventListener('change', async function(e) {
       let file = e.target.files?.[0];
+      console.log('File selected:', file?.name, file?.type, file?.size);
       if (!file) return;
       file = await convertHeicToJpeg(file);
-      if (!file) return;
+      console.log('After HEIC conversion:', file?.name, file?.type);
+      if (!file) {
+        console.error('HEIC conversion returned null');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        console.error('Not an image after conversion:', file.type);
+        addToast('Please select an image', 'error');
+        return;
+      }
       if (file.size > 20 * 1024 * 1024) {
         addToast('File must be less than 20MB', 'error');
         return;
