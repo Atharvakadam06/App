@@ -279,7 +279,6 @@ function CreatePost({ onPost, user }) {
   }, [showMediaMenu]);
 
   const openCamera = () => {
-    // Opens phone's native camera app
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -287,28 +286,24 @@ function CreatePost({ onPost, user }) {
     input.click();
 
     input.addEventListener('change', async function(e) {
-      let file = e.target.files?.[0];
-      console.log('Camera file selected:', file?.name, file?.type, file?.size);
-      if (!file) return;
-      file = await convertHeicToJpeg(file);
-      console.log('After HEIC conversion:', file?.name, file?.type);
-      if (!file) {
-        console.error('HEIC conversion returned null');
-        return;
-      }
-      if (!file.type.startsWith('image/')) {
-        console.error('Not an image after conversion:', file.type);
+      const selectedFile = e.target.files?.[0];
+      console.log('Camera file selected:', selectedFile?.name, selectedFile?.type, selectedFile?.size);
+      if (!selectedFile) return;
+      if (!selectedFile.type.startsWith('image/')) {
         addToast('Please select an image', 'error');
         return;
       }
-      if (file.size > 20 * 1024 * 1024) {
+      const file = await convertHeicToJpeg(selectedFile);
+      const finalFile = file || selectedFile;
+      console.log('Using file for upload:', finalFile?.name, finalFile?.type);
+      if (finalFile.size > 20 * 1024 * 1024) {
         addToast('File must be less than 20MB', 'error');
         return;
       }
-      selectedFileRef.current = file;
+      selectedFileRef.current = finalFile;
       const reader = new FileReader();
       reader.onload = (ev) => setImagePreview(ev.target.result);
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(finalFile);
       setShowMediaMenu(false);
     });
   };
@@ -320,28 +315,24 @@ function CreatePost({ onPost, user }) {
     input.click();
 
     input.addEventListener('change', async function(e) {
-      let file = e.target.files?.[0];
-      console.log('File selected:', file?.name, file?.type, file?.size);
-      if (!file) return;
-      file = await convertHeicToJpeg(file);
-      console.log('After HEIC conversion:', file?.name, file?.type);
-      if (!file) {
-        console.error('HEIC conversion returned null');
+      const selectedFile = e.target.files?.[0];
+      console.log('Gallery file selected:', selectedFile?.name, selectedFile?.type, selectedFile?.size);
+      if (!selectedFile) return;
+      if (!selectedFile.type.startsWith('image/') && !selectedFile.name.match(/\.(heic|heif)$/i)) {
+        addToast('Please select an image file', 'error');
         return;
       }
-      if (!file.type.startsWith('image/')) {
-        console.error('Not an image after conversion:', file.type);
-        addToast('Please select an image', 'error');
-        return;
-      }
-      if (file.size > 20 * 1024 * 1024) {
+      const file = await convertHeicToJpeg(selectedFile);
+      const finalFile = file || selectedFile;
+      console.log('Using file for upload:', finalFile?.name, finalFile?.type);
+      if (finalFile.size > 20 * 1024 * 1024) {
         addToast('File must be less than 20MB', 'error');
         return;
       }
-      selectedFileRef.current = file;
+      selectedFileRef.current = finalFile;
       const reader = new FileReader();
       reader.onload = (ev) => setImagePreview(ev.target.result);
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(finalFile);
       setShowMediaMenu(false);
     });
   };
