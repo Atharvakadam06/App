@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight, MoreHorizontal, BadgeAlert, RefreshCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
