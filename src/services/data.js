@@ -123,12 +123,17 @@ export async function createPost(post) {
     user: post.user || null,
   };
 
-  console.log('createPost called with:', { id: record.id, content: record.content?.substring(0, 20), image: record.image?.substring(0, 50) });
+  console.log('createPost called with image:', record.image ? record.image.substring(0, 50) + '...' : 'null');
 
   // Always save to localStorage fallback so posts are visible even if DB is down
   const fallback = loadFallbackPosts();
   fallback.unshift(record);
-  saveFallbackPosts(fallback);
+  try {
+    localStorage.setItem(FALLBACK_POSTS_KEY, JSON.stringify(fallback));
+    console.log('Saved to localStorage, total posts:', fallback.length);
+  } catch (e) {
+    console.warn('localStorage fallback write failed:', e);
+  }
 
   // Try Turso if available
   try {
@@ -150,6 +155,7 @@ export async function getAllPosts() {
 
   // Always try localStorage first (guaranteed to work)
   const fallback = loadFallbackPosts();
+  console.log('getAllPosts - localStorage:', fallback.length, fallback.map(p => ({ id: p.id, hasImage: !!p.image, content: p.content?.substring(0, 20) })));
   for (const p of fallback) {
     posts.push({
       id: p.id || p.postId,
