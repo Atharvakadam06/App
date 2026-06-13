@@ -101,10 +101,6 @@ function loadFallbackPosts() {
   try { return JSON.parse(localStorage.getItem(FALLBACK_POSTS_KEY)) || []; }
   catch { return []; }
 }
-function saveFallbackPosts(posts) {
-  try { localStorage.setItem(FALLBACK_POSTS_KEY, JSON.stringify(posts)); }
-  catch (e) { console.warn('localStorage fallback write failed:', e); }
-}
 
 // ---- Posts ----
 export async function createPost(post) {
@@ -296,51 +292,122 @@ export async function deleteComment(commentId) {
 }
 
 // ---- Papers ----
+const FALLBACK_PAPERS_KEY = 'stugrow_papers_fallback';
+
+function loadFallbackPapers() {
+  try { return JSON.parse(localStorage.getItem(FALLBACK_PAPERS_KEY)) || []; }
+  catch { return []; }
+}
+
 export async function createPaper(paper) {
-  await ensureDb();
-  const id = paper.id || Date.now().toString();
-  await execute(
-    `INSERT INTO papers (id, title, subject, semester, year, college, uploaded_by, downloads, rating, file_size, file_name, file_type, file_url, tags)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      paper.title,
-      paper.subject || 'General',
-      paper.semester || 'N/A',
-      paper.year || '',
-      paper.college || '',
-      paper.uploadedBy,
-      paper.downloads || 0,
-      paper.rating || 0,
-      paper.fileSize || '',
-      paper.fileName || '',
-      paper.fileType || '',
-      paper.fileUrl || null,
-      JSON.stringify(paper.tags || []),
-    ]
-  );
-  return id;
+  const record = {
+    id: paper.id || Date.now().toString(),
+    title: paper.title,
+    subject: paper.subject || 'General',
+    semester: paper.semester || 'N/A',
+    year: paper.year || '',
+    college: paper.college || '',
+    uploadedBy: paper.uploadedBy,
+    downloads: paper.downloads || 0,
+    rating: paper.rating || 0,
+    fileSize: paper.fileSize || '',
+    fileName: paper.fileName || '',
+    fileType: paper.fileType || '',
+    fileUrl: paper.fileUrl || null,
+    tags: paper.tags || [],
+    createdAt: getCurrentTimestamp(),
+  };
+
+  console.log('createPaper called:', record.title, record.fileName);
+
+  const fallback = loadFallbackPapers();
+  fallback.unshift(record);
+  try {
+    localStorage.setItem(FALLBACK_PAPERS_KEY, JSON.stringify(fallback));
+  } catch (e) {
+    console.warn('localStorage fallback write failed:', e);
+  }
+
+  try {
+    await ensureDb();
+    await execute(
+      `INSERT INTO papers (id, title, subject, semester, year, college, uploaded_by, downloads, rating, file_size, file_name, file_type, file_url, tags)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        record.id,
+        record.title,
+        record.subject,
+        record.semester,
+        record.year,
+        record.college,
+        record.uploadedBy,
+        record.downloads,
+        record.rating,
+        record.fileSize,
+        record.fileName,
+        record.fileType,
+        record.fileUrl,
+        JSON.stringify(record.tags),
+      ]
+    );
+  } catch (e) {
+    console.warn('Turso write failed for paper, using localStorage only:', e);
+  }
+  return record.id;
 }
 
 export async function getAllPapers() {
-  await ensureDb();
-  const rows = await query('SELECT p.*, u.name as uploader_name, u.avatar as uploader_avatar, u.college as uploader_college FROM papers p JOIN users u ON p.uploaded_by = u.id ORDER BY p.created_at DESC');
-  return rows.map(r => ({
-    id: r.id,
-    title: r.title,
-    subject: r.subject,
-    semester: r.semester,
-    year: r.year,
-    college: r.college,
-    uploadedBy: { id: r.uploaded_by, name: r.uploader_name, avatar: r.uploader_avatar },
-    downloads: r.downloads,
-    rating: r.rating,
-    fileSize: r.file_size,
-    fileName: r.file_name,
-    fileType: r.file_type,
-    fileUrl: r.file_url,
-    tags: JSON.parse(r.tags || '[]'),
-  }));
+  const papers = [];
+
+  const fallback = loadFallbackPapers();
+  console.log('getAllPapers - localStorage:', fallback.length);
+  for (const p of fallback) {
+    papers.push({
+      id: p.id,
+      title: p.title,
+      subject: p.subject,
+      semester: p.semester,
+      year: p.year,
+      college: p.college,
+      uploadedBy: { id: p.uploadedBy, name: '', avatar: '' },
+      downloads: p.downloads,
+      rating: p.rating,
+      fileSize: p.fileSize,
+      fileName: p.fileName,
+      fileType: p.fileType,
+      fileUrl: p.fileUrl,
+      tags: p.tags || [],
+    });
+  }
+
+  try {
+    await ensureDb();
+    const rows = await query('SELECT p.*, u.name as uploader_name, u.avatar as uploader_avatar, u.college as uploader_college FROM papers p JOIN users u ON p.uploaded_by = u.id ORDER BY p.created_at DESC');
+    const existingIds = new Set(papers.map(p => p.id));
+    for (const r of rows) {
+      if (!existingIds.has(r.id)) {
+        papers.push({
+          id: r.id,
+          title: r.title,
+          subject: r.subject,
+          semester: r.semester,
+          year: r.year,
+          college: r.college,
+          uploadedBy: { id: r.uploaded_by, name: r.uploader_name, avatar: r.uploader_avatar },
+          downloads: r.downloads,
+          rating: r.rating,
+          fileSize: r.file_size,
+          fileName: r.file_name,
+          fileType: r.file_type,
+          fileUrl: r.file_url,
+          tags: JSON.parse(r.tags || '[]'),
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Turso read failed for papers, using localStorage only:', e);
+  }
+  return papers;
 }
 
 export async function incrementPaperDownloads(paperId) {
@@ -349,55 +416,136 @@ export async function incrementPaperDownloads(paperId) {
 }
 
 export async function deletePaper(paperId) {
-  await ensureDb();
-  await execute('DELETE FROM papers WHERE id = ?', [paperId]);
+  const fallback = loadFallbackPapers();
+  const filtered = fallback.filter(p => p.id !== paperId);
+  localStorage.setItem(FALLBACK_PAPERS_KEY, JSON.stringify(filtered));
+  try {
+    await ensureDb();
+    await execute('DELETE FROM papers WHERE id = ?', [paperId]);
+  } catch (e) {
+    console.warn('Turso delete failed for paper:', e);
+  }
+}
+
+const FALLBACK_BOOKS_KEY = 'stugrow_books_fallback';
+
+function loadFallbackBooks() {
+  try { return JSON.parse(localStorage.getItem(FALLBACK_BOOKS_KEY)) || []; }
+  catch { return []; }
 }
 
 // ---- Books ----
 export async function createBook(book) {
-  await ensureDb();
-  const id = book.id || Date.now().toString();
-  await execute(
-    `INSERT INTO books (id, title, author, subject, price, uploaded_by, available, image, description, file_url, file_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      book.title,
-      book.author,
-      book.subject || 'General',
-      book.price || 'Free',
-      book.uploadedBy,
-      book.available ? 1 : 0,
-      book.image || null,
-      book.description || '',
-      book.fileUrl || null,
-      book.fileName || null,
-    ]
-  );
-  return id;
+  const record = {
+    id: book.id || Date.now().toString(),
+    title: book.title,
+    author: book.author,
+    subject: book.subject || 'General',
+    price: book.price || 'Free',
+    uploadedBy: book.uploadedBy,
+    available: book.available ? 1 : 0,
+    image: book.image || null,
+    description: book.description || '',
+    fileUrl: book.fileUrl || null,
+    fileName: book.fileName || null,
+    downloads: 0,
+    createdAt: getCurrentTimestamp(),
+  };
+
+  console.log('createBook called with file:', record.fileName);
+
+  const fallback = loadFallbackBooks();
+  fallback.unshift(record);
+  try {
+    localStorage.setItem(FALLBACK_BOOKS_KEY, JSON.stringify(fallback));
+    console.log('Saved book to localStorage, total:', fallback.length);
+  } catch (e) {
+    console.warn('localStorage fallback write failed:', e);
+  }
+
+  try {
+    await ensureDb();
+    await execute(
+      `INSERT INTO books (id, title, author, subject, price, uploaded_by, available, image, description, file_url, file_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        record.id,
+        record.title,
+        record.author,
+        record.subject,
+        record.price,
+        record.uploadedBy,
+        record.available,
+        record.image,
+        record.description,
+        record.fileUrl,
+        record.fileName,
+      ]
+    );
+  } catch (e) {
+    console.warn('Turso write failed for book, using localStorage only:', e);
+  }
+  return record.id;
 }
 
 export async function getAllBooks() {
-  await ensureDb();
-  const rows = await query('SELECT b.*, u.name as uploader_name, u.avatar as uploader_avatar, u.college as uploader_college FROM books b JOIN users u ON b.uploaded_by = u.id ORDER BY b.created_at DESC');
-  return rows.map(r => ({
-    id: r.id,
-    title: r.title,
-    author: r.author,
-    subject: r.subject,
-    price: r.price,
-    uploadedBy: { id: r.uploaded_by, name: r.uploader_name, avatar: r.uploader_avatar, college: r.uploader_college },
-    available: r.available === 1,
-    image: r.image,
-    description: r.description,
-    fileUrl: r.file_url,
-    fileName: r.file_name,
-  }));
+  const books = [];
+
+  const fallback = loadFallbackBooks();
+  console.log('getAllBooks - localStorage:', fallback.length);
+  for (const b of fallback) {
+    books.push({
+      id: b.id,
+      title: b.title,
+      author: b.author,
+      subject: b.subject,
+      price: b.price,
+      uploadedBy: { id: b.uploadedBy, name: '', avatar: '', college: '' },
+      available: b.available === 1,
+      image: b.image,
+      description: b.description,
+      fileUrl: b.fileUrl,
+      fileName: b.fileName,
+    });
+  }
+
+  try {
+    await ensureDb();
+    const rows = await query('SELECT b.*, u.name as uploader_name, u.avatar as uploader_avatar, u.college as uploader_college FROM books b JOIN users u ON b.uploaded_by = u.id ORDER BY b.created_at DESC');
+    const existingIds = new Set(books.map(b => b.id));
+    for (const r of rows) {
+      if (!existingIds.has(r.id)) {
+        books.push({
+          id: r.id,
+          title: r.title,
+          author: r.author,
+          subject: r.subject,
+          price: r.price,
+          uploadedBy: { id: r.uploaded_by, name: r.uploader_name, avatar: r.uploader_avatar, college: r.uploader_college },
+          available: r.available === 1,
+          image: r.image,
+          description: r.description,
+          fileUrl: r.file_url,
+          fileName: r.file_name,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Turso read failed for books, using localStorage only:', e);
+  }
+  return books;
 }
 
 export async function deleteBook(bookId) {
-  await ensureDb();
-  await execute('DELETE FROM books WHERE id = ?', [bookId]);
+  const fallback = loadFallbackBooks();
+  const filtered = fallback.filter(b => b.id !== bookId);
+  localStorage.setItem(FALLBACK_BOOKS_KEY, JSON.stringify(filtered));
+  try {
+    await ensureDb();
+    await execute('DELETE FROM books WHERE id = ?', [bookId]);
+  } catch (e) {
+    console.warn('Turso delete failed for book:', e);
+  }
 }
 
 // ---- Tips ----

@@ -63,7 +63,7 @@ export async function initDatabase() {
 
     try {
       await db.execute(`ALTER TABLE posts ADD COLUMN category TEXT DEFAULT 'general'`);
-    } catch (e) {
+    } catch {
       // Column may already exist
     }
 

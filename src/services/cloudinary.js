@@ -3,7 +3,7 @@ import { CLOUDINARY_CONFIG } from '../config';
 const CLOUD_NAME = CLOUDINARY_CONFIG.cloudName;
 const UPLOAD_PRESET = CLOUDINARY_CONFIG.uploadPreset;
 
-export async function uploadToCloudinary(file, folder) {
+export async function uploadToCloudinary(file, _folder) {
   if (!file) {
     throw new Error('No file selected for upload');
   }

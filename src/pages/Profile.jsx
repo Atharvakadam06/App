@@ -488,62 +488,62 @@ export default function Profile() {
 
   const handleEdit = isOwnProfile ? updateProfile : () => {};
 
-const handlePost = async (content, image, video, category) => {
-      try {
-        const userId = currentUser?.id;
-        if (!userId) {
-          console.error('No user ID found');
-          return;
-        }
-        console.log('Creating post with:', { content: content?.substring(0, 20), hasImage: !!image, image: image?.substring(0, 50) });
+const handlePost = useCallback(async (content, image, video, category) => {
+    try {
+      const userId = currentUser?.id;
+      if (!userId) {
+        console.error('No user ID found');
+        return;
+      }
+      console.log('[Profile] Creating post with:', { content: content?.substring(0, 50), hasImage: !!image, imagePreview: image ? image.substring(0, 50) : null });
 
-        const userData = {
-          id: userId,
-          name: currentUser?.name || 'Unknown',
-          avatar: currentUser?.avatar || '',
-          college: currentUser?.college || ''
-        };
+      const userData = {
+        id: userId,
+        name: currentUser?.name || 'Unknown',
+        avatar: currentUser?.avatar || '',
+        college: currentUser?.college || ''
+      };
 
-        const postId = await createPost({
-          userId,
-          user: userData,
-          content,
-          image,
-          video,
-          category,
-          tags: [],
-          timestamp: getCurrentTimestamp()
-        });
-        console.log('Post created with ID:', postId);
+      const postId = await createPost({
+        userId,
+        user: userData,
+        content,
+        image,
+        video,
+        category,
+        tags: [],
+        timestamp: getCurrentTimestamp()
+      });
+      console.log('[Profile] Post created with ID:', postId);
 
-        await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 250));
 
-       const allPosts = await getAllPosts();
-       const myPosts = allPosts.filter((p) => p.userId === userId);
+     const allPosts = await getAllPosts();
+     const myPosts = allPosts.filter((p) => p.userId === userId);
 
-       const enrichedPosts = await Promise.all(
-         myPosts.map(async (p) => {
-           const likeState = getLikeState(p.id);
-           const saveState = getSaveState(p.id);
-           let liked = likeState.liked;
-           let likes = likeState.likes;
-           let saved = saveState;
-           if (liked === null || likes === null) {
-             liked = await isPostLiked(p.id, userId);
-             likes = p.likes ?? 0;
-           }
-           if (saved === null) {
-             saved = await isPostSaved(p.id, userId);
-           }
-           return { ...p, liked, likes, saved };
-         })
-       );
-       setUserPosts(enrichedPosts);
-     } catch (e) {
-       console.error('handlePost error:', e);
-       addToast(`Failed to publish post: ${e?.message || 'Database error'}`, 'error');
-     }
-   };
+     const enrichedPosts = await Promise.all(
+       myPosts.map(async (p) => {
+         const likeState = getLikeState(p.id);
+         const saveState = getSaveState(p.id);
+         let liked = likeState.liked;
+         let likes = likeState.likes;
+         let saved = saveState;
+         if (liked === null || likes === null) {
+           liked = await isPostLiked(p.id, userId);
+           likes = p.likes ?? 0;
+         }
+         if (saved === null) {
+           saved = await isPostSaved(p.id, userId);
+         }
+         return { ...p, liked, likes, saved };
+       })
+     );
+     setUserPosts(enrichedPosts);
+   } catch (e) {
+     console.error('handlePost error:', e);
+     addToast(`Failed to publish post: ${e?.message || 'Database error'}`, 'error');
+   }
+  }, [currentUser?.id, currentUser?.name, currentUser?.avatar, currentUser?.college, getLikeState, getSaveState, isPostLiked, isPostSaved, addToast]);
 
   const renderContent = () => {
     if (loading) return <div className="card p-6 animate-pulse"><div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/3" /></div>;
@@ -831,40 +831,60 @@ case 'books':
                        {bookImage && <div className="relative mt-3 inline-block"><img src={bookImage} alt="Book cover" className="w-32 h-40 object-cover rounded-xl" /><button onClick={() => { setBookImage(null); bookCoverFileRef.current = null; }} className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="w-3.5 h-3.5" /></button></div>}
                      </div>
 
-                     <button onClick={async () => {
-                       if (!uploadBookForm.title.trim() || !uploadBookForm.author.trim() || !bookPdfFile) return;
-                       setUploadingBook(true);
-                       let imageUrl = null, fileUrl = null;
-                       try {
-                         // Upload cover image if provided
-                         if (bookCoverFileRef.current) {
-                           imageUrl = await uploadToCloudinary(bookCoverFileRef.current, 'stugrow/books/covers');
-                         }
-                         // Upload PDF file
-                         fileUrl = await uploadToGofile(bookPdfFile);
-                         
-                         await createBook({
-                           title: uploadBookForm.title,
-                           author: uploadBookForm.author,
-                           subject: uploadBookForm.subject || 'General',
-                           price: 'Free',
-                           uploadedBy: currentUser.id,
-                           available: true,
-                           image: imageUrl,
-                           description: uploadBookForm.description,
-                           fileUrl,
-                           fileName: bookPdfFile.name,
-                         });
-                         addToast('Book uploaded successfully!', 'success');
-                         const books = await getAllBooks();
-                         setUserBooks(books.filter(b => b.uploadedBy?.id === currentUser.id));
-                         setShowUploadBook(false);
-                         setUploadBookForm({ title: '', author: '', subject: '', description: '' });
-                         setBookImage(null);
-                         setBookPdfFile(null);
-                       } catch (e) { addToast(`Failed to upload book: ${e.message}`, 'error'); }
-                       finally { setUploadingBook(false); }
-                     }} disabled={!uploadBookForm.title.trim() || !uploadBookForm.author.trim() || !bookPdfFile || uploadingBook} className="upload-form-submit-btn w-full">{uploadingBook ? 'Uploading...' : 'Submit Book'}</button>
+<button onClick={async () => {
+                        console.log('Books upload clicked - currentUser:', currentUser?.id ? 'logged in as ' + currentUser.id : 'NOT LOGGED IN');
+                        if (!uploadBookForm.title.trim() || !uploadBookForm.author.trim() || !bookPdfFile) {
+                          console.error('Missing required fields - title:', uploadBookForm.title, 'author:', uploadBookForm.author, 'pdf:', !!bookPdfFile);
+                          return;
+                        }
+                        if (!currentUser?.id) {
+                          addToast('Please log in first', 'error');
+                          return;
+                        }
+                        setUploadingBook(true);
+                        let imageUrl = null, fileUrl = null;
+                        try {
+                          console.log('Books upload - title:', uploadBookForm.title, 'author:', uploadBookForm.author, 'pdf:', bookPdfFile?.name);
+                          // Upload cover image if provided
+                          if (bookCoverFileRef.current) {
+                            console.log('Uploading book cover to Cloudinary');
+                            imageUrl = await uploadToCloudinary(bookCoverFileRef.current, 'stugrow/books/covers');
+                            console.log('Book cover URL:', imageUrl);
+                          }
+                          // Upload PDF file - try Gofile first, fallback to Cloudinary
+                          console.log('Uploading PDF to Gofile:', bookPdfFile.name);
+                          try {
+                            fileUrl = await uploadToGofile(bookPdfFile);
+                            console.log('PDF URL from Gofile:', fileUrl);
+                          } catch (gofileErr) {
+                            console.warn('Gofile failed, falling back to Cloudinary:', gofileErr);
+                            fileUrl = await uploadToCloudinary(bookPdfFile, 'stugrow/books/pdfs');
+                            console.log('PDF URL from Cloudinary:', fileUrl);
+                          }
+
+                          const bookId = await createBook({
+                            title: uploadBookForm.title,
+                            author: uploadBookForm.author,
+                            subject: uploadBookForm.subject || 'General',
+                            price: 'Free',
+                            uploadedBy: currentUser.id,
+                            available: true,
+                            image: imageUrl,
+                            description: uploadBookForm.description,
+                            fileUrl,
+                            fileName: bookPdfFile.name,
+                          });
+                          console.log('Book created with ID:', bookId);
+                          addToast('Book uploaded successfully!', 'success');
+                          const books = await getAllBooks();
+                          setUserBooks(books.filter(b => b.uploadedBy?.id === currentUser.id));
+                          setShowUploadBook(false);
+                          setUploadBookForm({ title: '', author: '', subject: '', description: '' });
+                          setBookImage(null);
+                          setBookPdfFile(null);
+                        } catch (e) { console.error('Book upload error:', e); addToast(`Failed to upload book: ${e.message}`, 'error'); }
+                        finally { setUploadingBook(false); }
+                      }} disabled={!uploadBookForm.title.trim() || !uploadBookForm.author.trim() || !bookPdfFile || uploadingBook} className="upload-form-submit-btn w-full">{uploadingBook ? 'Uploading...' : 'Submit Book'}</button>
                   </div>
                 )}
               </div>

@@ -9,6 +9,7 @@ export default function CreatePost({ onPost, user }) {
   const [uploading, setUploading] = useState(false);
   const { addToast } = useToast();
   const selectedFileRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleFileSelect = (file) => {
     if (!file) return;
@@ -27,27 +28,32 @@ export default function CreatePost({ onPost, user }) {
     reader.readAsDataURL(file);
   };
 
-  const handlePost = async () => {
+const handlePost = async () => {
+    console.log('[CreatePost] handlePost called - user:', user?.id ? 'logged in as ' + user.id : 'NOT LOGGED IN', 'content:', content.substring(0, 20), 'hasFile:', !!selectedFileRef.current);
     if (!content.trim() && !selectedFileRef.current) {
       addToast('Add text or image to post', 'info');
+      return;
+    }
+    if (!user?.id) {
+      addToast('Please log in first', 'error');
       return;
     }
     setUploading(true);
     let imageUrl = null;
     try {
       if (selectedFileRef.current) {
-        console.log('Uploading to Cloudinary:', selectedFileRef.current.name);
+        console.log('[CreatePost] Uploading to Cloudinary:', selectedFileRef.current.name, selectedFileRef.current.type, selectedFileRef.current.size);
         imageUrl = await uploadToCloudinary(selectedFileRef.current, 'stugrow/posts');
-        console.log('Cloudinary URL received:', imageUrl);
+        console.log('[CreatePost] Cloudinary URL received:', imageUrl);
       }
-      console.log('Creating post with:', { content: content.substring(0, 20), hasImage: !!imageUrl, imageUrl });
+      console.log('[CreatePost] Creating post with:', { content: content.substring(0, 50), hasImage: !!imageUrl, imageUrlPreview: imageUrl ? imageUrl.substring(0, 50) : null });
       await onPost?.(content, imageUrl, null, 'general');
       setContent('');
       setImagePreview(null);
       selectedFileRef.current = null;
       addToast(imageUrl ? 'Post with image published!' : 'Post published!', 'success');
     } catch (error) {
-      console.error('Post failed:', error);
+      console.error('[CreatePost] Post failed:', error);
       addToast('Failed to post: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setUploading(false);
@@ -76,7 +82,7 @@ export default function CreatePost({ onPost, user }) {
             )}
             <div className="profile-post-actions mt-2">
               <div className="flex items-center gap-1">
-                <button onClick={() => document.getElementById('post-image-input')?.click()} className="profile-media-icon-btn" title="Add image">
+                <button onClick={() => fileInputRef.current?.click()} className="profile-media-icon-btn" title="Add image">
                   <Image className="w-5 h-5" />
                 </button>
               </div>
@@ -85,7 +91,7 @@ export default function CreatePost({ onPost, user }) {
               </button>
             </div>
             <input
-              id="post-image-input"
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               className="hidden"
