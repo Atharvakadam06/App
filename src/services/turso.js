@@ -126,9 +126,28 @@ export async function initDatabase() {
         available INTEGER DEFAULT 1,
         image TEXT,
         description TEXT,
+        file_url TEXT,
+        file_name TEXT,
+        downloads INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
+
+    try {
+      await db.execute(`ALTER TABLE books ADD COLUMN file_url TEXT`);
+    } catch {
+      // Column may already exist
+    }
+    try {
+      await db.execute(`ALTER TABLE books ADD COLUMN file_name TEXT`);
+    } catch {
+      // Column may already exist
+    }
+    try {
+      await db.execute(`ALTER TABLE books ADD COLUMN downloads INTEGER DEFAULT 0`);
+    } catch {
+      // Column may already exist
+    }
 
     await db.execute(`
       CREATE TABLE IF NOT EXISTS tips (

@@ -94,7 +94,7 @@ const handlePost = async () => {
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              className="hidden"
+              className="hidden-input"
               onChange={(e) => handleFileSelect(e.target.files?.[0])}
             />
           </div>
