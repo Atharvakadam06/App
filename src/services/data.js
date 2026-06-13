@@ -178,14 +178,14 @@ export async function getAllPosts() {
   // Try to augment with Turso data if available
   try {
     await ensureDb();
-    const rows = await query('SELECT * FROM posts ORDER BY created_at DESC');
+    const rows = await query('SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.college as user_college, u.username as user_username FROM posts p LEFT JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC');
     const tursoIds = new Set(posts.map(p => p.id));
     for (const row of rows) {
       if (!tursoIds.has(row.id)) {
         posts.push({
           id: row.id,
           userId: row.user_id,
-          user: null,
+          user: { id: row.user_id, name: row.user_name, avatar: row.user_avatar, college: row.user_college, username: row.user_username },
           content: row.content || '',
           image: row.image,
           video: row.video,
@@ -208,14 +208,28 @@ export async function getAllPosts() {
 }
 
 export async function deletePost(postId) {
-  await ensureDb();
-  await execute('DELETE FROM posts WHERE id = ?', [postId]);
-}
+   const fallback = loadFallbackPosts();
+   const filtered = fallback.filter(p => p.id !== postId);
+   localStorage.setItem(FALLBACK_POSTS_KEY, JSON.stringify(filtered));
+   try {
+     await ensureDb();
+     await execute('DELETE FROM posts WHERE id = ?', [postId]);
+   } catch (e) {
+     console.warn('Turso delete failed:', e);
+   }
+ }
 
 export async function updatePost(postId, content) {
-  await ensureDb();
-  await execute('UPDATE posts SET content = ?, updated_at = ? WHERE id = ?', [content, new Date().toISOString(), postId]);
-}
+   const fallback = loadFallbackPosts();
+   const updated = fallback.map(p => p.id === postId ? { ...p, content } : p);
+   localStorage.setItem(FALLBACK_POSTS_KEY, JSON.stringify(updated));
+   try {
+     await ensureDb();
+     await execute('UPDATE posts SET content = ?, updated_at = ? WHERE id = ?', [content, new Date().toISOString(), postId]);
+   } catch (e) {
+     console.warn('Turso update failed:', e);
+   }
+ }
 
 export async function likePost(postId, userId) {
   await ensureDb();
