@@ -203,6 +203,71 @@ export async function getAllPosts() {
   return posts;
 }
 
+export async function getAllPostsWithDetails(userId) {
+  const posts = await getAllPosts();
+  try {
+    await ensureDb();
+    const enriched = await Promise.all(posts.map(async (p) => {
+      let comments = [];
+      let liked = false;
+      let saved = false;
+
+      try {
+        comments = await getPostComments(p.id);
+      } catch (e) {
+        console.warn(`Failed to fetch comments for post ${p.id}:`, e);
+      }
+
+      if (userId) {
+        try {
+          const likeRow = await queryOne('SELECT 1 FROM post_likes WHERE post_id = ? AND user_id = ?', [p.id, userId]);
+          liked = !!likeRow;
+        } catch (e) {
+          console.warn(`Failed to fetch like status for post ${p.id}:`, e);
+        }
+
+        try {
+          const saveRow = await queryOne('SELECT 1 FROM post_saves WHERE post_id = ? AND user_id = ?', [p.id, userId]);
+          saved = !!saveRow;
+        } catch (e) {
+          console.warn(`Failed to fetch save status for post ${p.id}:`, e);
+        }
+      }
+
+      let userData = p.user;
+      if (!userData && p.userId) {
+        try {
+          const u = await getUser(p.userId);
+          if (u) {
+            userData = { id: u.id, name: u.name, avatar: u.avatar, college: u.college };
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch user details for post ${p.id}:`, e);
+        }
+      }
+
+      return {
+        ...p,
+        user: userData,
+        liked,
+        saved,
+        likes: p.likes ?? 0,
+        comments
+      };
+    }));
+    return enriched;
+  } catch (dbError) {
+    console.warn('Database error in getAllPostsWithDetails, falling back:', dbError);
+    return posts.map(p => ({
+      ...p,
+      comments: [],
+      liked: false,
+      saved: false
+    }));
+  }
+}
+
+
 export async function deletePost(postId) {
    const fallback = loadFallbackPosts();
    const filtered = fallback.filter(p => p.id !== postId);
@@ -233,10 +298,22 @@ export async function likePost(postId, userId) {
   if (existing) {
     await execute('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, userId]);
     await execute('UPDATE posts SET likes = likes - 1 WHERE id = ?', [postId]);
+    // Keep localStorage fallback in sync
+    try {
+      const fallback = loadFallbackPosts();
+      const updated = fallback.map(p => p.id === postId ? { ...p, likes: Math.max(0, (p.likes || 0) - 1) } : p);
+      localStorage.setItem(FALLBACK_POSTS_KEY, JSON.stringify(updated));
+    } catch (e) { /* ignore */ }
     return false;
   }
   await execute('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, userId]);
   await execute('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId]);
+  // Keep localStorage fallback in sync
+  try {
+    const fallback = loadFallbackPosts();
+    const updated = fallback.map(p => p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p);
+    localStorage.setItem(FALLBACK_POSTS_KEY, JSON.stringify(updated));
+  } catch (e) { /* ignore */ }
   return true;
 }
 

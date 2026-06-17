@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getAllPosts, isPostLiked } from '../services/data';
+import { getAllPostsWithDetails } from '../services/data';
 
 const PostLikeContext = createContext();
 
@@ -11,12 +11,11 @@ export function PostLikeProvider({ children }) {
   const syncAllPosts = useCallback(async (userId) => {
     if (!userId) return;
     try {
-      const posts = await getAllPosts();
+      const posts = await getAllPostsWithDetails(userId);
       const newLikeMap = {};
       const newCountMap = {};
       for (const p of posts) {
-        const liked = await isPostLiked(p.id, userId);
-        newLikeMap[p.id] = liked;
+        newLikeMap[p.id] = p.liked;
         newCountMap[p.id] = p.likes || 0;
       }
       setLikeMap(newLikeMap);

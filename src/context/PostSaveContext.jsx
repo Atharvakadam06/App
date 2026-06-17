@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getAllPosts, isPostSaved, savePost } from '../services/data';
+import { getAllPostsWithDetails, savePost } from '../services/data';
 
 const PostSaveContext = createContext();
 
@@ -10,11 +10,10 @@ export function PostSaveProvider({ children }) {
   const syncAllPosts = useCallback(async (userId) => {
     if (!userId) return;
     try {
-      const posts = await getAllPosts();
+      const posts = await getAllPostsWithDetails(userId);
       const newSavedMap = {};
       for (const p of posts) {
-        const saved = await isPostSaved(p.id, userId);
-        newSavedMap[p.id] = saved;
+        newSavedMap[p.id] = p.saved;
       }
       setSavedMap(newSavedMap);
       setInitialized(true);

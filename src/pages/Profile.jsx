@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { uploadToCloudinary } from '../services/cloudinary';
 import { uploadToGofile } from '../services/gofile';
-import { createPost, createPaper, createBook, getAllPosts, getAllPapers, getAllBooks, isPostSaved, savePost, getLinks, getUser, createConversation, isPostLiked, likePost, addComment, getPostComments } from '../services/data';
+import { createPost, createPaper, createBook, getAllPosts, getAllPostsWithDetails, getAllPapers, getAllBooks, isPostSaved, savePost, getLinks, getUser, createConversation, isPostLiked, likePost, addComment, getPostComments } from '../services/data';
 import { usePostLike } from '../context/PostLikeContext';
 import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo, getCurrentTimestamp } from '../utils/timeUtils';
@@ -384,37 +384,25 @@ export default function Profile() {
     const targetUserId = isOwnProfile ? currentUser.id : userId;
     if (!targetUserId) return;
     
-    const posts = await getAllPosts();
+    const posts = await getAllPostsWithDetails(currentUser.id);
     const userPostsFiltered = posts.filter(p => p.userId === targetUserId);
     
-    if (currentUser?.id) {
-      const postsWithStates = await Promise.all(userPostsFiltered.map(async (p) => {
-        const likeState = getLikeState(p.id);
-        const saveState = getSaveState(p.id);
-        let liked = likeState.liked;
-        let likes = likeState.likes;
-        let saved = saveState;
-        
-        // If not yet in context, fetch from DB
-        if (liked === null || likes === null) {
-          liked = await isPostLiked(p.id, currentUser.id);
-          likes = p.likes ?? 0;
-        }
-        if (saved === null) {
-          saved = await isPostSaved(p.id, currentUser.id);
-        }
-        
-        return {
-          ...p,
-          liked: liked,
-          likes: likes,
-          saved: saved
-        };
-      }));
-      setUserPosts(postsWithStates);
-    } else {
-      setUserPosts(userPostsFiltered);
-    }
+    const postsWithStates = userPostsFiltered.map((p) => {
+      const likeState = getLikeState(p.id);
+      const saveState = getSaveState(p.id);
+      const liked = likeState.liked !== null ? likeState.liked : p.liked;
+      let likes = likeState.likes !== null ? likeState.likes : p.likes;
+      if (liked && likes === 0) likes = 1;
+      const saved = saveState !== null ? saveState : p.saved;
+      
+      return {
+        ...p,
+        liked,
+        likes,
+        saved
+      };
+    });
+    setUserPosts(postsWithStates);
   };
 
   useEffect(() => {
@@ -430,32 +418,28 @@ export default function Profile() {
           ]);
         }
         
-        const [posts, papers, books] = await Promise.all([getAllPosts(), getAllPapers(), getAllBooks()]);
+        const [posts, papers, books] = await Promise.all([
+          getAllPostsWithDetails(currentUser?.id),
+          getAllPapers(),
+          getAllBooks()
+        ]);
         const userPostsFiltered = posts.filter(p => p.userId === targetUserId);
         if (currentUser?.id) {
-          const postsWithStates = await Promise.all(userPostsFiltered.map(async (p) => {
+          const postsWithStates = userPostsFiltered.map((p) => {
             const likeState = getLikeState(p.id);
             const saveState = getSaveState(p.id);
-            let liked = likeState.liked;
-            let likes = likeState.likes;
-            let saved = saveState;
-            
-            // If not yet in context, fetch from DB
-            if (liked === null || likes === null) {
-              liked = await isPostLiked(p.id, currentUser.id);
-              likes = p.likes ?? 0;
-            }
-            if (saved === null) {
-              saved = await isPostSaved(p.id, currentUser.id);
-            }
+            const liked = likeState.liked !== null ? likeState.liked : p.liked;
+            let likes = likeState.likes !== null ? likeState.likes : p.likes;
+            if (liked && likes === 0) likes = 1;
+            const saved = saveState !== null ? saveState : p.saved;
             
             return {
               ...p,
-              liked: liked,
-              likes: likes,
-              saved: saved
+              liked,
+              likes,
+              saved
             };
-          }));
+          });
           setUserPosts(postsWithStates);
         } else {
           setUserPosts(userPostsFiltered);
@@ -464,13 +448,13 @@ export default function Profile() {
         setUserPapers(papers.filter(p => p.uploadedBy?.id === targetUserId));
         setUserBooks(books.filter(b => b.uploadedBy?.id === targetUserId));
         if (isOwnProfile) {
-          const savedWithStatus = await Promise.all(posts.map(async (p) => {
+          const savedWithStatus = posts.map((p) => {
             const saved = getSaveState(p.id);
             return {
               ...p,
-              saved: saved !== null ? saved : await isPostSaved(p.id, targetUserId)
+              saved: saved !== null ? saved : p.saved
             };
-          }));
+          });
           setSavedPosts(savedWithStatus.filter(p => p.saved));
         }
         const links = await getLinks(targetUserId);
@@ -518,26 +502,18 @@ const handlePost = useCallback(async (content, image, video, category) => {
 
       await new Promise((r) => setTimeout(r, 250));
 
-     const allPosts = await getAllPosts();
+     const allPosts = await getAllPostsWithDetails(userId);
      const myPosts = allPosts.filter((p) => p.userId === userId);
 
-     const enrichedPosts = await Promise.all(
-       myPosts.map(async (p) => {
-         const likeState = getLikeState(p.id);
-         const saveState = getSaveState(p.id);
-         let liked = likeState.liked;
-         let likes = likeState.likes;
-         let saved = saveState;
-         if (liked === null || likes === null) {
-           liked = await isPostLiked(p.id, userId);
-           likes = p.likes ?? 0;
-         }
-         if (saved === null) {
-           saved = await isPostSaved(p.id, userId);
-         }
-         return { ...p, liked, likes, saved };
-       })
-     );
+     const enrichedPosts = myPosts.map((p) => {
+       const likeState = getLikeState(p.id);
+       const saveState = getSaveState(p.id);
+       const liked = likeState.liked !== null ? likeState.liked : p.liked;
+       let likes = likeState.likes !== null ? likeState.likes : p.likes;
+       if (liked && likes === 0) likes = 1;
+       const saved = saveState !== null ? saveState : p.saved;
+       return { ...p, liked, likes, saved };
+     });
      setUserPosts(enrichedPosts);
    } catch (e) {
      console.error('handlePost error:', e);

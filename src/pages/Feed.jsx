@@ -3,7 +3,7 @@ import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Image, Send, Fi
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { getAllPosts, deletePost, updatePost, likePost, isPostLiked, savePost, isPostSaved, addComment, getPostComments, deleteComment, createReport, getUser } from '../services/data';
+import { getAllPostsWithDetails, deletePost, updatePost, likePost, savePost, addComment, getPostComments, deleteComment, createReport } from '../services/data';
 import { usePostLike } from '../context/PostLikeContext';
 import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo } from '../utils/timeUtils';
@@ -353,27 +353,24 @@ export default function Feed() {
           syncAllSaves(user.id)
         ]);
       }
-      const posts = await getAllPosts();
-      const enriched = await Promise.all(posts.map(async (p) => {
-        const comments = await getPostComments(p.id);
-        const liked = await isPostLiked(p.id, user?.id);
-        const saved = await isPostSaved(p.id, user?.id);
-        // Enrich with user data if missing
-        let userData = p.user;
-        if (!userData && p.userId) {
-          const u = await getUser(p.userId);
-          userData = { id: u?.id, name: u?.name, avatar: u?.avatar, college: u?.college };
-        }
-        return {
-          ...p,
-          user: userData,
-          liked,
-          saved,
-          likes: p.likes ?? 0,
-          comments
-        };
-      }));
-      setAllPosts(enriched);
+      // Single batch query: gets posts with liked/saved/comments all at once
+      const posts = await getAllPostsWithDetails(user?.id);
+
+      // Apply context state as final source of truth for liked/likes
+      // (context was updated optimistically on interaction and may be more accurate
+      // than the DB snapshot, especially when localStorage fallback is used)
+      const reconciled = posts.map(p => {
+        const ctxLiked = likeMap[p.id];
+        const ctxLikes = likesCountMap[p.id];
+        const liked = ctxLiked !== undefined ? ctxLiked : p.liked;
+        // If liked state from context differs from DB, adjust the count accordingly
+        let likes = ctxLikes !== undefined ? ctxLikes : p.likes;
+        // Safety net: if shown as liked but count is 0, show at least 1
+        if (liked && likes === 0) likes = 1;
+        return { ...p, liked, likes };
+      });
+
+      setAllPosts(reconciled);
     } catch (e) { console.error(e); }
     finally { setTimeout(() => setLoading(false), 400); }
   };
