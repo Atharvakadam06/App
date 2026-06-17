@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Image, Send, FileText, Trash2, Video, ChevronUp, Filter, Edit3, Flag, ZoomIn } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Image, Send, FileText, Trash2, Video, ChevronUp, Filter, Edit3, Flag, ZoomIn, Paperclip, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -182,6 +182,30 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
       {post.video && (
         <div className="relative">
           <video src={post.video} controls className="w-full max-h-[450px]" />
+        </div>
+      )}
+
+      {post.file_url && (
+        <div className="px-4 pb-4">
+          <a
+            href={post.file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-[#1a1f2e] border border-gray-100 dark:border-gray-800/80 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-200 group"
+          >
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500">
+              <Paperclip className="w-5 h-5 group-hover:rotate-45 transition-transform duration-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">
+                {post.file_name || 'Attached File'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Click to view or download file</p>
+            </div>
+            <div className="flex-shrink-0 text-gray-400 group-hover:text-blue-500 transition-colors">
+              <Download className="w-4 h-4" />
+            </div>
+          </a>
         </div>
       )}
 

@@ -111,6 +111,8 @@ export async function createPost(post) {
     image: typeof post.image === 'string' && post.image.trim() ? post.image.trim() : null,
     video: typeof post.video === 'string' && post.video.trim() ? post.video.trim() : null,
     category: typeof post.category === 'string' ? post.category : 'general',
+    file_url: typeof post.file_url === 'string' && post.file_url.trim() ? post.file_url.trim() : null,
+    file_name: typeof post.file_name === 'string' && post.file_name.trim() ? post.file_name.trim() : null,
     likes: post.likes || 0,
     shares: post.shares || 0,
     tags: Array.isArray(post.tags) ? post.tags : [],
@@ -119,7 +121,7 @@ export async function createPost(post) {
     user: post.user || null,
   };
 
-  console.log('createPost called with image:', record.image ? record.image.substring(0, 50) + '...' : 'null');
+  console.log('createPost called with image:', record.image ? record.image.substring(0, 50) + '...' : 'null', 'file:', record.file_name);
 
   // Always save to localStorage fallback so posts are visible even if DB is down
   const fallback = loadFallbackPosts();
@@ -135,9 +137,9 @@ export async function createPost(post) {
   try {
     await ensureDb();
     await execute(
-      `INSERT INTO posts (id, user_id, content, image, video, category, likes, shares, tags, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [record.id, record.user_id, record.content, record.image, record.video, record.category, record.likes, record.shares, JSON.stringify(record.tags), record.timestamp]
+      `INSERT INTO posts (id, user_id, content, image, video, category, likes, shares, tags, timestamp, file_url, file_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [record.id, record.user_id, record.content, record.image, record.video, record.category, record.likes, record.shares, JSON.stringify(record.tags), record.timestamp, record.file_url, record.file_name]
     );
   } catch (e) {
     console.warn('Turso write failed, using localStorage only:', e);
@@ -161,6 +163,8 @@ export async function getAllPosts() {
       image: p.image || null,
       video: p.video || null,
       category: p.category || 'general',
+      file_url: p.file_url || null,
+      file_name: p.file_name || null,
       likes: p.likes ?? 0,
       shares: p.shares ?? 0,
       tags: p.tags || [],
@@ -186,6 +190,8 @@ export async function getAllPosts() {
           image: row.image,
           video: row.video,
           category: row.category || 'general',
+          file_url: row.file_url || null,
+          file_name: row.file_name || null,
           likes: row.likes ?? 0,
           shares: row.shares ?? 0,
           tags: JSON.parse(row.tags || '[]'),

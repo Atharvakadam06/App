@@ -57,12 +57,26 @@ export async function initDatabase() {
         shares INTEGER DEFAULT 0,
         tags TEXT DEFAULT '[]',
         timestamp TEXT,
+        file_url TEXT,
+        file_name TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
 
     try {
       await db.execute(`ALTER TABLE posts ADD COLUMN category TEXT DEFAULT 'general'`);
+    } catch {
+      // Column may already exist
+    }
+
+    try {
+      await db.execute(`ALTER TABLE posts ADD COLUMN file_url TEXT`);
+    } catch {
+      // Column may already exist
+    }
+
+    try {
+      await db.execute(`ALTER TABLE posts ADD COLUMN file_name TEXT`);
     } catch {
       // Column may already exist
     }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight, MoreHorizontal, BadgeAlert, RefreshCcw } from 'lucide-react';
+import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight, MoreHorizontal, BadgeAlert, RefreshCcw, Paperclip } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -472,15 +472,11 @@ export default function Profile() {
 
   const handleEdit = isOwnProfile ? updateProfile : () => {};
 
-const handlePost = useCallback(async (content, image, video, category) => {
+  const handlePost = useCallback(async (content, image, video, category, fileUrl, fileName) => {
+    if (!currentUser?.id) return;
     try {
-      const userId = currentUser?.id;
-      if (!userId) {
-        console.error('No user ID found');
-        return;
-      }
-      console.log('[Profile] Creating post with:', { content: content?.substring(0, 50), hasImage: !!image, imagePreview: image ? image.substring(0, 50) : null });
-
+      setLoading(true);
+      const userId = currentUser.id;
       const userData = {
         id: userId,
         name: currentUser?.name || 'Unknown',
@@ -495,6 +491,8 @@ const handlePost = useCallback(async (content, image, video, category) => {
         image,
         video,
         category,
+        file_url: fileUrl,
+        file_name: fileName,
         tags: [],
         timestamp: getCurrentTimestamp()
       });
@@ -502,23 +500,23 @@ const handlePost = useCallback(async (content, image, video, category) => {
 
       await new Promise((r) => setTimeout(r, 250));
 
-     const allPosts = await getAllPostsWithDetails(userId);
-     const myPosts = allPosts.filter((p) => p.userId === userId);
+      const allPosts = await getAllPostsWithDetails(userId);
+      const myPosts = allPosts.filter((p) => p.userId === userId);
 
-     const enrichedPosts = myPosts.map((p) => {
-       const likeState = getLikeState(p.id);
-       const saveState = getSaveState(p.id);
-       const liked = likeState.liked !== null ? likeState.liked : p.liked;
-       let likes = likeState.likes !== null ? likeState.likes : p.likes;
-       if (liked && likes === 0) likes = 1;
-       const saved = saveState !== null ? saveState : p.saved;
-       return { ...p, liked, likes, saved };
-     });
-     setUserPosts(enrichedPosts);
-   } catch (e) {
-     console.error('handlePost error:', e);
-     addToast(`Failed to publish post: ${e?.message || 'Database error'}`, 'error');
-   }
+      const enrichedPosts = myPosts.map((p) => {
+        const likeState = getLikeState(p.id);
+        const saveState = getSaveState(p.id);
+        const liked = likeState.liked !== null ? likeState.liked : p.liked;
+        let likes = likeState.likes !== null ? likeState.likes : p.likes;
+        if (liked && likes === 0) likes = 1;
+        const saved = saveState !== null ? saveState : p.saved;
+        return { ...p, liked, likes, saved };
+      });
+      setUserPosts(enrichedPosts);
+    } catch (e) {
+      console.error('handlePost error:', e);
+      addToast(`Failed to publish post: ${e?.message || 'Database error'}`, 'error');
+    }
   }, [currentUser?.id, currentUser?.name, currentUser?.avatar, currentUser?.college, getLikeState, getSaveState, isPostLiked, isPostSaved, addToast]);
 
   const renderContent = () => {
@@ -537,6 +535,11 @@ const handlePost = useCallback(async (content, image, video, category) => {
               >
                 {post.image ? (
                   <img src={post.image} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                ) : post.file_url ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-blue-50 dark:bg-blue-900/10 text-blue-500 dark:text-blue-400 gap-1.5">
+                    <Paperclip className="w-6 h-6 animate-pulse" />
+                    <span className="text-[10px] font-semibold truncate w-full px-2">{post.file_name || 'Document'}</span>
+                  </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center p-2 text-center text-xs text-gray-600 dark:text-gray-300 break-words">{post.content?.substring(0, 50)}</div>
                 )}
@@ -553,6 +556,24 @@ const handlePost = useCallback(async (content, image, video, category) => {
 <div className="flex-1 bg-black flex items-center justify-center min-h-[40vh] sm:min-h-0 sm:rounded-l-2xl">
                       {selectedPost.image ? (
                         <img src={selectedPost.image} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="max-w-full max-h-full object-contain p-2" />
+                      ) : selectedPost.file_url ? (
+                        <div className="p-6 sm:p-8 flex flex-col items-center justify-center gap-4 text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                            <Paperclip className="w-8 h-8" />
+                          </div>
+                          <div className="max-w-xs">
+                            <p className="text-white font-semibold text-sm truncate">{selectedPost.file_name || 'Document File'}</p>
+                            <p className="text-xs text-gray-400 mt-1">Shared resource attachment</p>
+                          </div>
+                          <a 
+                            href={selectedPost.file_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white rounded-full text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-2"
+                          >
+                            <Download className="w-4 h-4" /> Download Attachment
+                          </a>
+                        </div>
                       ) : (
                         <div className="p-6 sm:p-8"><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
                       )}
