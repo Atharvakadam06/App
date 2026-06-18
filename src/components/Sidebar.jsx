@@ -1,13 +1,20 @@
+import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home,
   MessageCircle,
   Compass,
   Settings,
-  GraduationCap,
   LogOut,
+  Link2,
+  FileText,
+  BookOpen,
+  Lightbulb,
+  LayoutGrid,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLayout } from '../context/LayoutContext';
+import MobileMoreMenu from './MobileMoreMenu';
 
 const mainNavItems = [
   { path: '/', icon: Home, label: 'Home' },
@@ -15,51 +22,84 @@ const mainNavItems = [
   { path: '/inbox', icon: MessageCircle, label: 'Messages' },
 ];
 
+const featureNavItems = [
+  { path: '/bind', icon: Link2, label: 'Binds' },
+  { path: '/vault', icon: FileText, label: 'PYQ Vault' },
+  { path: '/library', icon: BookOpen, label: 'Book Exchange' },
+  { path: '/mentor', icon: Lightbulb, label: 'Mentor Hub' },
+];
+
+const morePaths = ['/bind', '/vault', '/library', '/mentor', '/settings'];
+
+function NavItem({ path, icon: Icon, label, isActive }) {
+  return (
+    <NavLink
+      to={path}
+      title={label}
+      className={`flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${
+        isActive
+          ? 'bg-[#f3f1ed] dark:bg-[#0e1322] text-slate-900 dark:text-white font-semibold'
+          : 'text-slate-500 dark:text-slate-400 hover:bg-[#f8f6f3] dark:hover:bg-[#0e1322]/60 hover:text-slate-900 dark:hover:text-slate-200'
+      }`}
+    >
+      <Icon className={`w-[22px] h-[22px] shrink-0 transition-transform duration-200 ${isActive ? 'scale-105' : 'group-hover:scale-110'}`} />
+      <span className="hidden xl:block text-[15px] truncate">{label}</span>
+      {isActive && (
+        <div className="hidden xl:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-slate-800 dark:bg-slate-200 rounded-r-full" />
+      )}
+    </NavLink>
+  );
+}
+
 export default function Sidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { hideMobileNav } = useLayout();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const isMoreActive = morePaths.some((p) => location.pathname === p);
 
   return (
     <>
-      {/* Desktop Sidebar - Left icon rail */}
-      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-[72px] xl:w-[240px] bg-white dark:bg-[#080b14] flex-col z-50 border-r border-[#e8e5e0] dark:border-[#151a28] transition-all duration-300">
-        {/* Logo */}
-        <div className="p-4 xl:px-5 pt-6 pb-4">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-[72px] xl:w-[240px] bg-white dark:bg-[#080b14] flex-col z-50 border-r border-[#e8e5e0] dark:border-[#151a28] transition-all duration-300 safe-area-top">
+        <div className="p-4 xl:px-5 pt-6 pb-4 shrink-0">
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="StuGrow" className="w-10 h-10 rounded-xl shrink-0" />
             <span className="hidden xl:block text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">StuGrow</span>
           </div>
         </div>
 
-        {/* Main nav */}
-        <nav className="flex-1 px-2 xl:px-3 py-2 space-y-1">
-          {mainNavItems.map(({ path, label }, index) => {
-            const Icon = mainNavItems[index].icon;
-            const isActive = location.pathname === path;
-            return (
-              <NavLink
-                key={path}
-                to={path}
-                className={`flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative ${
-                  isActive
-                    ? 'bg-[#f3f1ed] dark:bg-[#0e1322] text-slate-900 dark:text-white font-semibold'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-[#f8f6f3] dark:hover:bg-[#0e1322]/60 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                <Icon className={`w-[22px] h-[22px] transition-transform duration-200 ${isActive ? 'scale-105' : 'group-hover:scale-110'}`} />
-                <span className="hidden xl:block text-[15px]">{label}</span>
-                {isActive && <div className="hidden xl:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-slate-800 dark:bg-slate-200 rounded-r-full" />}
-              </NavLink>
-            );
-          })}
+        <nav className="flex-1 px-2 xl:px-3 py-2 space-y-1 overflow-y-auto no-scrollbar">
+          {mainNavItems.map(({ path, icon, label }) => (
+            <NavItem
+              key={path}
+              path={path}
+              icon={icon}
+              label={label}
+              isActive={location.pathname === path}
+            />
+          ))}
+
+          <div className="hidden xl:block pt-3 pb-1 px-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Features</p>
+          </div>
+
+          {featureNavItems.map(({ path, icon, label }) => (
+            <NavItem
+              key={path}
+              path={path}
+              icon={icon}
+              label={label}
+              isActive={location.pathname === path}
+            />
+          ))}
         </nav>
 
-        {/* Bottom section */}
-        <div className="p-3 xl:p-4 border-t border-[#e8e5e0] dark:border-[#151a28] space-y-1">
+        <div className="p-3 xl:p-4 border-t border-[#e8e5e0] dark:border-[#151a28] space-y-1 shrink-0 safe-area-bottom">
           <NavLink
             to="/profile"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
-              location.pathname === '/profile'
+              location.pathname.startsWith('/profile')
                 ? 'bg-[#f3f1ed] dark:bg-[#0e1322]'
                 : 'hover:bg-[#f8f6f3] dark:hover:bg-[#0e1322]/60'
             }`}
@@ -88,8 +128,9 @@ export default function Sidebar() {
           </NavLink>
 
           <button
+            type="button"
             onClick={logout}
-            className="flex items-center gap-4 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 transition-all duration-200 w-full group"
+            className="flex items-center gap-4 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 transition-all duration-200 w-full group min-h-[44px]"
           >
             <LogOut className="w-5 h-5 shrink-0" />
             <span className="hidden xl:block text-sm">Log out</span>
@@ -97,39 +138,53 @@ export default function Sidebar() {
         </div>
       </aside>
 
+      <MobileMoreMenu open={moreOpen} onClose={() => setMoreOpen(false)} />
+
       {/* Mobile Bottom Navigation */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#080b14] border-t border-[#e8e5e0] dark:border-[#151a28] z-[9999] safe-area-bottom">
-          <div className="flex items-center justify-around py-2 px-1">
-            {[
-              { path: '/', icon: Home },
-              { path: '/connect', icon: Compass },
-              { path: '/inbox', icon: MessageCircle },
-            ].map(({ path }, index) => {
-              const Icon = [Home, Compass, MessageCircle][index];
-              const isActive = location.pathname === path;
-              return (
-                <NavLink
-                  key={path}
-                  to={path}
-                  className={`relative flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 ${
-                    isActive ? 'text-slate-900 dark:text-white scale-110' : 'text-slate-400 dark:text-slate-500'
-                  }`}
-                >
-                  <Icon className={`w-[24px] h-[24px] transition-transform duration-200 ${isActive ? '' : 'hover:scale-110'}`} />
-                  {isActive && <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-slate-800 dark:bg-slate-200 rounded-full" />}
-                </NavLink>
-              );
-            })}
-          {/* Profile avatar */}
+      {!hideMobileNav && (
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#080b14]/95 backdrop-blur-xl border-t border-[#e8e5e0] dark:border-[#151a28] z-[9999] safe-area-bottom">
+        <div className="flex items-center justify-around py-1.5 px-1 max-w-lg mx-auto">
+          {mainNavItems.map(({ path, icon: Icon }) => {
+            const isActive = location.pathname === path;
+            return (
+              <NavLink
+                key={path}
+                to={path}
+                className={`relative flex flex-col items-center justify-center min-w-[56px] min-h-[52px] rounded-xl transition-all duration-200 ${
+                  isActive ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'
+                }`}
+              >
+                <Icon className={`w-6 h-6 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`} />
+                {isActive && (
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-slate-800 dark:bg-slate-200 rounded-full" />
+                )}
+              </NavLink>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            className={`relative flex flex-col items-center justify-center min-w-[56px] min-h-[52px] rounded-xl transition-all duration-200 ${
+              isMoreActive ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'
+            }`}
+            aria-label="More options"
+          >
+            <LayoutGrid className={`w-6 h-6 ${isMoreActive ? 'scale-110' : ''}`} />
+            {isMoreActive && (
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-slate-800 dark:bg-slate-200 rounded-full" />
+            )}
+          </button>
+
           <NavLink
             to="/profile"
-            className="relative flex items-center justify-center w-12 h-12"
+            className="relative flex items-center justify-center min-w-[56px] min-h-[52px]"
           >
             <img
               src={user?.avatar}
               alt={user?.name}
               className={`w-7 h-7 rounded-full object-cover border-2 transition-all duration-200 ${
-                location.pathname === '/profile'
+                location.pathname.startsWith('/profile')
                   ? 'border-slate-800 dark:border-slate-200 scale-110 shadow-md'
                   : 'border-transparent'
               }`}
@@ -137,6 +192,7 @@ export default function Sidebar() {
           </NavLink>
         </div>
       </nav>
+      )}
     </>
   );
 }

@@ -35,6 +35,18 @@ export default {
           900: '#0f172a',
         },
       },
+      spacing: {
+        'nav-mobile': 'calc(4.5rem + env(safe-area-inset-bottom))',
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+      },
+      maxWidth: {
+        'app': '42rem',
+        'app-wide': '64rem',
+      },
+      screens: {
+        'xs': '375px',
+      },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },

@@ -4,6 +4,7 @@ import { Send, Paperclip, Image as ImageIcon, Smile, ArrowLeft, Inbox, X, Plus, 
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useLayout } from '../context/LayoutContext';
 import { uploadToCloudinary } from '../services/cloudinary';
 import { getConversations, getMessages, sendMessage, createConversation } from '../services/data';
 import { formatTimeAgo } from '../utils/timeUtils';
@@ -179,7 +180,7 @@ function ChatView({ conversation, user, chatMessages, messagesEndRef, onBack, on
       </div>
 
       {/* Fixed Input Bar */}
-      <div className="shrink-0 px-2.5 sm:px-3 pt-2 pb-2.5 sm:pb-3 border-t border-gray-200/70 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14]">
+      <div className="shrink-0 px-2.5 sm:px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:pb-3 border-t border-gray-200/70 dark:border-gray-700/50 bg-white dark:bg-[#0a0d14]">
         <div className="flex items-end gap-1.5 sm:gap-2">
           <div className="flex items-center gap-0.5 shrink-0">
             <button onClick={onFilePicker} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
@@ -220,6 +221,7 @@ export default function Messages() {
   const { user, users, refreshUsers } = useAuth();
   const { addToast } = useToast();
   const { addNotification } = useNotifications();
+  const { setMobileNavHidden } = useLayout();
   const location = useLocation();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -233,6 +235,11 @@ export default function Messages() {
   const messagesEndRef = useRef(null);
 
   const conversation = conversations.find(c => c.id === selectedConversation);
+
+  useEffect(() => {
+    setMobileNavHidden(mobileOpenChat);
+    return () => setMobileNavHidden(false);
+  }, [mobileOpenChat, setMobileNavHidden]);
 
   useEffect(() => {
     const load = async () => {
@@ -360,7 +367,7 @@ export default function Messages() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
+    <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none messages-fullscreen">
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
 
       <div className="flex-1 flex min-h-0 overscroll-none">

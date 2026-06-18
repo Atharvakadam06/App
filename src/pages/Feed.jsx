@@ -488,7 +488,7 @@ export default function Feed() {
         ))}
 
         {showScrollTop && (
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-3.5 rounded-full bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-xl hover:shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 z-40">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] lg:bottom-6 right-4 sm:right-6 p-3.5 rounded-full bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-xl hover:shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 z-40 min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ChevronUp className="w-5 h-5" />
           </button>
         )}

@@ -6,6 +6,7 @@ import { NotificationProvider, useNotifications } from './context/NotificationCo
 import { PostLikeProvider } from './context/PostLikeContext';
 import { PostSaveProvider } from './context/PostSaveContext';
 import { ToastProvider } from './context/ToastContext';
+import { LayoutProvider } from './context/LayoutContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Feed from './pages/Feed';
@@ -100,7 +101,7 @@ function AuthGate() {
       <Sidebar />
       <main className="lg:ml-[72px] xl:ml-[240px] flex flex-col h-full transition-all duration-300 overflow-hidden">
         <Header title={meta.title} subtitle={meta.subtitle} />
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain [&:has(.messages-fullscreen)]:pb-0">
           <Routes>
             <Route path="/" element={<Feed />} />
             <Route path="/connect" element={<Network />} />
@@ -129,9 +130,11 @@ function App() {
             <AuthProvider>
               <NotificationProvider>
                 <ToastProvider>
-                  <Router>
-                    <AuthGate />
-                  </Router>
+                  <LayoutProvider>
+                    <Router>
+                      <AuthGate />
+                    </Router>
+                  </LayoutProvider>
                 </ToastProvider>
               </NotificationProvider>
             </AuthProvider>
