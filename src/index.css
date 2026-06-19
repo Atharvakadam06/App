@@ -519,6 +519,7 @@
 }
 
 .profile-avatar {
+  position: relative;
   width: 96px;
   height: 96px;
   border-radius: 50%;
@@ -1205,4 +1206,402 @@ textarea:focus-visible {
 .hidden-input {
   display: none !important;
 }
+
+/* ===== PROFILE VISUAL OVERRIDES & UPLOAD FORM STYLING ===== */
+
+.profile-cover-edit {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.profile-cover-edit:hover {
+  background: rgba(15, 23, 42, 0.85);
+  transform: scale(1.05);
+}
+
+.profile-avatar-edit {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  background: #2563eb;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.dark .profile-avatar-edit {
+  border-color: #0e1322;
+  background: #3b82f6;
+}
+
+.profile-avatar-edit:hover {
+  transform: scale(1.1);
+  background: #1d4ed8;
+}
+
+.profile-bio {
+  font-size: 0.9375rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.dark .profile-bio {
+  color: #cbd5e1;
+}
+
+.profile-read-more {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #3b82f6;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 150ms;
+}
+
+.profile-read-more:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Upload Prompt Card & Form styles */
+.upload-form-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e8e5e0;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 2px 12px rgba(0, 0, 0, 0.02);
+  transition: all 250ms ease;
+}
+
+.dark .upload-form-card {
+  background: #0e1322;
+  border-color: #151a28;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.upload-form-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dark .upload-form-title {
+  color: #f1f5f9;
+}
+
+.upload-form-subtitle {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.dark .upload-form-subtitle {
+  color: #94a3b8;
+}
+
+.upload-form-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: white;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  min-height: 40px;
+  border: none;
+  cursor: pointer;
+}
+
+.upload-form-upload-btn:hover {
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+.dark .upload-form-upload-btn {
+  background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 100%);
+  color: #0f172a;
+}
+
+.dark .upload-form-upload-btn:hover {
+  background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%);
+}
+
+.upload-form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.upload-form-header {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dark .upload-form-header {
+  color: #f1f5f9;
+}
+
+.upload-form-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+
+.upload-form-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.dark .upload-form-close {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+.dark .upload-form-close:hover {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+.upload-form-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  color: #0f172a;
+  font-size: 0.9375rem;
+  outline: none;
+  transition: all 200ms ease;
+}
+
+.upload-form-input::placeholder {
+  color: #94a3b8;
+}
+
+.upload-form-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.dark .upload-form-input {
+  background: #0c1018;
+  border-color: #1e2d45;
+  color: #f1f5f9;
+}
+
+.dark .upload-form-input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.12);
+}
+
+.upload-form-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.dark .upload-form-label {
+  color: #cbd5e1;
+}
+
+.upload-form-file-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 180ms ease;
+  cursor: pointer;
+}
+
+.upload-form-file-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.upload-form-file-btn.file-selected {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.dark .upload-form-file-btn {
+  background: #0c1018;
+  border-color: #1e2d45;
+  color: #94a3b8;
+}
+
+.dark .upload-form-file-btn:hover {
+  background: #151a28;
+  border-color: #334155;
+}
+
+.dark .upload-form-file-btn.file-selected {
+  border-color: #22c55e;
+  background: #052e16;
+  color: #22c55e;
+}
+
+.upload-form-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: white;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 48px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.upload-form-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+.upload-form-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dark .upload-form-submit-btn {
+  background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 100%);
+  color: #0f172a;
+}
+
+.dark .upload-form-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%);
+}
+
+/* Empty Tab / State styles */
+.profile-empty-state {
+  padding: 48px 24px;
+  text-align: center;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e8e5e0;
+  margin-top: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.dark .profile-empty-state {
+  background: #0e1322;
+  border-color: #151a28;
+}
+
+.profile-empty-icon {
+  width: 48px;
+  height: 48px;
+  color: #94a3b8;
+  margin-bottom: 16px;
+  display: inline-block;
+  animation: float 3s ease-in-out infinite;
+}
+
+.dark .profile-empty-icon {
+  color: #475569;
+}
+
+.profile-empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.dark .profile-empty-title {
+  color: #f1f5f9;
+}
+
+.profile-empty-subtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.dark .profile-empty-subtitle {
+  color: #94a3b8;
+}
+
+.post-grid-item {
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  transition: all 250ms ease;
+}
+
+.dark .post-grid-item {
+  border-color: #151a28;
+}
+
+.post-grid-item:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Entrance Animations */
+.profile-entrance {
+  opacity: 0;
+  animation: revealUp 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.profile-entrance-delay-1 { animation-delay: 0.05s; }
+.profile-entrance-delay-2 { animation-delay: 0.1s; }
+.profile-entrance-delay-3 { animation-delay: 0.15s; }
+.profile-entrance-delay-4 { animation-delay: 0.2s; }
+.profile-entrance-delay-5 { animation-delay: 0.25s; }
+
 
