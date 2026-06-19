@@ -516,6 +516,7 @@ export default function Feed() {
   const [activeCategory, setActiveCategory] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const scrollRef = useRef(null);
+  const categoryContainerRef = useRef(null);
 
   useEffect(() => { loadPosts(); }, []);
 
@@ -525,6 +526,19 @@ export default function Feed() {
     const handleScroll = () => setShowScrollTop(el.scrollTop > 500);
     el.addEventListener('scroll', handleScroll);
     return () => el.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = categoryContainerRef.current;
+    if (!el) return;
+    const handleWheel = (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
   }, []);
 
   const loadPosts = async () => {
@@ -618,7 +632,7 @@ export default function Feed() {
     <div className="p-3 sm:p-5">
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Category Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
+        <div ref={categoryContainerRef} className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
           {categories.map(cat => {
             const Icon = cat.icon;
             const isActive = activeCategory === cat.id;
