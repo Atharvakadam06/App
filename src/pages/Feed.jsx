@@ -531,14 +531,66 @@ export default function Feed() {
   useEffect(() => {
     const el = categoryContainerRef.current;
     if (!el) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+    let isDragging = false;
+
     const handleWheel = (e) => {
       if (e.deltaY !== 0) {
         e.preventDefault();
         el.scrollLeft += e.deltaY;
       }
     };
+
+    const handleMouseDown = (e) => {
+      isDown = true;
+      isDragging = false;
+      startX = e.pageX - el.offsetLeft;
+      scrollLeft = el.scrollLeft;
+    };
+
+    const handleMouseLeave = () => {
+      isDown = false;
+    };
+
+    const handleMouseUp = () => {
+      isDown = false;
+    };
+
+    const handleMouseMove = (e) => {
+      if (!isDown) return;
+      const x = e.pageX - el.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      if (Math.abs(walk) > 5) {
+        isDragging = true;
+      }
+      el.scrollLeft = scrollLeft - walk;
+    };
+
+    const handleClickCapture = (e) => {
+      if (isDragging) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
     el.addEventListener('wheel', handleWheel, { passive: false });
-    return () => el.removeEventListener('wheel', handleWheel);
+    el.addEventListener('mousedown', handleMouseDown);
+    el.addEventListener('mouseleave', handleMouseLeave);
+    el.addEventListener('mouseup', handleMouseUp);
+    el.addEventListener('mousemove', handleMouseMove);
+    el.addEventListener('click', handleClickCapture, true);
+
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('mousedown', handleMouseDown);
+      el.removeEventListener('mouseleave', handleMouseLeave);
+      el.removeEventListener('mouseup', handleMouseUp);
+      el.removeEventListener('mousemove', handleMouseMove);
+      el.removeEventListener('click', handleClickCapture, true);
+    };
   }, []);
 
   const loadPosts = async () => {
@@ -632,7 +684,7 @@ export default function Feed() {
     <div className="p-3 sm:p-5">
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Category Filter */}
-        <div ref={categoryContainerRef} className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
+        <div ref={categoryContainerRef} className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1 cursor-grab select-none active:cursor-grabbing">
           {categories.map(cat => {
             const Icon = cat.icon;
             const isActive = activeCategory === cat.id;
