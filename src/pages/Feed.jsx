@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Image, Send, FileText, Trash2, Video, ChevronUp, Filter, Edit3, Flag, ZoomIn, Paperclip, Download } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, FileText, Trash2, ChevronUp, Edit3, Flag, ZoomIn, Paperclip, Download, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -13,7 +13,6 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
   const [showMenu, setShowMenu] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [likeAnimating, setLikeAnimating] = useState(false);
   const [showHeartOverlay, setShowHeartOverlay] = useState(false);
   const [showImageLightbox, setShowImageLightbox] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -23,12 +22,23 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
   const isOwner = post.userId === currentUserId;
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const menuRef = useRef(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMenu]);
 
   const handleShare = async () => {
     const postUrl = `${window.location.origin}/post/${post.id}`;
-      if (navigator.share) {
-        try { await navigator.share({ title: 'StuGrow', text: post.content, url: postUrl }); } catch { /* Ignore share errors */ }
-      } else {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'StuGrow', text: post.content, url: postUrl }); } catch { /* Ignore */ }
+    } else {
       await navigator.clipboard.writeText(`${post.content}\n\n${postUrl}`);
       addToast('Link copied to clipboard', 'success');
     }
@@ -56,9 +66,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
 
   const doDoubleTap = () => {
     if (!currentUserId) return;
-    if (!post.liked) {
-      onLike(post.id);
-    }
+    if (!post.liked) onLike(post.id);
     setShowHeartOverlay(true);
     setTimeout(() => setShowHeartOverlay(false), 1000);
   };
@@ -99,48 +107,90 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
   };
 
   return (
-    <article 
-      className="bg-white dark:bg-[#1a1a1a] rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden animate-reveal-up"
-      style={{ animationDelay: `${index * 0.1}s` }}
+    <article
+      className="bg-white dark:bg-[#0e1322] rounded-2xl border border-slate-100 dark:border-[#151a28] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 animate-reveal-up"
+      style={{ animationDelay: `${Math.min(index * 0.06, 0.4)}s` }}
     >
-      <div className="p-4">
+      {/* Post Header */}
+      <div className="px-4 pt-4 pb-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={handleProfileClick} className="shrink-0">
-              <img src={post.user?.avatar} alt={post.user?.name} className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700" />
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <button onClick={handleProfileClick} className="shrink-0 active:scale-95 transition-transform">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-800 shadow-sm">
+                {post.user?.avatar ? (
+                  <img src={post.user.avatar} alt={post.user?.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">{post.user?.name?.charAt(0)}</span>
+                  </div>
+                )}
+              </div>
             </button>
             <div className="flex-1 min-w-0">
-              <button onClick={handleProfileClick} className="font-semibold text-sm text-gray-900 dark:text-white hover:opacity-70 transition-opacity block truncate">{post.user?.name}</button>
-              <p className="text-xs text-gray-500 truncate">{post.user?.college} · {formatTimeAgo(post.timestamp)}</p>
+              <button
+                onClick={handleProfileClick}
+                className="font-bold text-sm text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors block truncate text-left"
+              >
+                {post.user?.name}
+              </button>
+              <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                {post.user?.college && <span>{post.user.college} · </span>}
+                {formatTimeAgo(post.timestamp)}
+              </p>
             </div>
           </div>
-          <div className="relative">
-            <button onClick={() => setShowMenu(!showMenu)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-              <MoreHorizontal className="w-5 h-5 text-gray-500" />
+
+          {/* Menu */}
+          <div className="relative shrink-0 ml-2" ref={menuRef}>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-90"
+            >
+              <MoreHorizontal className="w-5 h-5 text-slate-400" />
             </button>
             {showMenu && (
-              <div className="absolute right-0 top-12 bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg border border-gray-100 dark:border-gray-800 p-2 z-30 min-w-[160px] animate-scale-in">
-                <button onClick={() => { handleShare(); setShowMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                  <Share2 className="w-4 h-4" />Share post
+              <div className="absolute right-0 top-11 bg-white dark:bg-[#0c1018] rounded-2xl shadow-xl border border-slate-100 dark:border-[#151a28] p-1.5 z-30 min-w-[172px] animate-scale-in">
+                <button
+                  onClick={() => { handleShare(); setShowMenu(false); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-xl transition-colors"
+                >
+                  <Share2 className="w-4 h-4 shrink-0" />
+                  Share post
                 </button>
                 {post.image && !isOwner && (
-                  <button onClick={() => { setShowImageLightbox(true); setShowMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                    <ZoomIn className="w-4 h-4" />View image
+                  <button
+                    onClick={() => { setShowImageLightbox(true); setShowMenu(false); }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-xl transition-colors"
+                  >
+                    <ZoomIn className="w-4 h-4 shrink-0" />
+                    View image
                   </button>
                 )}
                 {isOwner && (
                   <>
-                    <button onClick={() => { setEditingPost(true); setShowMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                      <Edit3 className="w-4 h-4" />Edit post
+                    <button
+                      onClick={() => { setEditingPost(true); setShowMenu(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-xl transition-colors"
+                    >
+                      <Edit3 className="w-4 h-4 shrink-0" />
+                      Edit post
                     </button>
-                    <button onClick={() => { onDelete(post.id); setShowMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4" />Delete post
+                    <button
+                      onClick={() => { onDelete(post.id); setShowMenu(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />
+                      Delete post
                     </button>
                   </>
                 )}
                 {!isOwner && (
-                  <button onClick={() => { setShowReportModal(true); setShowMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors">
-                    <Flag className="w-4 h-4" />Report post
+                  <button
+                    onClick={() => { setShowReportModal(true); setShowMenu(false); }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors"
+                  >
+                    <Flag className="w-4 h-4 shrink-0" />
+                    Report post
                   </button>
                 )}
               </div>
@@ -148,21 +198,43 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
           </div>
         </div>
 
+        {/* Post Content */}
         {editingPost ? (
           <div className="mt-4">
-            <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white resize-none" autoFocus />
-            <div className="flex gap-3 mt-3">
-              <button onClick={handleEdit} className="px-5 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">Save Changes</button>
-              <button onClick={() => { setEditingPost(false); setEditContent(post.content); }} className="px-5 py-2.5 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">Cancel</button>
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="input-field resize-none min-h-[100px]"
+              autoFocus
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={handleEdit}
+                className="px-5 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors active:scale-95"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => { setEditingPost(false); setEditContent(post.content); }}
+                className="px-5 py-2.5 text-slate-500 dark:text-slate-400 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         ) : (
-          <p onClick={handleContentTap} className="mt-3 text-[15px] text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+          <p
+            onClick={handleContentTap}
+            className="mt-3 text-[15px] text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap select-none"
+          >
+            {post.content}
+          </p>
         )}
       </div>
 
+      {/* Post Image */}
       {post.image && (
-        <div className="relative bg-gray-100 dark:bg-gray-900">
+        <div className="relative bg-slate-50 dark:bg-slate-900">
           <img
             src={post.image}
             alt=""
@@ -179,55 +251,79 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
         </div>
       )}
 
+      {/* Post Video */}
       {post.video && (
-        <div className="relative">
+        <div className="relative bg-black">
           <video src={post.video} controls className="w-full max-h-[450px]" />
         </div>
       )}
 
+      {/* File Attachment */}
       {post.file_url && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-3">
           <a
             href={post.file_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-[#1a1f2e] border border-gray-100 dark:border-gray-800/80 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-200 group"
+            className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-[#0c1018] border border-slate-100 dark:border-[#1a2035] rounded-2xl hover:bg-slate-100 dark:hover:bg-[#101624] transition-all duration-200 group"
           >
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 shrink-0">
               <Paperclip className="w-5 h-5 group-hover:rotate-45 transition-transform duration-300" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">
                 {post.file_name || 'Attached File'}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Click to view or download file</p>
+              <p className="text-xs text-slate-400 mt-0.5">Click to view or download</p>
             </div>
-            <div className="flex-shrink-0 text-gray-400 group-hover:text-blue-500 transition-colors">
-              <Download className="w-4 h-4" />
-            </div>
+            <Download className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors shrink-0" />
           </a>
         </div>
       )}
 
+      {/* Tags */}
       {post.tags && post.tags.length > 0 && (
-        <div className="px-4 py-3 flex flex-wrap gap-2">
+        <div className="px-4 pb-3 flex flex-wrap gap-1.5">
           {post.tags.map(tag => (
-            <span key={tag} className="text-sm font-medium text-blue-500 hover:text-blue-600 cursor-pointer transition-colors">#{tag}</span>
+            <span key={tag} className="text-sm font-medium text-blue-500 hover:text-blue-600 cursor-pointer transition-colors">
+              #{tag}
+            </span>
           ))}
         </div>
       )}
 
-      <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100 dark:border-gray-800">
+      {/* Action Bar */}
+      <div className="px-3 py-2 flex items-center justify-between border-t border-slate-50 dark:border-[#151a28]">
         <div className="flex items-center gap-1">
-          <button type="button" style={{zIndex: 100}} onClick={handleLikeClick} className={`like-btn flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${post.liked ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}`}>
-            <Heart className={`w-[19px] h-[19px] ${post.liked ? 'fill-current' : ''}`} />
-            <span className="text-sm font-semibold">{post.likes}</span>
+          {/* Like */}
+          <button
+            type="button"
+            onClick={handleLikeClick}
+            className={`post-action-btn ${
+              post.liked
+                ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                : 'text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+            }`}
+          >
+            <Heart className={`w-[18px] h-[18px] ${post.liked ? 'fill-current' : ''}`} />
+            <span className="text-[13px] font-bold tabular-nums">{post.likes}</span>
           </button>
-          <button onClick={() => setShowComments(!showComments)} className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${showComments ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}>
-            <MessageCircle className="w-[19px] h-[19px]" />
-            <span className="text-sm font-semibold">{post.comments?.length || 0}</span>
+
+          {/* Comment */}
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className={`post-action-btn ${
+              showComments
+                ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-slate-500 dark:text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+            }`}
+          >
+            <MessageCircle className="w-[18px] h-[18px]" />
+            <span className="text-[13px] font-bold tabular-nums">{post.comments?.length || 0}</span>
           </button>
-          <button 
+
+          {/* Share */}
+          <button
             onClick={(e) => {
               e.stopPropagation();
               const btn = e.currentTarget;
@@ -236,16 +332,17 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
                 navigator.share({ title: 'StuGrow Post', text: post.content, url: window.location.href });
               } else {
                 navigator.clipboard.writeText(window.location.href);
-                alert('Link copied!');
+                addToast('Link copied!', 'success');
               }
               setTimeout(() => btn.classList.remove('flipped'), 1000);
             }}
-            className="btn-share-flip" 
+            className="btn-share-flip ml-1"
             title="Share"
+            aria-label="Share post"
           >
             <div className="flip-inner">
               <div className="flip-front">
-                <Share2 className="w-4 h-4 text-[#1a6fa8]" />
+                <Share2 className="w-4 h-4 text-blue-500" />
               </div>
               <div className="flip-back">
                 <Share2 className="w-4 h-4 text-white" />
@@ -253,37 +350,62 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
             </div>
           </button>
         </div>
-        <button onClick={() => onSave(post.id)} className={`p-2.5 rounded-full transition-all duration-300 ${post.saved ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'}`}>
-          <Bookmark className={`w-[19px] h-[19px] ${post.saved ? 'fill-current' : ''}`} />
+
+        {/* Save */}
+        <button
+          onClick={() => onSave(post.id)}
+          className={`post-action-btn ${
+            post.saved
+              ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20'
+              : 'text-slate-500 dark:text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+          }`}
+        >
+          <Bookmark className={`w-[18px] h-[18px] ${post.saved ? 'fill-current' : ''}`} />
         </button>
       </div>
 
+      {/* Comments Section */}
       {showComments && (
-        <div className="px-4 pb-4 animate-slide-down">
-          <div className="flex gap-3">
-            <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleComment()} placeholder="Add a comment..." className="flex-1 text-sm py-2.5 px-4 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500" />
-            <button onClick={handleComment} disabled={!commentText.trim()} className="text-blue-500 font-medium text-sm disabled:opacity-40 hover:opacity-80 transition-opacity">
-              Post
+        <div className="px-4 pb-4 animate-slide-down border-t border-slate-50 dark:border-[#151a28] pt-3">
+          <div className="flex gap-2.5">
+            <input
+              type="text"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleComment()}
+              placeholder="Write a comment..."
+              className="flex-1 text-sm py-2.5 px-4 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0c1018] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+            />
+            <button
+              onClick={handleComment}
+              disabled={!commentText.trim()}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-500 text-white disabled:opacity-30 hover:bg-blue-600 transition-all active:scale-90 shrink-0"
+            >
+              <Send className="w-4 h-4" />
             </button>
           </div>
+
           {post.comments && post.comments.length > 0 && (
-            <div className="mt-4 space-y-4">
+            <div className="mt-4 space-y-3">
               {post.comments.map((c, i) => (
-                <div key={i} className="flex gap-3 animate-fade-in">
-                  <img src={c.avatar} alt="" className="w-8 h-8 rounded-full shrink-0" />
-                  <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-2xl px-4 py-2.5">
+                <div key={i} className="flex gap-2.5 animate-fade-in">
+                  <img src={c.avatar} alt="" className="w-8 h-8 rounded-full shrink-0 border border-slate-100 dark:border-slate-800" />
+                  <div className="flex-1 bg-slate-50 dark:bg-[#0c1018] rounded-2xl px-4 py-2.5">
                     <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{c.name}</span>
-                      <span className="text-xs text-gray-500">{formatTimeAgo(c.timestamp)}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">{c.name}</span>
+                        <span className="text-xs text-slate-400">{formatTimeAgo(c.timestamp)}</span>
+                      </div>
+                      {c.userId === currentUserId && (
+                        <button
+                          onClick={() => onDeleteComment(post.id, c.id)}
+                          className="text-slate-300 hover:text-rose-500 transition-colors p-1 active:scale-90 shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                    {c.userId === currentUserId && (
-                      <button onClick={() => onDeleteComment(post.id, c.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{c.text}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{c.text}</p>
                   </div>
                 </div>
               ))}
@@ -292,22 +414,44 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
         </div>
       )}
 
+      {/* Image Lightbox */}
       {showImageLightbox && post.image && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center animate-fade-in" onClick={() => setShowImageLightbox(false)}>
-          <button onClick={() => setShowImageLightbox(false)} className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all">
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center animate-fade-in"
+          onClick={() => setShowImageLightbox(false)}
+        >
+          <button
+            onClick={() => setShowImageLightbox(false)}
+            className="absolute top-4 right-4 p-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-all active:scale-90"
+          >
             <X className="w-6 h-6 text-white" />
           </button>
-          <img src={post.image} alt="" className="max-w-[92vw] max-h-[92vh] object-contain" onClick={(e) => e.stopPropagation()} />
+          <img
+            src={post.image}
+            alt=""
+            className="max-w-[95vw] max-h-[92vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
 
+      {/* Report Modal */}
       {showReportModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowReportModal(false)}>
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setShowReportModal(false)}
+        >
           <div className="card p-6 max-w-sm w-full animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-semibold text-slate-800 dark:text-white mb-2">Report Post</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">Why are you reporting this post?</p>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Report Post</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Why are you reporting this post?</p>
             {['Spam or misleading', 'Inappropriate content', 'Harassment or bullying', 'False information', 'Other'].map(reason => (
-              <button key={reason} onClick={() => handleReport(reason)} className="w-full text-left px-4 py-3.5 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors mb-1">{reason}</button>
+              <button
+                key={reason}
+                onClick={() => handleReport(reason)}
+                className="w-full text-left px-4 py-3.5 rounded-xl text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors mb-1 font-medium"
+              >
+                {reason}
+              </button>
             ))}
           </div>
         </div>
@@ -322,81 +466,84 @@ function EmptyFeed() {
       <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-5">
         <FileText className="w-8 h-8 text-slate-400" />
       </div>
-      <h3 className="text-xl font-semibold text-slate-800 dark:text-white mb-2">No posts yet</h3>
-      <p className="text-slate-500 dark:text-slate-400">Be the first to share something with your campus!</p>
+      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No posts yet</h3>
+      <p className="text-slate-500 dark:text-slate-400 text-sm">Be the first to share something with your campus!</p>
     </div>
   );
 }
 
 function SkeletonPost() {
   return (
-    <div className="card p-6 animate-pulse">
-      <div className="flex items-center gap-4 mb-5">
-        <div className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-700" />
-        <div className="flex-1"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-2" /><div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/4" /></div>
+    <div className="bg-white dark:bg-[#0e1322] rounded-2xl border border-slate-100 dark:border-[#151a28] p-4 animate-pulse">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-11 h-11 rounded-full skeleton" />
+        <div className="flex-1">
+          <div className="h-3.5 skeleton rounded w-1/3 mb-2" />
+          <div className="h-3 skeleton rounded w-1/4" />
+        </div>
       </div>
-      <div className="space-y-3 mb-5"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-full" /><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-4/5" /><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/5" /></div>
-      <div className="flex gap-4 pt-4 border-t border-slate-100 dark:border-slate-700"><div className="h-9 w-20 bg-slate-200 dark:bg-slate-700 rounded-full" /><div className="h-9 w-20 bg-slate-200 dark:bg-slate-700 rounded-full" /><div className="h-9 w-20 bg-slate-200 dark:bg-slate-700 rounded-full" /></div>
+      <div className="space-y-2.5 mb-4">
+        <div className="h-3.5 skeleton rounded w-full" />
+        <div className="h-3.5 skeleton rounded w-4/5" />
+        <div className="h-3.5 skeleton rounded w-3/5" />
+      </div>
+      <div className="flex gap-3 pt-3 border-t border-slate-100 dark:border-[#151a28]">
+        <div className="h-8 w-20 skeleton rounded-full" />
+        <div className="h-8 w-20 skeleton rounded-full" />
+        <div className="h-8 w-20 skeleton rounded-full" />
+      </div>
     </div>
   );
 }
 
+const categories = [
+  { id: null, label: '✨ All' },
+  { id: 'general', label: '💬 General' },
+  { id: 'question', label: '❓ Questions' },
+  { id: 'event', label: '🎉 Events' },
+  { id: 'announcement', label: '📢 Announcements' },
+  { id: 'study', label: '📚 Study' },
+  { id: 'lost', label: '🔍 Lost & Found' },
+];
+
 export default function Feed() {
   const { user } = useAuth();
-  const { likeMap, likesCountMap, toggleLike, getLikeState, syncAllPosts, initialized } = usePostLike();
-  const { savedMap, toggleSave, getSaveState, syncAllPosts: syncAllSaves, initialized: savesInitialized } = usePostSave();
+  const { likeMap, likesCountMap, toggleLike, syncAllPosts } = usePostLike();
+  const { savedMap, toggleSave, syncAllPosts: syncAllSaves } = usePostSave();
   const [loading, setLoading] = useState(true);
   const [allPosts, setAllPosts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState(null);
-  const [sortBy] = useState('latest');
   const [showScrollTop, setShowScrollTop] = useState(false);
-
-  const categories = [
-    { id: null, label: 'All' },
-    { id: 'general', label: 'General' },
-    { id: 'question', label: 'Questions' },
-    { id: 'event', label: 'Events' },
-    { id: 'announcement', label: 'Announcements' },
-    { id: 'study', label: 'Study' },
-    { id: 'lost', label: 'Lost & Found' },
-  ];
+  const scrollRef = useRef(null);
 
   useEffect(() => { loadPosts(); }, []);
+
   useEffect(() => {
-    const handleScroll = () => setShowScrollTop(window.scrollY > 500);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const el = document.querySelector('[data-scroll-container]');
+    if (!el) return;
+    const handleScroll = () => setShowScrollTop(el.scrollTop > 500);
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
   }, []);
 
   const loadPosts = async () => {
     try {
       if (user?.id) {
-        await Promise.all([
-          syncAllPosts(user.id),
-          syncAllSaves(user.id)
-        ]);
+        await Promise.all([syncAllPosts(user.id), syncAllSaves(user.id)]);
       }
-      // Single batch query: gets posts with liked/saved/comments all at once
       const posts = await getAllPostsWithDetails(user?.id);
-
-      // Apply context state as final source of truth for liked/likes
-      // (context was updated optimistically on interaction and may be more accurate
-      // than the DB snapshot, especially when localStorage fallback is used)
       const reconciled = posts.map(p => {
         const ctxLiked = likeMap[p.id];
         const ctxLikes = likesCountMap[p.id];
         const liked = ctxLiked !== undefined ? ctxLiked : p.liked;
-        // If liked state from context differs from DB, adjust the count accordingly
         let likes = ctxLikes !== undefined ? ctxLikes : p.likes;
-        // Safety net: if shown as liked but count is 0, show at least 1
         if (liked && likes === 0) likes = 1;
         return { ...p, liked, likes };
       });
-
       setAllPosts(reconciled);
     } catch (e) { console.error(e); }
-    finally { setTimeout(() => setLoading(false), 400); }
+    finally { setTimeout(() => setLoading(false), 300); }
   };
 
   const filteredPosts = useMemo(() => {
@@ -406,9 +553,8 @@ export default function Feed() {
       filtered = filtered.filter(p => p.content.toLowerCase().includes(q) || p.user?.name?.toLowerCase().includes(q));
     }
     if (activeCategory) filtered = filtered.filter(p => p.category === activeCategory);
-    if (sortBy === 'popular') filtered = [...filtered].sort((a, b) => b.likes - a.likes);
     return filtered;
-  }, [allPosts, searchQuery, activeCategory, sortBy]);
+  }, [allPosts, searchQuery, activeCategory]);
 
   const handleLike = async (postId) => {
     if (!user?.id) return;
@@ -416,10 +562,8 @@ export default function Feed() {
       const post = allPosts.find(p => p.id === postId);
       if (!post) return;
       const wasLiked = post.liked || false;
-      
       await likePost(postId, user.id);
       const result = await toggleLike(postId, user.id, wasLiked, post.likes || 0);
-      
       setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: result.liked, likes: result.likes } : p));
     } catch (e) { console.error(e); }
   };
@@ -430,10 +574,8 @@ export default function Feed() {
       const post = allPosts.find(p => p.id === postId);
       if (!post) return;
       const currentSaved = post.saved || false;
-      
       const newSaved = await toggleSave(postId, user.id, currentSaved);
       await savePost(postId, user.id);
-      
       setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, saved: newSaved } : p));
     } catch (e) { console.error(e); }
   };
@@ -462,35 +604,61 @@ export default function Feed() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6"><div className="max-w-2xl mx-auto space-y-5"><SkeletonPost /><SkeletonPost /><SkeletonPost /></div></div>
+      <div className="p-4 sm:p-5">
+        <div className="max-w-2xl mx-auto space-y-4">
+          <SkeletonPost />
+          <SkeletonPost />
+          <SkeletonPost />
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="max-w-2xl mx-auto space-y-5">
-        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+    <div className="p-3 sm:p-5">
+      <div className="max-w-2xl mx-auto space-y-4">
+        {/* Category Filter */}
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
           {categories.map(cat => (
-            <button key={cat.id || 'all'} onClick={() => setActiveCategory(cat.id)} className={`px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 ${activeCategory === cat.id ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+            <button
+              key={cat.id || 'all'}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 active:scale-95 shrink-0 ${
+                activeCategory === cat.id
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/10'
+                  : 'bg-white dark:bg-[#0e1322] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#151a28] hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
               {cat.label}
             </button>
           ))}
         </div>
 
+        {/* Search */}
         <ProfessionalSearch
           placeholder="Search posts..."
           value={searchQuery}
           onChange={setSearchQuery}
         />
 
-        {filteredPosts.length === 0 ? <EmptyFeed /> : filteredPosts.map((post, i) => (
-          <PostCard key={post.id} post={post} onLike={handleLike} onSave={handleSave} onDelete={handleDelete} onUpdate={handleUpdate} onComment={handleComment} onDeleteComment={handleDeleteComment} currentUserId={user.id} index={i} />
-        ))}
-
-        {showScrollTop && (
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] lg:bottom-6 right-4 sm:right-6 p-3.5 rounded-full bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-xl hover:shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 z-40 min-w-[48px] min-h-[48px] flex items-center justify-center">
-            <ChevronUp className="w-5 h-5" />
-          </button>
+        {/* Posts */}
+        {filteredPosts.length === 0 ? (
+          <EmptyFeed />
+        ) : (
+          filteredPosts.map((post, i) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onLike={handleLike}
+              onSave={handleSave}
+              onDelete={handleDelete}
+              onUpdate={handleUpdate}
+              onComment={handleComment}
+              onDeleteComment={handleDeleteComment}
+              currentUserId={user.id}
+              index={i}
+            />
+          ))
         )}
       </div>
     </div>
