@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, FileText, Trash2, ChevronUp, Edit3, Flag, ZoomIn, Paperclip, Download, X } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, FileText, Trash2, ChevronUp, Edit3, Flag, ZoomIn, Paperclip, Download, X, Sparkles, MessageSquare, HelpCircle, Calendar, Megaphone, BookOpen, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -497,13 +497,13 @@ function SkeletonPost() {
 }
 
 const categories = [
-  { id: null, label: '✨ All' },
-  { id: 'general', label: '💬 General' },
-  { id: 'question', label: '❓ Questions' },
-  { id: 'event', label: '🎉 Events' },
-  { id: 'announcement', label: '📢 Announcements' },
-  { id: 'study', label: '📚 Study' },
-  { id: 'lost', label: '🔍 Lost & Found' },
+  { id: null, label: 'All', icon: Sparkles },
+  { id: 'general', label: 'General', icon: MessageSquare },
+  { id: 'question', label: 'Questions', icon: HelpCircle },
+  { id: 'event', label: 'Events', icon: Calendar },
+  { id: 'announcement', label: 'Announcements', icon: Megaphone },
+  { id: 'study', label: 'Study', icon: BookOpen },
+  { id: 'lost', label: 'Lost & Found', icon: Search },
 ];
 
 export default function Feed() {
@@ -619,19 +619,24 @@ export default function Feed() {
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
-          {categories.map(cat => (
-            <button
-              key={cat.id || 'all'}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 active:scale-95 shrink-0 ${
-                activeCategory === cat.id
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/10'
-                  : 'bg-white dark:bg-[#0e1322] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#151a28] hover:border-slate-300 dark:hover:border-slate-600'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+          {categories.map(cat => {
+            const Icon = cat.icon;
+            const isActive = activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id || 'all'}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 active:scale-95 shrink-0 border ${
+                  isActive
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-md'
+                    : 'bg-white dark:bg-[#0e1322] text-slate-600 dark:text-slate-400 border-slate-200/70 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white dark:text-slate-900' : 'text-slate-400 dark:text-slate-500'}`} />
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Search */}
