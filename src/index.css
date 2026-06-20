@@ -1736,4 +1736,84 @@ textarea:focus-visible {
 .profile-entrance-delay-4 { animation-delay: 0.2s; }
 .profile-entrance-delay-5 { animation-delay: 0.25s; }
 
+/* ===== PROFILE POST MODAL REDESIGN ===== */
+.premium-blur-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) brightness(0.4);
+  transform: scale(1.15);
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark .premium-blur-bg {
+  filter: blur(60px) brightness(0.25);
+  opacity: 0.85;
+}
+
+/* Mesh gradient backgrounds for text-only posts */
+.mesh-gradient-post {
+  background: radial-gradient(at 18% 18%, rgba(99, 102, 241, 0.25) 0px, transparent 50%),
+              radial-gradient(at 82% 82%, rgba(244, 63, 94, 0.25) 0px, transparent 50%),
+              radial-gradient(at 50% 50%, rgba(59, 130, 246, 0.2) 0px, transparent 50%),
+              linear-gradient(135deg, #12182c 0%, #080c18 100%);
+}
+
+.light .mesh-gradient-post {
+  background: radial-gradient(at 18% 18%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+              radial-gradient(at 82% 82%, rgba(244, 63, 94, 0.12) 0px, transparent 50%),
+              radial-gradient(at 50% 50%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+              linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.post-nav-btn {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.post-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.08);
+}
+
+.post-nav-btn:active {
+  transform: scale(0.95);
+}
+
+/* Custom interactive comment text area styling */
+.premium-comment-input {
+  transition: all 0.25s ease;
+}
+
+.premium-comment-input:focus-within {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+  border-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Double click Heart Pop animation */
+@keyframes heartPulse {
+  0% { transform: scale(0) translate(-50%, -50%) rotate(-10deg); opacity: 0; }
+  15% { transform: scale(1.3) translate(-50%, -50%) rotate(5deg); opacity: 0.95; }
+  30% { transform: scale(1) translate(-50%, -50%) rotate(-5deg); opacity: 1; }
+  85% { transform: scale(1) translate(-50%, -50%) rotate(-5deg); opacity: 1; filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.6)); }
+  100% { transform: scale(0.7) translate(-50%, -50%) rotate(0deg); opacity: 0; }
+}
+
+.animate-heart-pop {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  animation: heartPulse 0.85s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  pointer-events: none;
+  z-index: 10;
+}
+
+
 

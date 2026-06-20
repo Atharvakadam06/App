@@ -260,6 +260,7 @@ export default function Profile() {
   const [showCommentInput, setShowCommentInput] = useState(null);
   const [shareFlipped, setShareFlipped] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [showHeartPop, setShowHeartPop] = useState(false);
 
   const [showUploadPaper, setShowUploadPaper] = useState(false);
   const [uploadPaperForm, setUploadPaperForm] = useState({ title: '', branch: '', semester: '', year: '' });
@@ -368,6 +369,52 @@ export default function Profile() {
       console.error('Save failed:', e);
     }
   };
+
+  const handleNavigatePost = useCallback(async (dir) => {
+    if (!selectedPost || userPosts.length <= 1) return;
+    const currentIndex = selectedPost.index;
+    let nextIndex = currentIndex + dir;
+    if (nextIndex < 0) nextIndex = userPosts.length - 1;
+    if (nextIndex >= userPosts.length) nextIndex = 0;
+    
+    const nextPost = userPosts[nextIndex];
+    if (nextPost) {
+      try {
+        const comments = await getPostComments(nextPost.id);
+        setSelectedPost({ ...nextPost, comments, index: nextIndex });
+      } catch (e) {
+        console.warn('Failed to load comments for navigated post:', e);
+        setSelectedPost({ ...nextPost, comments: [], index: nextIndex });
+      }
+    }
+  }, [selectedPost, userPosts]);
+
+  const handleImageDoubleClick = async (postId) => {
+    const post = userPosts.find(p => p.id === postId);
+    if (!post || !currentUser?.id) return;
+    if (!post.liked) {
+      await handleLikePost(postId);
+    }
+    setShowHeartPop(true);
+    setTimeout(() => {
+      setShowHeartPop(false);
+    }, 850);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!selectedPost) return;
+      if (e.key === 'ArrowLeft') {
+        handleNavigatePost(-1);
+      } else if (e.key === 'ArrowRight') {
+        handleNavigatePost(1);
+      } else if (e.key === 'Escape') {
+        setSelectedPost(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPost, handleNavigatePost]);
 
   useEffect(() => {
     const activeTabEl = document.querySelector(`[data-tab="${activeTab}"]`);
@@ -550,124 +597,230 @@ export default function Profile() {
               </button>
             ))}</div>
 {selectedPost && (
-              <div className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-4">
-                <div className="absolute inset-0 bg-black/70 backdrop-blur-[12px] animate-fade-in" onClick={() => setSelectedPost(null)} style={{ animationDuration: '200ms' }} />
-                <div className="relative w-full max-w-[900px] h-[85vh] sm:h-[80vh] bg-white dark:bg-[#0e1322] rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col sm:flex-row" style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.35)', animationDuration: '280ms' }} onClick={e => e.stopPropagation()}>
-<div className="flex-1 bg-black flex items-center justify-center min-h-[40vh] sm:min-h-0 sm:rounded-l-2xl">
-                      {selectedPost.image ? (
-                        <img src={selectedPost.image} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="max-w-full max-h-full object-contain p-2" />
-                      ) : selectedPost.file_url ? (
-                        <div className="p-6 sm:p-8 flex flex-col items-center justify-center gap-4 text-center">
-                          <div className="w-16 h-16 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
-                            <Paperclip className="w-8 h-8" />
-                          </div>
-                          <div className="max-w-xs">
-                            <p className="text-white font-semibold text-sm truncate">{selectedPost.file_name || 'Document File'}</p>
-                            <p className="text-xs text-gray-400 mt-1">Shared resource attachment</p>
-                          </div>
-                          <a 
-                            href={selectedPost.file_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white rounded-full text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-2"
-                          >
-                            <Download className="w-4 h-4" /> Download Attachment
-                          </a>
+              <div className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-4 md:p-10">
+                <div className="absolute inset-0 bg-black/75 backdrop-blur-[8px] animate-fade-in" onClick={() => setSelectedPost(null)} style={{ animationDuration: '200ms' }} />
+                
+                <div className="relative w-full max-w-[1020px] h-[92vh] md:h-[80vh] bg-white dark:bg-[#0c1018] rounded-3xl overflow-hidden shadow-2xl animate-scale-in flex flex-col md:flex-row border border-slate-100 dark:border-slate-800/80" style={{ boxShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.25)', animationDuration: '250ms' }} onClick={e => e.stopPropagation()}>
+                  
+                  {/* Media / Content Area (Left side) */}
+                  <div 
+                    className="relative flex-1 bg-[#05070a] flex items-center justify-center overflow-hidden min-h-[300px] md:min-h-0 select-none cursor-pointer"
+                    onDoubleClick={() => handleImageDoubleClick(selectedPost.id)}
+                  >
+                    {selectedPost.image ? (
+                      <>
+                        <div className="premium-blur-bg" style={{ backgroundImage: `url(${selectedPost.image})` }} />
+                        <img src={selectedPost.image} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="relative z-10 max-w-full max-h-full object-contain p-4 transition-all duration-300 drop-shadow-xl" />
+                      </>
+                    ) : selectedPost.file_url ? (
+                      <div className="relative z-10 p-6 sm:p-8 flex flex-col items-center justify-center gap-4 text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+                          <Paperclip className="w-8 h-8" />
                         </div>
-                      ) : (
-                        <div className="p-6 sm:p-8"><p className="text-white text-center text-base sm:text-lg whitespace-pre-wrap">{selectedPost.content}</p></div>
-                      )}
-                    </div>
-                  <div className="w-full sm:w-[380px] flex flex-col bg-white dark:bg-[#0e1322] border-t sm:border-t-0 sm:border-l dark:border-gray-700">
-                    <div className="p-4 border-b dark:border-gray-700 flex items-center gap-3">
-                      <img src={profileUser?.avatar} alt="" className="w-10 h-10 rounded-full ring-2 ring-offset-2 ring-blue-500/30" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{profileUser?.name}</p>
-                        <p className="text-xs text-gray-500 truncate">@{profileUser?.username}</p>
+                        <div className="max-w-xs">
+                          <p className="text-white font-semibold text-sm truncate">{selectedPost.file_name || 'Document File'}</p>
+                          <p className="text-xs text-gray-400 mt-1">Shared resource attachment</p>
+                        </div>
+                        <a 
+                          href={selectedPost.file_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white rounded-full text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-2"
+                        >
+                          <Download className="w-4 h-4" /> Download Attachment
+                        </a>
                       </div>
-                      <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><MoreHorizontal className="w-5 h-5" /></button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                      <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">{selectedPost.content}</p>
-                      {selectedPost.comments?.length > 0 && (
-                        <div className="pt-4 border-t dark:border-gray-700">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Comments</p>
-                          <div className="space-y-3">
-                            {selectedPost.comments.map((c, i) => (
-                              <div key={i} className="flex gap-2.5">
-                                <img src={c.avatar} alt="" className="w-7 h-7 rounded-full shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm"><span className="font-semibold text-gray-900 dark:text-white">{c.name}</span> <span className="text-gray-600 dark:text-gray-300">{c.text}</span></p>
-                                  <p className="text-xs text-gray-400 mt-0.5">{formatTimeAgo(c.timestamp)}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4 border-t dark:border-gray-700">
-                      <div className="flex items-center gap-4 sm:gap-5">
-                        <button onClick={() => handleLikePost(selectedPost.id)} className={`like-btn transition-transform hover:scale-110 active:scale-95 ${selectedPost.liked ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'}`}>
-                          <Heart className="w-6 h-6" fill={selectedPost.liked ? 'currentColor' : 'none'} />
-                        </button>
-                        <button onClick={() => setShowCommentInput(s => s === selectedPost.id ? null : selectedPost.id)} className="text-gray-700 dark:text-gray-300 hover:text-blue-500 transition-transform hover:scale-110 active:scale-95">
-                          <MessageCircle className="w-6 h-6" />
+                    ) : (
+                      <div className="relative z-10 w-full h-full flex items-center justify-center mesh-gradient-post p-8">
+                        <p className="text-white dark:text-slate-100 font-medium text-lg sm:text-xl text-center max-w-lg leading-relaxed whitespace-pre-wrap select-text">{selectedPost.content}</p>
+                      </div>
+                    )}
+
+                    {/* Floating Heart Popup on Double-Click */}
+                    {showHeartPop && (
+                      <Heart className="w-20 h-20 text-red-500 fill-red-500 animate-heart-pop" />
+                    )}
+
+                    {/* Next & Previous Post Buttons */}
+                    {userPosts.length > 1 && (
+                      <>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleNavigatePost(-1); }} 
+                          className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full post-nav-btn text-white flex items-center justify-center"
+                          aria-label="Previous Post"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
                         </button>
                         <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (navigator.share) {
-                              navigator.share({ 
-                                title: 'StuGrow Post', 
-                                text: selectedPost.content, 
-                                url: window.location.origin + '/post/' + selectedPost.id 
-                              });
-                            } else {
-                              navigator.clipboard.writeText(window.location.origin + '/post/' + selectedPost.id);
-                              addToast('Link copied to clipboard', 'success');
-                            }
-                          }}
-                          className="text-gray-700 dark:text-gray-300 hover:text-green-500 transition-transform hover:scale-110 active:scale-95"
-                          title="Share"
+                          onClick={(e) => { e.stopPropagation(); handleNavigatePost(1); }} 
+                          className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full post-nav-btn text-white flex items-center justify-center"
+                          aria-label="Next Post"
                         >
-                          <Share2 className="w-6 h-6" />
+                          <ChevronRight className="w-5 h-5" />
                         </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Details / Comments Area (Right side) */}
+                  <div className="w-full md:w-[400px] flex flex-col bg-white dark:bg-[#0c1018] border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800/80">
+                    
+                    {/* Header */}
+                    <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={profileUser?.avatar} alt="" className="w-9 h-9 rounded-full ring-2 ring-offset-2 ring-blue-500/20 dark:ring-offset-[#0c1018]" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">{profileUser?.name}</p>
+                            {selectedPost.category && (
+                              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-500 dark:text-blue-400 capitalize">{selectedPost.category}</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 truncate">@{profileUser?.username}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-full transition-colors text-slate-600 dark:text-slate-400"><MoreHorizontal className="w-5 h-5" /></button>
+                        <button onClick={() => setSelectedPost(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-full transition-colors text-slate-600 dark:text-slate-400 md:hidden"><X className="w-5 h-5" /></button>
+                      </div>
+                    </div>
+
+                    {/* Caption & Comments List */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                      {/* Caption (only show if it is not text-only post rendering main content in left panel) */}
+                      {selectedPost.image || selectedPost.file_url ? (
+                        <div className="flex gap-3 items-start pb-4 border-b border-slate-100/60 dark:border-slate-800/50">
+                          <img src={profileUser?.avatar} alt="" className="w-8 h-8 rounded-full shrink-0" />
+                          <div>
+                            <p className="text-sm text-slate-900 dark:text-slate-100">
+                              <span className="font-semibold mr-1.5 text-slate-900 dark:text-white">{profileUser?.name}</span>
+                              <span className="whitespace-pre-wrap leading-relaxed">{selectedPost.content}</span>
+                            </p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{formatTimeAgo(selectedPost.timestamp)}</p>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Comments */}
+                      <div className="space-y-3.5 pt-1">
+                        {selectedPost.comments?.length > 0 ? (
+                          selectedPost.comments.map((c, i) => (
+                            <div key={i} className="flex gap-3 items-start group">
+                              <img src={c.avatar} alt="" className="w-8 h-8 rounded-full shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-slate-800 dark:text-slate-200">
+                                  <span className="font-semibold text-slate-900 dark:text-white mr-1.5">{c.name}</span>
+                                  <span className="whitespace-pre-wrap leading-relaxed">{c.text}</span>
+                                </p>
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-2">
+                                  <span>{formatTimeAgo(c.timestamp)}</span>
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-900/40 flex items-center justify-center mb-2 border border-slate-100/50 dark:border-slate-800/50">
+                              <MessageCircle className="w-5 h-5 text-slate-400 dark:text-slate-600" />
+                            </div>
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No comments yet</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Start the conversation below</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Footer Actions Panel */}
+                    <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-white/60 dark:bg-[#0c1018]/60 backdrop-blur-md">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <button 
+                            onClick={() => handleLikePost(selectedPost.id)} 
+                            className={`transition-all hover:scale-110 active:scale-90 ${selectedPost.liked ? 'text-red-500' : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                            aria-label="Like Post"
+                          >
+                            <Heart className="w-6 h-6" fill={selectedPost.liked ? 'currentColor' : 'none'} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const inputEl = document.getElementById('comment-input-field');
+                              inputEl?.focus();
+                            }} 
+                            className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-90"
+                            aria-label="Write a comment"
+                          >
+                            <MessageCircle className="w-6 h-6" />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (navigator.share) {
+                                navigator.share({ 
+                                  title: 'StuGrow Post', 
+                                  text: selectedPost.content, 
+                                  url: window.location.origin + '/post/' + selectedPost.id 
+                                });
+                              } else {
+                                navigator.clipboard.writeText(window.location.origin + '/post/' + selectedPost.id);
+                                addToast('Link copied to clipboard', 'success');
+                              }
+                            }}
+                            className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-90"
+                            title="Share"
+                          >
+                            <Share2 className="w-6 h-6" />
+                          </button>
+                        </div>
+                        
                         <button 
                           onClick={() => handleSavePost(selectedPost.id)}
-                          className={`ml-auto transition-transform hover:scale-110 active:scale-95 ${selectedPost.saved ? 'text-amber-500' : 'text-gray-700 dark:text-gray-300'}`}
+                          className={`transition-all hover:scale-110 active:scale-90 ${selectedPost.saved ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                          aria-label="Save Post"
                         >
                           <Bookmark className="w-6 h-6" fill={selectedPost.saved ? 'currentColor' : 'none'} />
                         </button>
                       </div>
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm mt-3">{selectedPost.likes || 0} likes</p>
-                      <p className="text-xs text-gray-500 mt-1">{formatTimeAgo(selectedPost.timestamp)}</p>
-                      {showCommentInput === selectedPost.id && (
-                        <div className="flex gap-2.5 mt-4 items-center">
-                          <img src={currentUser?.avatar} alt="" className="w-7 h-7 rounded-full shrink-0" />
+
+                      <div className="mt-3">
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">{selectedPost.likes || 0} likes</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold mt-0.5">
+                          {new Date(selectedPost.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
+
+                      {/* Comment Input */}
+                      <div className="flex gap-2.5 mt-3 items-center">
+                        <img src={currentUser?.avatar} alt="" className="w-7 h-7 rounded-full shrink-0" />
+                        <div className="flex-1 flex items-center bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 rounded-full px-3.5 py-1.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500/35 transition-all">
                           <input 
+                            id="comment-input-field"
                             type="text" 
                             value={commentText} 
                             onChange={e => setCommentText(e.target.value)} 
                             onKeyDown={e => { if (e.key === 'Enter' && commentText.trim()) handlePostComment(selectedPost.id); }}
                             placeholder="Add a comment..." 
-                            className="flex-1 text-sm px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border-0 focus:ring-2 focus:ring-blue-500/30 focus:outline-none" 
+                            className="flex-1 text-xs bg-transparent border-none text-slate-900 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400 dark:placeholder-slate-500 py-0.5" 
                           />
                           <button 
                             onClick={() => handlePostComment(selectedPost.id)} 
                             disabled={!commentText.trim()}
-                            className="text-blue-500 text-sm font-semibold disabled:opacity-40 hover:text-blue-600 transition-colors"
+                            className="text-blue-500 text-xs font-semibold disabled:opacity-40 hover:text-blue-600 transition-colors px-1"
                           >
                             Post
                           </button>
                         </div>
-                      )}
+                      </div>
                     </div>
+
                   </div>
                 </div>
+                
+                {/* Floating Close Button for Desktop */}
                 <button 
                   onClick={() => setSelectedPost(null)} 
-                  className="absolute top-4 right-4 z-[1000] p-2.5 rounded-full bg-black/50 hover:bg-black/70 transition-all duration-200 hover:rotate-90"
+                  className="absolute top-4 right-4 z-[1000] p-2.5 rounded-full bg-black/40 hover:bg-black/60 transition-all duration-200 hover:rotate-90 hidden md:flex items-center justify-center"
+                  aria-label="Close modal"
                 >
                   <X className="w-5 h-5 text-white" />
                 </button>
