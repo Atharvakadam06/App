@@ -49,8 +49,8 @@
   }
 
   ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -58,12 +58,21 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #d1d5db;
     border-radius: 10px;
+    transition: background 200ms ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
 
   .dark ::-webkit-scrollbar-thumb {
     background: #1e2d45;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #2d4060;
   }
 
   ::selection {
@@ -182,15 +191,16 @@
   .card-hover {
     @apply card;
     cursor: pointer;
+    transition: box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1), transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .card-hover:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 8px 32px rgba(0, 0, 0, 0.04);
-    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
   }
 
   .dark .card-hover:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   /* ===== INPUTS ===== */
@@ -256,11 +266,23 @@
     width: 100%;
     max-width: 42rem;
     margin: 0 auto;
-    padding: 16px;
+    padding: 12px;
     overflow-x: hidden;
   }
 
+  @media (min-width: 480px) {
+    .page-shell {
+      padding: 16px;
+    }
+  }
+
   @media (min-width: 640px) {
+    .page-shell {
+      padding: 20px;
+    }
+  }
+
+  @media (min-width: 1024px) {
     .page-shell {
       padding: 24px;
     }
@@ -270,14 +292,61 @@
     width: 100%;
     max-width: 64rem;
     margin: 0 auto;
-    padding: 16px;
+    padding: 12px;
     overflow-x: hidden;
+  }
+
+  @media (min-width: 480px) {
+    .page-shell-wide {
+      padding: 16px;
+    }
   }
 
   @media (min-width: 640px) {
     .page-shell-wide {
+      padding: 20px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-shell-wide {
       padding: 24px;
     }
+  }
+
+  /* ===== HEADER ACTION BUTTON ===== */
+  .header-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .header-action-btn:hover {
+    background: #f1f5f9;
+    color: #334155;
+  }
+
+  .header-action-btn:active {
+    transform: scale(0.92);
+  }
+
+  .dark .header-action-btn {
+    color: #94a3b8;
+  }
+
+  .dark .header-action-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
   }
 }
 

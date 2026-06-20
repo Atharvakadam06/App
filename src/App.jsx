@@ -99,7 +99,7 @@ function AuthGate() {
   return (
     <div className="h-dvh flex flex-col bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300">
       <Sidebar />
-      <main className="lg:ml-[72px] xl:ml-[248px] flex flex-col h-full transition-all duration-300 overflow-hidden">
+      <main className="lg:ml-[72px] xl:ml-[244px] flex flex-col h-full transition-all duration-300 overflow-hidden">
         <Header title={meta.title} subtitle={meta.subtitle} />
         <div className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain [&:has(.messages-fullscreen)]:pb-0">
           <Routes>

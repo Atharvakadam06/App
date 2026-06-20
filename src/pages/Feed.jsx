@@ -108,7 +108,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
 
   return (
     <article
-      className="bg-white dark:bg-[#0e1322] rounded-2xl border border-slate-100 dark:border-[#151a28] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 animate-reveal-up"
+      className="bg-white dark:bg-[#0e1322] rounded-2xl border border-slate-100 dark:border-[#151a28] overflow-hidden shadow-sm hover:shadow-lg hover:border-slate-200 dark:hover:border-[#1e2840] transition-all duration-300 animate-reveal-up"
       style={{ animationDelay: `${Math.min(index * 0.06, 0.4)}s` }}
     >
       {/* Post Header */}
@@ -670,19 +670,19 @@ export default function Feed() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-5">
-        <div className="max-w-2xl mx-auto space-y-4">
-          <SkeletonPost />
-          <SkeletonPost />
-          <SkeletonPost />
-        </div>
+    <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+      <div className="max-w-2xl mx-auto space-y-3 sm:space-y-4">
+        <SkeletonPost />
+        <SkeletonPost />
+        <SkeletonPost />
       </div>
-    );
+    </div>
+  );
   }
 
   return (
-    <div className="p-3 sm:p-5">
-      <div className="max-w-2xl mx-auto space-y-4">
+    <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+      <div className="max-w-2xl mx-auto space-y-3 sm:space-y-4">
         {/* Category Filter */}
         <div ref={categoryContainerRef} className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1 cursor-grab select-none active:cursor-grabbing">
           {categories.map(cat => {
@@ -692,10 +692,10 @@ export default function Feed() {
               <button
                 key={cat.id || 'all'}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 active:scale-95 shrink-0 border ${
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap transition-all duration-200 active:scale-95 shrink-0 border ${
                   isActive
                     ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-md'
-                    : 'bg-white dark:bg-[#0e1322] text-slate-600 dark:text-slate-400 border-slate-200/70 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-slate-700'
+                    : 'bg-white dark:bg-[#0e1322] text-slate-500 dark:text-slate-400 border-slate-200/70 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white dark:text-slate-900' : 'text-slate-400 dark:text-slate-500'}`} />
