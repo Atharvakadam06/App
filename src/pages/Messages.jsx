@@ -137,6 +137,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification }) {
   const [contextMenuMessage, setContextMenuMessage] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
   const pressTimerRef = useRef(null);
 
   // Live polling for conversation DMs (every 3 seconds)
