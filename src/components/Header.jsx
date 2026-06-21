@@ -13,27 +13,10 @@ export default function Header({ title, subtitle }) {
   // On the feed page, hide the mobile header — Feed renders its own brand header
   const isFeed = location.pathname === '/';
 
-  // On mobile + feed: completely hide sticky header; feed has inline brand bar
+  // On mobile + feed: render nothing; feed has its own scrollable logo header
   if (isFeed) {
     return (
       <header className="sticky top-0 z-30 shrink-0 safe-area-top">
-        {/* Mobile feed: only show a thin bar with theme + notifications (no logo or title) */}
-        <div className="lg:hidden bg-white/90 dark:bg-[#080b14]/90 backdrop-blur-2xl border-b border-slate-200/60 dark:border-white/[0.04]">
-          <div className="flex items-center justify-end gap-1.5 px-4 py-2 min-h-[52px]">
-            <button type="button" onClick={toggleTheme} className="header-action-btn" title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} aria-label="Toggle theme">
-              {darkMode ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
-            </button>
-            <button type="button" onClick={() => navigate('/profile')} className="header-action-btn relative" title="Notifications" aria-label="Notifications">
-              <Bell className="w-[18px] h-[18px]" />
-              {unreadNotifCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-scale-in">
-                  {unreadNotifCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
         {/* Desktop: full header */}
         <div className="hidden lg:block bg-white/90 dark:bg-[#080b14]/90 backdrop-blur-2xl border-b border-slate-200/60 dark:border-white/[0.04]">
           <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 min-h-[60px]">
