@@ -88,6 +88,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
   const menuRef         = useRef(null);
   const commentInputRef = useRef(null);
 
+  const { user: currentUser } = useAuth();
   const isOwner = post.userId === currentUserId;
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -454,12 +455,20 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
           {/* Comment input */}
           <div className="flex items-center gap-2.5 mb-3">
             <div className="relative shrink-0">
-              <div className="absolute -inset-0.5 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 opacity-60" />
-              <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white dark:border-[#0a0d17]">
-                {/* current user avatar placeholder */}
-                <div className="w-full h-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
-                  <span className="text-white text-xs font-black">U</span>
-                </div>
+              <div className="relative w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-white/10">
+                {currentUser?.avatar ? (
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser?.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+                    <span className="text-white text-xs font-black">
+                      {currentUser?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex-1 flex items-center gap-2 bg-slate-50 dark:bg-white/[0.04] border border-slate-100 dark:border-white/[0.06] rounded-full px-4 py-2.5">
