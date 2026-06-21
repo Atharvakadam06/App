@@ -635,6 +635,26 @@ export default function Feed() {
 
   return (
     <div className="feed-root">
+      {/* ── Mobile: Feed title + search bar ── */}
+      <div className="lg:hidden px-4 pt-4 pb-2">
+        <div className="flex items-baseline justify-between mb-3">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Feed</h2>
+            <p className="text-[12px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">What's happening on campus</p>
+          </div>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search posts, people…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-white/[0.05] border border-transparent focus:border-slate-300 dark:focus:border-white/10 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none transition-colors"
+          />
+        </div>
+      </div>
+
       {/* ── Desktop search bar ── */}
       <div className="hidden lg:block px-4 pt-3 pb-1 max-w-2xl mx-auto w-full">
         <div className="relative">
