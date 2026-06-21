@@ -638,7 +638,7 @@ export default function Profile() {
 
                     {/* Floating Heart Popup on Double-Click */}
                     {showHeartPop && (
-                      <Heart className="w-20 h-20 text-pink-500 fill-pink-500 animate-heart-pop" />
+                      <Heart className="w-20 h-20 text-pink-300/90 fill-pink-300/90 animate-heart-pop" />
                     )}
 
                     {/* Next & Previous Post Buttons */}
