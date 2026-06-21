@@ -6,7 +6,6 @@ import {
   Trash2,
   X,
   Tag,
-  BookOpen,
   Cpu,
   Code,
   User,
@@ -72,7 +71,6 @@ export default function Marketplace() {
   const categories = [
     { name: 'All', icon: ShoppingBag, color: 'from-slate-500 to-slate-600' },
     { name: 'Projects', icon: Code, color: 'from-blue-500 to-blue-600' },
-    { name: 'Books', icon: BookOpen, color: 'from-emerald-500 to-emerald-600' },
     { name: 'Electronics', icon: Cpu, color: 'from-purple-500 to-purple-600' },
     { name: 'Other', icon: Tag, color: 'from-amber-500 to-amber-600' },
   ];
@@ -97,7 +95,7 @@ export default function Marketplace() {
       title: 'CLRS Introduction to Algorithms',
       description: 'Third Edition of Introduction to Algorithms by Cormen, Leiserson, Rivest, and Stein. Paperback, clean interior with no pencil markings or highlight marks. In highly readable, excellent condition.',
       price: 499,
-      category: 'Books',
+      category: 'Other',
       condition: 'Good',
       image: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=800&q=80',
       sellerId: 'demo_bob',
@@ -311,7 +309,7 @@ export default function Marketplace() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search projects, books, electronics..."
+            placeholder="Search projects, electronics..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input-field pl-11 w-full bg-white dark:bg-[#0e1322] border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-slate-400 focus:border-transparent rounded-2xl h-11"
@@ -356,7 +354,7 @@ export default function Marketplace() {
       </div>
 
       {/* Categories Horizontal Slider */}
-      <div className="flex gap-2.5 mb-8 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1 sm:grid sm:grid-cols-5">
+      <div className="flex gap-2.5 mb-8 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1 sm:grid sm:grid-cols-4">
         {categories.map((cat) => {
           const CatIcon = cat.icon;
           const isActive = activeCategory === cat.name;
@@ -550,7 +548,6 @@ export default function Marketplace() {
                     className="input-field w-full text-sm rounded-xl h-11"
                   >
                     <option value="Projects">Projects</option>
-                    <option value="Books">Books</option>
                     <option value="Electronics">Electronics</option>
                     <option value="Other">Other</option>
                   </select>
