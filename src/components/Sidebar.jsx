@@ -9,7 +9,7 @@ import {
   Link2,
   FileText,
   BookOpen,
-  Lightbulb,
+  ShoppingBag,
   LayoutGrid,
   Bell,
 } from 'lucide-react';
@@ -28,10 +28,10 @@ const featureNavItems = [
   { path: '/bind', icon: Link2, label: 'Binds' },
   { path: '/vault', icon: FileText, label: 'PYQ Vault' },
   { path: '/library', icon: BookOpen, label: 'Book Exchange' },
-  { path: '/mentor', icon: Lightbulb, label: 'Mentor Hub' },
+  { path: '/marketplace', icon: ShoppingBag, label: 'Marketplace' },
 ];
 
-const morePaths = ['/bind', '/vault', '/library', '/mentor', '/settings'];
+const morePaths = ['/bind', '/vault', '/library', '/marketplace', '/settings'];
 
 function NavItem({ path, icon: Icon, label, isActive, badge }) {
   return (
@@ -52,7 +52,7 @@ function NavItem({ path, icon: Icon, label, isActive, badge }) {
         />
         {badge > 0 && (
           <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
-            {badge > 9 ? '9+' : badge}
+            {badge}
           </span>
         )}
       </div>
@@ -194,7 +194,7 @@ export default function Sidebar() {
                     }`}>
                       <Icon className={`w-[22px] h-[22px] transition-transform duration-200 ${isActive ? 'scale-105' : ''}`} />
                       {badge > 0 && (
-                        <span className="notification-badge">{badge > 9 ? '9+' : badge}</span>
+                        <span className="notification-badge">{badge}</span>
                       )}
                     </div>
                   </NavLink>

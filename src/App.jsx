@@ -15,7 +15,7 @@ import Network from './pages/Network';
 import Bind from './pages/Bind';
 import PYQVault from './pages/PYQVault';
 import BookExchange from './pages/BookExchange';
-import MentorHub from './pages/MentorHub';
+import Marketplace from './pages/Marketplace';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
@@ -53,7 +53,7 @@ const pageMeta = {
   '/connect': { title: 'Explore', subtitle: 'Discover and connect with students' },
   '/vault': { title: 'PYQ Vault', subtitle: 'Previous Year Question Papers' },
   '/library': { title: 'Book Exchange', subtitle: 'Free textbooks for everyone' },
-  '/mentor': { title: 'Mentor Hub', subtitle: 'Learn from seniors, grow together' },
+  '/marketplace': { title: 'Marketplace', subtitle: 'Buy & sell projects, books, or devices' },
   '/inbox': { title: 'Messages', subtitle: null },
   '/profile': { title: 'Profile', subtitle: null },
   '/settings': { title: 'Settings', subtitle: null },
@@ -109,7 +109,7 @@ function AuthGate() {
             <Route path="/bind" element={<Bind />} />
             <Route path="/vault" element={<PYQVault />} />
             <Route path="/library" element={<BookExchange />} />
-            <Route path="/mentor" element={<MentorHub />} />
+            <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/inbox" element={<Messages />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />

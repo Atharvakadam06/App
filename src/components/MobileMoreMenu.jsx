@@ -4,7 +4,7 @@ import {
   Link2,
   FileText,
   BookOpen,
-  Lightbulb,
+  ShoppingBag,
   Settings,
   LogOut,
   GraduationCap,
@@ -15,7 +15,7 @@ const moreItems = [
   { path: '/bind', icon: Link2, label: 'Binds', desc: 'Your connections', color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' },
   { path: '/vault', icon: FileText, label: 'PYQ Vault', desc: 'Question papers', color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' },
   { path: '/library', icon: BookOpen, label: 'Book Exchange', desc: 'Free textbooks', color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' },
-  { path: '/mentor', icon: Lightbulb, label: 'Mentor Hub', desc: 'Tips from seniors', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' },
+  { path: '/marketplace', icon: ShoppingBag, label: 'Marketplace', desc: 'Buy & sell items', color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' },
   { path: '/settings', icon: Settings, label: 'Settings', desc: 'Preferences & account', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' },
 ];
 

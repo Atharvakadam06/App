@@ -262,6 +262,22 @@ export async function initDatabase() {
       )
     `);
 
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS products (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        price REAL,
+        category TEXT,
+        condition TEXT,
+        image TEXT,
+        seller_id TEXT NOT NULL,
+        contact_info TEXT,
+        status TEXT DEFAULT 'available',
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
     dbInitialized = true;
     console.log('Turso database initialized');
   } catch (e) {

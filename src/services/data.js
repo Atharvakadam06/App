@@ -631,6 +631,148 @@ export async function deleteBook(bookId) {
   }
 }
 
+// ---- Products (Marketplace) ----
+const FALLBACK_PRODUCTS_KEY = 'stugrow_products_fallback';
+
+function loadFallbackProducts() {
+  try { return JSON.parse(localStorage.getItem(FALLBACK_PRODUCTS_KEY)) || []; }
+  catch { return []; }
+}
+
+export async function createProduct(product) {
+  const record = {
+    id: product.id || Date.now().toString(),
+    title: product.title,
+    description: product.description || '',
+    price: Number(product.price) || 0,
+    category: product.category || 'Other',
+    condition: product.condition || 'Good',
+    image: product.image || null,
+    sellerId: product.sellerId,
+    contactInfo: product.contactInfo || '',
+    status: product.status || 'available',
+    createdAt: getCurrentTimestamp(),
+  };
+
+  const fallback = loadFallbackProducts();
+  fallback.unshift(record);
+  try {
+    localStorage.setItem(FALLBACK_PRODUCTS_KEY, JSON.stringify(fallback));
+  } catch (e) {
+    console.warn('localStorage products fallback write failed:', e);
+  }
+
+  try {
+    await ensureDb();
+    await execute(
+      `INSERT INTO products (id, title, description, price, category, condition, image, seller_id, contact_info, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        record.id,
+        record.title,
+        record.description,
+        record.price,
+        record.category,
+        record.condition,
+        record.image,
+        record.sellerId,
+        record.contactInfo,
+        record.status,
+      ]
+    );
+  } catch (e) {
+    console.warn('Turso write failed for product, using localStorage fallback only:', e);
+  }
+  return record.id;
+}
+
+export async function getAllProducts() {
+  const products = [];
+
+  const fallback = loadFallbackProducts();
+  for (const p of fallback) {
+    products.push({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      price: p.price,
+      category: p.category,
+      condition: p.condition,
+      image: p.image,
+      sellerId: p.sellerId,
+      seller: { id: p.sellerId, name: 'Student', avatar: 'https://ui-avatars.com/api/?name=Student&background=334155&color=fff' },
+      contactInfo: p.contactInfo,
+      status: p.status,
+      createdAt: p.createdAt,
+    });
+  }
+
+  try {
+    await ensureDb();
+    const rows = await query('SELECT p.*, u.name as seller_name, u.avatar as seller_avatar, u.college as seller_college, u.username as seller_username FROM products p JOIN users u ON p.seller_id = u.id ORDER BY p.created_at DESC');
+    const existingIds = new Set(products.map(p => p.id));
+    for (const r of rows) {
+      if (!existingIds.has(r.id)) {
+        products.push({
+          id: r.id,
+          title: r.title,
+          description: r.description,
+          price: r.price,
+          category: r.category,
+          condition: r.condition,
+          image: r.image,
+          sellerId: r.seller_id,
+          seller: { id: r.seller_id, name: r.seller_name, avatar: r.seller_avatar, college: r.seller_college, username: r.seller_username },
+          contactInfo: r.contact_info,
+          status: r.status,
+          createdAt: r.created_at,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Turso read failed for products, using localStorage fallback:', e);
+  }
+
+  for (const p of products) {
+    if (p.seller.name === 'Student') {
+      try {
+        const u = await getUser(p.sellerId);
+        if (u) {
+          p.seller = { id: u.id, name: u.name, avatar: u.avatar, college: u.college, username: u.username };
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  return products;
+}
+
+export async function deleteProduct(productId) {
+  const fallback = loadFallbackProducts();
+  const filtered = fallback.filter(p => p.id !== productId);
+  localStorage.setItem(FALLBACK_PRODUCTS_KEY, JSON.stringify(filtered));
+  try {
+    await ensureDb();
+    await execute('DELETE FROM products WHERE id = ?', [productId]);
+  } catch (e) {
+    console.warn('Turso delete failed for product:', e);
+  }
+}
+
+export async function updateProductStatus(productId, status) {
+  const fallback = loadFallbackProducts();
+  const updated = fallback.map(p => p.id === productId ? { ...p, status } : p);
+  localStorage.setItem(FALLBACK_PRODUCTS_KEY, JSON.stringify(updated));
+  try {
+    await ensureDb();
+    await execute('UPDATE products SET status = ? WHERE id = ?', [status, productId]);
+  } catch (e) {
+    console.warn('Turso update failed for product:', e);
+  }
+}
+
 // ---- Tips ----
 export async function createTip(tip) {
   await ensureDb();
@@ -892,9 +1034,11 @@ export async function clearAllData() {
   await execute('DELETE FROM reports');
   await execute('DELETE FROM papers');
   await execute('DELETE FROM books');
+  await execute('DELETE FROM products');
   await execute('DELETE FROM tips');
   await execute('DELETE FROM posts');
-  try { localStorage.removeItem(FALLBACK_POSTS_KEY); } catch (e) {}
+  try { localStorage.removeItem(FALLBACK_POSTS_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(FALLBACK_PRODUCTS_KEY); } catch { /* ignore */ }
 }
 
 // ---- Blocked Users ----
