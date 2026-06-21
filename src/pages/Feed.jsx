@@ -58,9 +58,9 @@ function SkeletonPost() {
 /* ─── Empty feed placeholder ─── */
 function EmptyFeed({ onCreatePost }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center mb-5 shadow-xl shadow-violet-500/20">
-        <PenLine className="w-9 h-9 text-white" />
+    <div className="flex flex-col items-center justify-center py-20 px-6 text-center animate-fade-in">
+      <div className="w-20 h-20 rounded-3xl bg-slate-100/70 dark:bg-[#121826]/40 border border-slate-200 dark:border-slate-800/80 flex items-center justify-center mb-5 shadow-sm shadow-slate-200/10 dark:shadow-none animate-float transition-all duration-500 hover:scale-105 hover:bg-slate-200/50 dark:hover:bg-[#161d2e] hover:border-slate-350 dark:hover:border-slate-700 group cursor-pointer" onClick={onCreatePost}>
+        <PenLine className="w-8 h-8 text-slate-400 dark:text-slate-500 transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110" />
       </div>
       <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">No posts yet</h3>
       <p className="text-slate-500 dark:text-slate-400 text-sm max-w-xs leading-relaxed">
