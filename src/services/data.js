@@ -1179,6 +1179,33 @@ export async function sendGlobalMessage(senderId, content, fileUrl = null, fileN
   return record.id;
 }
 
+export async function deleteGlobalMessageEveryone(messageId) {
+  const fallback = loadFallbackGlobalMessages();
+  const updated = fallback.map(m => m.id === messageId ? { ...m, content: '🚫 This message was deleted', fileUrl: null, fileName: null, fileType: null } : m);
+  localStorage.setItem(FALLBACK_GLOBAL_MESSAGES_KEY, JSON.stringify(updated));
+
+  try {
+    await ensureDb();
+    await execute("UPDATE global_messages SET content = '🚫 This message was deleted', file_url = null, file_name = null, file_type = null WHERE id = ?", [messageId]);
+  } catch (e) {
+    console.warn('Turso delete update failed for global message:', e);
+  }
+}
+
+export async function editGlobalMessage(messageId, newContent) {
+  const fallback = loadFallbackGlobalMessages();
+  const updated = fallback.map(m => m.id === messageId ? { ...m, content: newContent } : m);
+  localStorage.setItem(FALLBACK_GLOBAL_MESSAGES_KEY, JSON.stringify(updated));
+
+  try {
+    await ensureDb();
+    await execute('UPDATE global_messages SET content = ? WHERE id = ?', [newContent, messageId]);
+  } catch (e) {
+    console.warn('Turso edit update failed for global message:', e);
+  }
+}
+
+
 function formatUser(row) {
   return {
     id: row.id,

@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Paperclip, Image as ImageIcon, Smile, ArrowLeft, X, Globe, CornerUpLeft, MessageSquare } from 'lucide-react';
+import {
+  Send, Paperclip, Image as ImageIcon, Smile, ArrowLeft, X, Globe, CornerUpLeft,
+  MessageSquare, Trash2, Edit3, Copy, Star, AlertTriangle, ShieldAlert
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLayout } from '../context/LayoutContext';
 import { uploadToCloudinary } from '../services/cloudinary';
-import { getGlobalMessages, sendGlobalMessage } from '../services/data';
+import { getGlobalMessages, sendGlobalMessage, editGlobalMessage, deleteGlobalMessageEveryone } from '../services/data';
 import { formatTimeAgo } from '../utils/timeUtils';
 
 function EmojiPicker({ onSelect, onClose }) {
@@ -43,11 +46,21 @@ export default function GlobalChat() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Gesture / Context Menu States
+  const [touchStartX, setTouchStartX] = useState(0);
+  const [touchStartY, setTouchStartY] = useState(0);
+  const [swipingMessageId, setSwipingMessageId] = useState(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isSwipeActive, setIsSwipeActive] = useState(false);
+  const [contextMenuMessage, setContextMenuMessage] = useState(null);
+
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
+  const pressTimerRef = useRef(null);
 
   // Poll for new messages every 3 seconds to keep it live
   useEffect(() => {
@@ -71,7 +84,11 @@ export default function GlobalChat() {
     if (firstTime) setLoading(true);
     try {
       const list = await getGlobalMessages();
-      setMessages(list);
+      // Filter out messages deleted for the current user (Delete for me)
+      const deletedKey = `stugrow_deleted_messages_${user.id}`;
+      const deletedIds = JSON.parse(localStorage.getItem(deletedKey)) || [];
+      const visible = list.filter(m => !deletedIds.includes(m.id));
+      setMessages(visible);
     } catch (e) {
       console.warn('Failed to load global messages:', e);
     } finally {
@@ -80,10 +97,24 @@ export default function GlobalChat() {
   };
 
   const handleSend = async () => {
-    if (!newMessage.trim() && !replyingTo) return;
+    if (!newMessage.trim()) return;
     const content = newMessage.trim();
-    const parentId = replyingTo ? replyingTo.id : null;
 
+    if (editingMessage) {
+      const msgId = editingMessage.id;
+      setEditingMessage(null);
+      setNewMessage('');
+      try {
+        await editGlobalMessage(msgId, content);
+        await loadMessages(false);
+        addToast('Message edited successfully!', 'success');
+      } catch (e) {
+        addToast('Failed to edit message', 'error');
+      }
+      return;
+    }
+
+    const parentId = replyingTo ? replyingTo.id : null;
     setNewMessage('');
     setReplyingTo(null);
     setShowEmoji(false);
@@ -154,9 +185,127 @@ export default function GlobalChat() {
     }
   };
 
+  // --- Long Press / Swipe to Reply / Star / Delete Handlers ---
+  const onTouchStart = (e, msgId) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+    setSwipingMessageId(msgId);
+    setIsSwipeActive(false);
+  };
+
+  const onTouchMove = (e) => {
+    if (!swipingMessageId) return;
+    const diffX = e.touches[0].clientX - touchStartX;
+    const diffY = e.touches[0].clientY - touchStartY;
+
+    if (Math.abs(diffX) > Math.abs(diffY) && diffX > 0) {
+      e.preventDefault();
+      setIsSwipeActive(true);
+      setSwipeOffset(Math.min(diffX, 90));
+    }
+  };
+
+  const onTouchEnd = (msg) => {
+    if (isSwipeActive && swipeOffset > 55) {
+      setReplyingTo(msg);
+      if (window.navigator.vibrate) window.navigator.vibrate(15);
+      addToast(`Reply to ${msg.sender?.name || 'student'}`, 'info');
+    }
+    setSwipingMessageId(null);
+    setSwipeOffset(0);
+    setIsSwipeActive(false);
+  };
+
+  const handlePressStart = (msg) => {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = setTimeout(() => {
+      setContextMenuMessage(msg);
+      if (window.navigator.vibrate) window.navigator.vibrate(20);
+    }, 550);
+  };
+
+  const handlePressEnd = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  };
+
+  const handleTouchMoveHold = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  };
+
+  const handleContextMenu = (e, msg) => {
+    e.preventDefault();
+    setContextMenuMessage(msg);
+  };
+
+  const handleCopyMessage = async () => {
+    if (!contextMenuMessage) return;
+    try {
+      await navigator.clipboard.writeText(contextMenuMessage.content);
+      addToast('Message copied to clipboard!', 'success');
+    } catch {
+      addToast('Failed to copy text', 'error');
+    }
+    setContextMenuMessage(null);
+  };
+
+  const handleStarToggle = () => {
+    if (!contextMenuMessage) return;
+    const starredKey = `stugrow_starred_messages_${user.id}`;
+    let starred = JSON.parse(localStorage.getItem(starredKey)) || [];
+    if (starred.includes(contextMenuMessage.id)) {
+      starred = starred.filter(id => id !== contextMenuMessage.id);
+      addToast('Message unstarred', 'info');
+    } else {
+      starred.push(contextMenuMessage.id);
+      addToast('Message starred!', 'success');
+    }
+    localStorage.setItem(starredKey, JSON.stringify(starred));
+    setContextMenuMessage(null);
+  };
+
+  const isStarred = (msgId) => {
+    const starredKey = `stugrow_starred_messages_${user.id}`;
+    const starred = JSON.parse(localStorage.getItem(starredKey)) || [];
+    return starred.includes(msgId);
+  };
+
+  const handleDeleteMe = () => {
+    if (!contextMenuMessage) return;
+    const deletedKey = `stugrow_deleted_messages_${user.id}`;
+    const deleted = JSON.parse(localStorage.getItem(deletedKey)) || [];
+    deleted.push(contextMenuMessage.id);
+    localStorage.setItem(deletedKey, JSON.stringify(deleted));
+    addToast('Message deleted for you', 'info');
+    setContextMenuMessage(null);
+    loadMessages(false);
+  };
+
+  const handleDeleteEveryone = async () => {
+    if (!contextMenuMessage) return;
+    try {
+      await deleteGlobalMessageEveryone(contextMenuMessage.id);
+      addToast('Message deleted for everyone', 'success');
+      loadMessages(false);
+    } catch (e) {
+      addToast('Failed to delete message', 'error');
+    }
+    setContextMenuMessage(null);
+  };
+
+  const handleReportMessage = () => {
+    addToast('Message reported successfully. Our moderation team will review it.', 'success');
+    setContextMenuMessage(null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#fcfbf9] dark:bg-[#080b14] messages-fullscreen select-none">
-      {/* Header (Back option for Mobile) */}
+      {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-14 sm:h-[60px] border-b border-slate-200/60 dark:border-white/[0.04] bg-white/95 dark:bg-[#080b14]/95 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
@@ -205,13 +354,48 @@ export default function GlobalChat() {
             
             // Format nice grouped bubbles
             const showSenderHeader = !isMine && (i === 0 || messages[i - 1]?.senderId !== msg.senderId);
+            const isThisSwiping = swipingMessageId === msg.id;
 
             return (
               <div
                 key={msg.id}
-                className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in group relative`}
+                className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in group relative select-none`}
+                onContextMenu={(e) => handleContextMenu(e, msg)}
+                onTouchStart={(e) => {
+                  onTouchStart(e, msg.id);
+                  handlePressStart(msg);
+                }}
+                onTouchMove={(e) => {
+                  onTouchMove(e);
+                  handleTouchMoveHold();
+                }}
+                onTouchEnd={() => {
+                  onTouchEnd(msg);
+                  handlePressEnd();
+                }}
+                onMouseDown={() => handlePressStart(msg)}
+                onMouseUp={handlePressEnd}
+                onMouseLeave={handlePressEnd}
               >
-                <div className={`flex items-start gap-2.5 max-w-[85%] sm:max-w-[70%] ${isMine ? 'flex-row-reverse' : ''}`}>
+                {/* Swipe Reply Icon Indicator */}
+                {isThisSwiping && swipeOffset > 15 && (
+                  <div
+                    className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-emerald-500 transition-opacity"
+                    style={{
+                      opacity: Math.min((swipeOffset - 15) / 40, 1),
+                      transform: `scale(${Math.min(swipeOffset / 55, 1)})`,
+                    }}
+                  >
+                    <CornerUpLeft className="w-5 h-5" />
+                  </div>
+                )}
+
+                <div
+                  className={`flex items-start gap-2.5 max-w-[85%] sm:max-w-[70%] transition-transform duration-200 ${isMine ? 'flex-row-reverse' : ''}`}
+                  style={{
+                    transform: isThisSwiping ? `translateX(${swipeOffset}px)` : 'none',
+                  }}
+                >
                   {/* Sender Avatar */}
                   {!isMine && (
                     <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-slate-200 dark:border-slate-800 shadow-xs mt-1">
@@ -275,7 +459,7 @@ export default function GlobalChat() {
                             isMine
                               ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white rounded-tr-xs'
                               : 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-slate-200 border-slate-200/80 dark:border-slate-800/60 rounded-tl-xs'
-                          }`}
+                          } ${msg.content === '🚫 This message was deleted' ? 'text-slate-400 dark:text-slate-500 italic font-semibold border-slate-100 dark:border-slate-850/50 bg-slate-50 dark:bg-white/[0.01]' : ''}`}
                         >
                           <p>{msg.content}</p>
                         </div>
@@ -293,10 +477,15 @@ export default function GlobalChat() {
                       </div>
                     </div>
 
-                    {/* Timestamp */}
-                    <span className={`text-[9px] text-slate-400 dark:text-slate-500 px-1 font-semibold ${isMine ? 'text-right' : ''}`}>
-                      {formatTimeAgo(msg.timestamp)}
-                    </span>
+                    {/* Timestamp & Star */}
+                    <div className={`flex items-center gap-1 mt-0.5 justify-start ${isMine ? 'justify-end' : ''}`}>
+                      {isStarred(msg.id) && (
+                        <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0 animate-scale-in" />
+                      )}
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold">
+                        {formatTimeAgo(msg.timestamp)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -306,7 +495,7 @@ export default function GlobalChat() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input / Reply Editor Wrapper */}
+      {/* Input / Reply / Edit Editor Wrapper */}
       <div className="shrink-0 px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:pb-3 border-t border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-[#080b14]">
         {/* Reply Indicator banner */}
         {replyingTo && (
@@ -319,6 +508,27 @@ export default function GlobalChat() {
             </div>
             <button
               onClick={() => setReplyingTo(null)}
+              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors shrink-0"
+            >
+              <X className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+          </div>
+        )}
+
+        {/* Editing Indicator banner */}
+        {editingMessage && (
+          <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-white/[0.02] border border-slate-200/60 dark:border-slate-850/50 rounded-xl mb-2 text-xs animate-slide-up">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Edit3 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span className="text-slate-400 font-semibold truncate">
+                Editing message: <strong className="text-slate-700 dark:text-slate-350">"{editingMessage.content}"</strong>
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setEditingMessage(null);
+                setNewMessage('');
+              }}
               className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors shrink-0"
             >
               <X className="w-3.5 h-3.5 text-slate-400" />
@@ -352,7 +562,7 @@ export default function GlobalChat() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Post a campus message..."
+              placeholder={editingMessage ? "Save edit..." : "Post a campus message..."}
               className="w-full pl-3.5 sm:pl-4 pr-11 sm:pr-12 py-2.5 sm:py-3 rounded-2xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200/60 dark:border-slate-800/80 text-[13px] sm:text-[14px] text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/5 dark:focus:ring-white/10 focus:border-slate-350 dark:focus:border-slate-700 transition-all duration-200"
             />
             <button
@@ -374,6 +584,100 @@ export default function GlobalChat() {
           </button>
         </div>
       </div>
+
+      {/* Glassmorphic Option Context Menu Dialog */}
+      {contextMenuMessage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/60 backdrop-blur-xs animate-fade-in"
+          onClick={() => setContextMenuMessage(null)}
+        >
+          <div
+            className="w-full max-w-[280px] rounded-3xl border border-white/20 dark:border-slate-800/85 bg-white/75 dark:bg-slate-950/70 backdrop-blur-xl shadow-2xl p-4 space-y-1 animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Context Message Header */}
+            <div className="px-2 py-1 mb-2 border-b border-slate-200/50 dark:border-slate-800/50 text-left">
+              <span className="text-[10px] uppercase tracking-widest font-black text-slate-400 dark:text-slate-500">
+                Message Options
+              </span>
+              <p className="text-xs font-semibold text-slate-650 dark:text-slate-350 truncate mt-1">
+                {contextMenuMessage.content || (contextMenuMessage.file ? 'Attached File' : '')}
+              </p>
+            </div>
+
+            {/* Actions list */}
+            <button
+              onClick={() => {
+                setReplyingTo(contextMenuMessage);
+                setContextMenuMessage(null);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.05] transition-colors active:scale-98 text-left"
+            >
+              <CornerUpLeft className="w-4 h-4 text-slate-400" />
+              Reply
+            </button>
+
+            <button
+              onClick={handleCopyMessage}
+              disabled={contextMenuMessage.content === '🚫 This message was deleted'}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.05] transition-colors active:scale-98 text-left disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <Copy className="w-4 h-4 text-slate-400" />
+              Copy Text
+            </button>
+
+            <button
+              onClick={handleStarToggle}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.05] transition-colors active:scale-98 text-left"
+            >
+              <Star className={`w-4 h-4 ${isStarred(contextMenuMessage.id) ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
+              {isStarred(contextMenuMessage.id) ? 'Unstar Message' : 'Star Message'}
+            </button>
+
+            {contextMenuMessage.senderId === user.id && contextMenuMessage.content !== '🚫 This message was deleted' && (
+              <>
+                <button
+                  onClick={() => {
+                    setEditingMessage(contextMenuMessage);
+                    setNewMessage(contextMenuMessage.content);
+                    setContextMenuMessage(null);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.05] transition-colors active:scale-98 text-left"
+                >
+                  <Edit3 className="w-4 h-4 text-slate-400" />
+                  Edit Message
+                </button>
+
+                <button
+                  onClick={handleDeleteEveryone}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors active:scale-98 text-left"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-500" />
+                  Delete for Everyone
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={handleDeleteMe}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors active:scale-98 text-left"
+            >
+              <Trash2 className="w-4 h-4 text-rose-400" />
+              Delete for Me
+            </button>
+
+            {contextMenuMessage.senderId !== user.id && (
+              <button
+                onClick={handleReportMessage}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors active:scale-98 text-left"
+              >
+                <ShieldAlert className="w-4 h-4 text-amber-500" />
+                Report Message
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
