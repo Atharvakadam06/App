@@ -670,28 +670,31 @@ export default function Feed() {
       </div>
 
       {/* ── Category Pill Filter ── */}
-      <div
-        ref={catRef}
-        className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-2.5 cursor-grab select-none active:cursor-grabbing"
-      >
-        {categories.map(cat => {
-          const Icon    = cat.icon;
-          const isActive = activeCategory === cat.id;
-          return (
-            <button
-              key={cat.id ?? 'all'}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 border ${
-                isActive
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-sm'
-                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-            >
-              <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? '' : 'opacity-60'}`} />
-              {cat.label}
-            </button>
-          );
-        })}
+      {/* Desktop: constrained to max-w-2xl to align with search + posts */}
+      <div className="lg:max-w-2xl lg:mx-auto lg:px-4 lg:py-2.5">
+        <div
+          ref={catRef}
+          className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-2.5 lg:px-0 lg:py-0 cursor-grab select-none active:cursor-grabbing"
+        >
+          {categories.map(cat => {
+            const Icon    = cat.icon;
+            const isActive = activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id ?? 'all'}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 border ${
+                  isActive
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-sm'
+                    : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? '' : 'opacity-60'}`} />
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Divider ── */}
