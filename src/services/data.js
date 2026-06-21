@@ -1092,6 +1092,93 @@ export async function exportUserData(userId) {
   };
 }
 
+// ---- Global Chat ----
+const FALLBACK_GLOBAL_MESSAGES_KEY = 'stugrow_global_messages_fallback';
+
+function loadFallbackGlobalMessages() {
+  try { return JSON.parse(localStorage.getItem(FALLBACK_GLOBAL_MESSAGES_KEY)) || []; }
+  catch { return []; }
+}
+
+export async function getGlobalMessages() {
+  const messages = [];
+
+  const fallback = loadFallbackGlobalMessages();
+  for (const m of fallback) {
+    const sender = await getUser(m.senderId);
+    messages.push({
+      id: m.id,
+      senderId: m.senderId,
+      sender: sender || { id: m.senderId, name: 'Student', avatar: 'https://ui-avatars.com/api/?name=Student&background=334155&color=fff' },
+      content: m.content,
+      file: m.fileUrl,
+      fileName: m.fileName,
+      fileType: m.fileType,
+      parentId: m.parentId,
+      timestamp: m.timestamp,
+    });
+  }
+
+  try {
+    await ensureDb();
+    const rows = await query('SELECT gm.*, u.name as sender_name, u.avatar as sender_avatar, u.college as sender_college, u.username as sender_username FROM global_messages gm JOIN users u ON gm.sender_id = u.id ORDER BY gm.created_at ASC');
+    const existingIds = new Set(messages.map(m => m.id));
+    for (const r of rows) {
+      if (!existingIds.has(r.id)) {
+        messages.push({
+          id: r.id,
+          senderId: r.sender_id,
+          sender: { id: r.sender_id, name: r.sender_name, avatar: r.sender_avatar, college: r.sender_college, username: r.sender_username },
+          content: r.content,
+          file: r.file_url,
+          fileName: r.file_name,
+          fileType: r.file_type,
+          parentId: r.parent_id,
+          timestamp: r.timestamp,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Turso read failed for global messages, using localStorage fallback:', e);
+  }
+
+  return messages;
+}
+
+export async function sendGlobalMessage(senderId, content, fileUrl = null, fileName = null, fileType = null, parentId = null) {
+  const timestamp = getCurrentTimestamp();
+  const record = {
+    id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+    senderId,
+    content,
+    fileUrl,
+    fileName,
+    fileType,
+    parentId,
+    timestamp,
+    createdAt: new Date().toISOString(),
+  };
+
+  const fallback = loadFallbackGlobalMessages();
+  fallback.push(record);
+  try {
+    localStorage.setItem(FALLBACK_GLOBAL_MESSAGES_KEY, JSON.stringify(fallback));
+  } catch (e) {
+    console.warn('localStorage global messages write failed:', e);
+  }
+
+  try {
+    await ensureDb();
+    await execute(
+      'INSERT INTO global_messages (id, sender_id, content, file_url, file_name, file_type, parent_id, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [record.id, senderId, content, fileUrl, fileName, fileType, parentId, timestamp]
+    );
+  } catch (e) {
+    console.warn('Turso write failed for global message:', e);
+  }
+  return record.id;
+}
+
 function formatUser(row) {
   return {
     id: row.id,

@@ -231,6 +231,20 @@ export async function initDatabase() {
     `);
 
     await db.execute(`
+      CREATE TABLE IF NOT EXISTS global_messages (
+        id TEXT PRIMARY KEY,
+        sender_id TEXT NOT NULL,
+        content TEXT,
+        file_url TEXT,
+        file_name TEXT,
+        file_type TEXT,
+        parent_id TEXT,
+        timestamp TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS notifications (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,

@@ -1,15 +1,13 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MessageSquare } from 'lucide-react';
-import { useMessages } from '../context/MessageContext';
+import { Globe } from 'lucide-react';
 
 export default function Header({ title, subtitle }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { unreadMessageCount } = useMessages();
 
   // On the feed page show a clean header — logo on mobile, 'Feed' title on desktop, no bell/moon
   const isFeed = location.pathname === '/';
-  const isInbox = location.pathname === '/inbox';
+  const isGlobalChat = location.pathname === '/global-chat';
 
   if (isFeed) {
     return (
@@ -33,18 +31,14 @@ export default function Header({ title, subtitle }) {
             </div>
 
             {/* Right side: Global Chat Option */}
-            {!isInbox && (
+            {!isGlobalChat && (
               <button
-                onClick={() => navigate('/inbox')}
+                onClick={() => navigate('/global-chat')}
                 className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-600 dark:text-slate-300 transition-all duration-200 active:scale-95 border border-slate-200/50 dark:border-white/[0.04] bg-white/50 dark:bg-white/[0.02] shadow-xs relative group"
-                title="Global Chat"
+                title="Global Chat Room"
               >
-                <MessageSquare className="w-[19px] h-[19px] transition-transform duration-300 group-hover:scale-105" />
-                {unreadMessageCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-pulse">
-                    {unreadMessageCount}
-                  </span>
-                )}
+                <Globe className="w-[19px] h-[19px] transition-transform duration-300 group-hover:scale-105" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-[#080b14] animate-pulse" />
               </button>
             )}
           </div>
@@ -92,18 +86,14 @@ export default function Header({ title, subtitle }) {
           </div>
 
           {/* Right side: Global Chat Option */}
-          {!isInbox && (
+          {!isGlobalChat && (
             <button
-              onClick={() => navigate('/inbox')}
+              onClick={() => navigate('/global-chat')}
               className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-600 dark:text-slate-300 transition-all duration-200 active:scale-95 border border-slate-200/50 dark:border-white/[0.04] bg-white/50 dark:bg-white/[0.02] shadow-xs relative group shrink-0"
-              title="Global Chat"
+              title="Global Chat Room"
             >
-              <MessageSquare className="w-[19px] h-[19px] transition-transform duration-300 group-hover:scale-105" />
-              {unreadMessageCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-pulse">
-                  {unreadMessageCount}
-                </span>
-              )}
+              <Globe className="w-[19px] h-[19px] transition-transform duration-300 group-hover:scale-105" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-[#080b14] animate-pulse" />
             </button>
           )}
         </div>

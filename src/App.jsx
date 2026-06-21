@@ -19,6 +19,7 @@ import Marketplace from './pages/Marketplace';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import GlobalChat from './pages/GlobalChat';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import './index.css';
@@ -55,6 +56,7 @@ const pageMeta = {
   '/library': { title: 'Book Exchange', subtitle: 'Free textbooks for everyone' },
   '/marketplace': { title: 'Marketplace', subtitle: 'Buy & sell projects, books, or devices' },
   '/inbox': { title: 'Messages', subtitle: null },
+  '/global-chat': { title: 'Global Chat', subtitle: 'Public Campus Conversation' },
   '/profile': { title: 'Profile', subtitle: null },
   '/settings': { title: 'Settings', subtitle: null },
 };
@@ -111,6 +113,7 @@ function AuthGate() {
             <Route path="/library" element={<BookExchange />} />
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/inbox" element={<Messages />} />
+            <Route path="/global-chat" element={<GlobalChat />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
