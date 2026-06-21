@@ -1,29 +1,52 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { MessageSquare } from 'lucide-react';
+import { useMessages } from '../context/MessageContext';
 
 export default function Header({ title, subtitle }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { unreadMessageCount } = useMessages();
 
   // On the feed page show a clean header — logo on mobile, 'Feed' title on desktop, no bell/moon
   const isFeed = location.pathname === '/';
+  const isInbox = location.pathname === '/inbox';
 
   if (isFeed) {
     return (
       <header className="sticky top-0 z-30 shrink-0 safe-area-top">
         <div className="bg-white/95 dark:bg-[#080b14]/95 backdrop-blur-2xl border-b border-slate-200/60 dark:border-white/[0.04]">
-          <div className="flex items-center px-4 sm:px-6 py-3 min-h-[56px]">
-            {/* Mobile: StuGrow logo only */}
-            <div className="flex items-center gap-2.5 lg:hidden">
-              <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-white flex items-center justify-center shrink-0 shadow-md shadow-slate-900/15 dark:shadow-white/10">
-                <img src="/logo.svg" alt="StuGrow" className="w-4 h-4" onError={(e) => { e.target.style.display = 'none'; }} />
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 min-h-[56px] w-full">
+            <div className="flex items-center gap-3">
+              {/* Mobile: StuGrow logo only */}
+              <div className="flex items-center gap-2.5 lg:hidden">
+                <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-white flex items-center justify-center shrink-0 shadow-md shadow-slate-900/15 dark:shadow-white/10">
+                  <img src="/logo.svg" alt="StuGrow" className="w-4 h-4" onError={(e) => { e.target.style.display = 'none'; }} />
+                </div>
+                <span className="text-[20px] font-black text-slate-900 dark:text-white tracking-tight leading-none">StuGrow</span>
               </div>
-              <span className="text-[20px] font-black text-slate-900 dark:text-white tracking-tight leading-none">StuGrow</span>
+
+              {/* Desktop: 'Feed' title */}
+              <div className="hidden lg:block">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Feed</h1>
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium -mt-0.5">What's happening on campus</p>
+              </div>
             </div>
 
-            {/* Desktop: 'Feed' title */}
-            <div className="hidden lg:block">
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Feed</h1>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium -mt-0.5">What's happening on campus</p>
-            </div>
+            {/* Right side: Global Chat Option */}
+            {!isInbox && (
+              <button
+                onClick={() => navigate('/inbox')}
+                className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-600 dark:text-slate-300 transition-all duration-200 active:scale-95 border border-slate-200/50 dark:border-white/[0.04] bg-white/50 dark:bg-white/[0.02] shadow-xs relative group"
+                title="Global Chat"
+              >
+                <MessageSquare className="w-[19px] h-[19px] transition-transform duration-300 group-hover:scale-105" />
+                {unreadMessageCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-pulse">
+                    {unreadMessageCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -67,8 +90,25 @@ export default function Header({ title, subtitle }) {
               </p>
             )}
           </div>
+
+          {/* Right side: Global Chat Option */}
+          {!isInbox && (
+            <button
+              onClick={() => navigate('/inbox')}
+              className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-600 dark:text-slate-300 transition-all duration-200 active:scale-95 border border-slate-200/50 dark:border-white/[0.04] bg-white/50 dark:bg-white/[0.02] shadow-xs relative group shrink-0"
+              title="Global Chat"
+            >
+              <MessageSquare className="w-[19px] h-[19px] transition-transform duration-300 group-hover:scale-105" />
+              {unreadMessageCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-pulse">
+                  {unreadMessageCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </header>
   );
 }
+
