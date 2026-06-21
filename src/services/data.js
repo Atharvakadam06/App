@@ -908,22 +908,34 @@ export async function getMessages(conversationId) {
     file: r.file_url,
     fileName: r.file_name,
     fileType: r.file_type,
+    parentId: r.parent_id,
     timestamp: r.timestamp,
   }));
 }
 
-export async function sendMessage(conversationId, senderId, content, fileUrl = null, fileName = null, fileType = null) {
+export async function sendMessage(conversationId, senderId, content, fileUrl = null, fileName = null, fileType = null, parentId = null) {
   await ensureDb();
   const msgId = Date.now().toString();
   const timestamp = getCurrentTimestamp();
   await execute(
-    'INSERT INTO messages (id, conversation_id, sender_id, content, file_url, file_name, file_type, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [msgId, conversationId, senderId, content, fileUrl, fileName, fileType, timestamp]
+    'INSERT INTO messages (id, conversation_id, sender_id, content, file_url, file_name, file_type, parent_id, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [msgId, conversationId, senderId, content, fileUrl, fileName, fileType, parentId, timestamp]
   );
   const lastMsg = fileUrl ? (fileType?.startsWith('image/') ? 'Photo' : `File: ${fileName}`) : content;
   await execute('UPDATE conversations SET last_message = ?, timestamp = ? WHERE id = ?', [lastMsg, timestamp, conversationId]);
   return msgId;
 }
+
+export async function deleteMessageEveryone(messageId) {
+  await ensureDb();
+  await execute("UPDATE messages SET content = '🚫 This message was deleted', file_url = null, file_name = null, file_type = null WHERE id = ?", [messageId]);
+}
+
+export async function editMessage(messageId, newContent) {
+  await ensureDb();
+  await execute('UPDATE messages SET content = ? WHERE id = ?', [newContent, messageId]);
+}
+
 
 export async function createConversation(user1Id, user2Id) {
   await ensureDb();

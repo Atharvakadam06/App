@@ -50,6 +50,8 @@ export default function GlobalChat() {
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+
   // Gesture / Context Menu States
   const [touchStartX, setTouchStartX] = useState(0);
   const [touchStartY, setTouchStartY] = useState(0);
@@ -93,6 +95,20 @@ export default function GlobalChat() {
       console.warn('Failed to load global messages:', e);
     } finally {
       if (firstTime) setLoading(false);
+    }
+  };
+
+  const handleScrollToMessage = (parentId) => {
+    if (!parentId) return;
+    const element = document.getElementById(`msg-${parentId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMessageId(parentId);
+      setTimeout(() => {
+        setHighlightedMessageId(null);
+      }, 1500);
+    } else {
+      addToast("Original message not found", "info");
     }
   };
 
@@ -359,6 +375,7 @@ export default function GlobalChat() {
             return (
               <div
                 key={msg.id}
+                id={`msg-${msg.id}`}
                 className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in group relative select-none`}
                 onContextMenu={(e) => handleContextMenu(e, msg)}
                 onTouchStart={(e) => {
@@ -424,18 +441,22 @@ export default function GlobalChat() {
 
                     {/* Quoted Parent Reply Message */}
                     {parentMsg && (
-                      <div className={`text-[11px] p-2 bg-slate-100/50 dark:bg-white/[0.02] border-l-2 border-slate-400 dark:border-slate-600 rounded-r-xl max-w-full truncate ${isMine ? 'text-right rounded-l-xl rounded-r-none border-l-0 border-r-2' : ''}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleScrollToMessage(msg.parentId)}
+                        className={`text-[11px] p-2 bg-slate-100/50 dark:bg-white/[0.02] border-l-2 border-slate-400 dark:border-slate-600 rounded-r-xl max-w-full truncate text-left active:scale-[0.98] transition-all hover:bg-slate-200/55 dark:hover:bg-white/[0.04] cursor-pointer block w-full ${isMine ? 'text-right rounded-l-xl rounded-r-none border-l-0 border-r-2' : ''}`}
+                      >
                         <span className="font-bold text-slate-500 dark:text-slate-400 block mb-0.5">
                           {parentMsg.sender?.name === user?.name ? 'Replying to yourself' : `Replying to ${parentMsg.sender?.name}`}
                         </span>
                         <span className="text-slate-400 dark:text-slate-500 block truncate">
                           {parentMsg.content || 'Attachment File'}
                         </span>
-                      </div>
+                      </button>
                     )}
 
                     {/* Main Bubble Content */}
-                    <div className="relative">
+                    <div className={`relative rounded-2xl transition-all duration-300 ${highlightedMessageId === msg.id ? 'highlight-msg-active' : ''}`}>
                       {msg.file && msg.fileType?.startsWith('image/') ? (
                         <div className="rounded-2xl overflow-hidden shadow-xs border border-slate-200/50 dark:border-slate-800/80">
                           <img src={msg.file} alt="Shared Image" className="max-w-full max-h-48 sm:max-h-60 rounded-2xl" loading="lazy" />

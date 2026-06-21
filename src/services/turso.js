@@ -115,6 +115,12 @@ export async function initDatabase() {
       // Column may already exist
     }
 
+    try {
+      await db.execute('ALTER TABLE messages ADD COLUMN parent_id TEXT');
+    } catch (e) {
+      // Column may already exist
+    }
+
     await db.execute(`
       CREATE TABLE IF NOT EXISTS papers (
         id TEXT PRIMARY KEY,
@@ -225,6 +231,7 @@ export async function initDatabase() {
         file_url TEXT,
         file_name TEXT,
         file_type TEXT,
+        parent_id TEXT,
         timestamp TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       )

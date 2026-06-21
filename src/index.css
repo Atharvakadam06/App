@@ -1857,3 +1857,27 @@ textarea:focus-visible {
     box-shadow: none !important;
   }
 }
+
+/* Quoted Message Target Highlight Animation */
+@keyframes msgHighlight {
+  0% {
+    background-color: rgba(99, 102, 241, 0.25);
+    transform: scale(1.02);
+  }
+  50% {
+    background-color: rgba(99, 102, 241, 0.4);
+    transform: scale(1.03);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.35);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+.highlight-msg-active {
+  animation: msgHighlight 1.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+  border-color: rgb(129, 140, 248) !important;
+}
+
