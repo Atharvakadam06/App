@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
-import { useNotifications } from '../context/NotificationContext';
+import { useMessages } from '../context/MessageContext';
 import MobileMoreMenu from './MobileMoreMenu';
 
 const mainNavItems = [
@@ -65,7 +65,7 @@ export default function Sidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { hideMobileNav } = useLayout();
-  const { unreadCount } = useNotifications();
+  const { unreadMessageCount } = useMessages();
   const [moreOpen, setMoreOpen] = useState(false);
   const isMoreActive = morePaths.some((p) => location.pathname === p);
 
@@ -92,7 +92,7 @@ export default function Sidebar() {
               icon={icon}
               label={label}
               isActive={location.pathname === path}
-              badge={path === '/inbox' ? unreadCount : 0}
+              badge={path === '/inbox' ? unreadMessageCount : 0}
             />
           ))}
 
@@ -178,7 +178,7 @@ export default function Sidebar() {
             <div className="flex items-center justify-around py-1 px-1">
               {mainNavItems.map(({ path, icon: Icon }) => {
                 const isActive = location.pathname === path;
-                const badge = path === '/inbox' ? unreadCount : 0;
+                const badge = path === '/inbox' ? unreadMessageCount : 0;
                 return (
                   <NavLink
                     key={path}

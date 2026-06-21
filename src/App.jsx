@@ -7,6 +7,7 @@ import { PostLikeProvider } from './context/PostLikeContext';
 import { PostSaveProvider } from './context/PostSaveContext';
 import { ToastProvider } from './context/ToastContext';
 import { LayoutProvider } from './context/LayoutContext';
+import { MessageProvider } from './context/MessageContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Feed from './pages/Feed';
@@ -129,13 +130,15 @@ function App() {
           <PostSaveProvider>
             <AuthProvider>
               <NotificationProvider>
-                <ToastProvider>
-                  <LayoutProvider>
-                    <Router>
-                      <AuthGate />
-                    </Router>
-                  </LayoutProvider>
-                </ToastProvider>
+                <MessageProvider>
+                  <ToastProvider>
+                    <LayoutProvider>
+                      <Router>
+                        <AuthGate />
+                      </Router>
+                    </LayoutProvider>
+                  </ToastProvider>
+                </MessageProvider>
               </NotificationProvider>
             </AuthProvider>
           </PostSaveProvider>
