@@ -48,34 +48,7 @@ export default function Header({ title, subtitle }) {
             )}
           </div>
 
-          {/* Right side actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Dark mode toggle */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="header-action-btn"
-              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              aria-label="Toggle theme"
-            >
-              {darkMode ? (
-                <Sun className="w-[18px] h-[18px]" />
-              ) : (
-                <Moon className="w-[18px] h-[18px]" />
-              )}
-            </button>
 
-            {/* Notifications bell */}
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="header-action-btn relative"
-              title="Notifications"
-              aria-label="Notifications"
-            >
-              <Bell className="w-[18px] h-[18px]" />
-            </button>
-          </div>
         </div>
       </div>
     </header>
