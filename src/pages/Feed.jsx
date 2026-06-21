@@ -16,15 +16,15 @@ import { usePostLike } from '../context/PostLikeContext';
 import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo } from '../utils/timeUtils';
 
-/* ─── Story-strip category data ─── */
+/* ─── Category filter pill data ─── */
 const categories = [
-  { id: null,           label: 'All',           icon: Sparkles,   gradient: 'from-violet-500 to-pink-500' },
-  { id: 'general',      label: 'General',        icon: MessageSquare, gradient: 'from-blue-500 to-cyan-500' },
-  { id: 'question',     label: 'Questions',      icon: HelpCircle,    gradient: 'from-amber-500 to-orange-500' },
-  { id: 'event',        label: 'Events',         icon: Calendar,      gradient: 'from-emerald-500 to-teal-500' },
-  { id: 'announcement', label: 'Announce',       icon: Megaphone,     gradient: 'from-rose-500 to-red-500' },
-  { id: 'study',        label: 'Study',          icon: BookOpen,      gradient: 'from-indigo-500 to-blue-500' },
-  { id: 'lost',         label: 'Lost & Found',   icon: Search,        gradient: 'from-slate-500 to-slate-700' },
+  { id: null,           label: 'All',          icon: Sparkles     },
+  { id: 'general',      label: 'General',      icon: MessageSquare },
+  { id: 'question',     label: 'Questions',    icon: HelpCircle    },
+  { id: 'event',        label: 'Events',       icon: Calendar      },
+  { id: 'announcement', label: 'Announce',     icon: Megaphone     },
+  { id: 'study',        label: 'Study',        icon: BookOpen      },
+  { id: 'lost',         label: 'Lost & Found', icon: Search        },
 ];
 
 /* ─── Skeleton loader ─── */
@@ -193,18 +193,15 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
       {/* ── Post Header ── */}
       <div className="flex items-center justify-between px-3 sm:px-4 py-3">
         <button onClick={handleProfileClick} className="flex items-center gap-3 flex-1 min-w-0 active:opacity-70 transition-opacity">
-          {/* Avatar with gradient ring */}
-          <div className="relative shrink-0">
-            <div className="absolute -inset-0.5 rounded-full bg-gradient-to-br from-violet-500 via-pink-500 to-amber-400 opacity-80" />
-            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-white dark:border-[#0a0d17]">
-              {post.user?.avatar ? (
-                <img src={post.user.avatar} alt={post.user?.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
-                  <span className="text-white text-sm font-black">{post.user?.name?.charAt(0)}</span>
-                </div>
-              )}
-            </div>
+          {/* Clean avatar — no ring */}
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 shrink-0 bg-slate-100 dark:bg-slate-800">
+            {post.user?.avatar ? (
+              <img src={post.user.avatar} alt={post.user?.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                <span className="text-slate-600 dark:text-slate-300 text-sm font-bold">{post.user?.name?.charAt(0)}</span>
+              </div>
+            )}
           </div>
           {/* Name + college */}
           <div className="flex-1 min-w-0 text-left">
@@ -688,10 +685,10 @@ export default function Feed() {
         </div>
       )}
 
-      {/* ── Story-style Category Strip ── */}
+      {/* ── Category Pill Filter ── */}
       <div
         ref={catRef}
-        className="flex gap-3 overflow-x-auto no-scrollbar px-4 py-3 cursor-grab select-none active:cursor-grabbing"
+        className="flex gap-2 overflow-x-auto no-scrollbar px-4 py-2.5 cursor-grab select-none active:cursor-grabbing"
       >
         {categories.map(cat => {
           const Icon    = cat.icon;
@@ -700,24 +697,21 @@ export default function Feed() {
             <button
               key={cat.id ?? 'all'}
               onClick={() => setActiveCategory(cat.id)}
-              className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-transform"
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 border ${
+                isActive
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-sm'
+                  : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
             >
-              {/* Story ring */}
-              <div className={`p-0.5 rounded-full ${isActive ? `bg-gradient-to-br ${cat.gradient}` : 'bg-slate-200 dark:bg-slate-700'} transition-all duration-200`}>
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 ${isActive ? 'border-white dark:border-[#080b14]' : 'border-transparent'} bg-gradient-to-br ${cat.gradient} transition-all duration-200`}>
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-              </div>
-              <span className={`text-[11px] font-semibold transition-colors ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'} max-w-[60px] text-center truncate leading-tight`}>
-                {cat.label}
-              </span>
+              <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? '' : 'opacity-60'}`} />
+              {cat.label}
             </button>
           );
         })}
       </div>
 
       {/* ── Divider ── */}
-      <div className="h-px bg-slate-100 dark:bg-white/[0.04] mb-0" />
+      <div className="h-px bg-slate-100 dark:bg-white/[0.04]" />
 
       {/* ── Posts ── */}
       {loading ? (
