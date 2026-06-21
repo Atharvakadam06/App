@@ -104,9 +104,16 @@ export async function initDatabase() {
         user_id TEXT NOT NULL,
         text TEXT,
         timestamp TEXT,
+        parent_id TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
+
+    try {
+      await db.execute('ALTER TABLE comments ADD COLUMN parent_id TEXT');
+    } catch (e) {
+      // Column may already exist
+    }
 
     await db.execute(`
       CREATE TABLE IF NOT EXISTS papers (

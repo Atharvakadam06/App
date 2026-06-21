@@ -75,6 +75,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
   const [showMenu, setShowMenu]               = useState(false);
   const [showComments, setShowComments]       = useState(false);
   const [commentText, setCommentText]         = useState('');
+  const [replyingTo, setReplyingTo]           = useState(null);
   const [showHeartOverlay, setShowHeartOverlay] = useState(false);
   const [showImageLightbox, setShowImageLightbox] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -162,10 +163,28 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
     addToast('Post reported', 'success');
   };
 
+  const topLevelComments = useMemo(() => {
+    return (post.comments || []).filter(c => !c.parentId);
+  }, [post.comments]);
+
+  const getRepliesForComment = (commentId) => {
+    return (post.comments || []).filter(c => c.parentId === commentId);
+  };
+
+  const handleReplyClick = (comment) => {
+    setReplyingTo(comment);
+    const tag = `@${comment.name?.split(' ')[0]} `;
+    if (!commentText.startsWith(tag)) {
+      setCommentText(prev => prev.trim() ? `${tag}${prev}` : tag);
+    }
+    commentInputRef.current?.focus();
+  };
+
   const handleComment = () => {
     if (!commentText.trim()) return;
-    onComment(post.id, commentText);
+    onComment(post.id, commentText, replyingTo?.id);
     setCommentText('');
+    setReplyingTo(null);
   };
 
   const handleProfileClick = () => {
@@ -452,8 +471,18 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
       {/* ── Comments Section ── */}
       {showComments && (
         <div className="border-t border-slate-100 dark:border-white/[0.04] px-3 sm:px-4 pt-3 pb-4 animate-slide-down">
+          {/* Replying indicator */}
+          {replyingTo && (
+            <div className="flex items-center justify-between px-3.5 py-2 bg-blue-50/50 dark:bg-blue-950/10 border border-blue-100/40 dark:border-blue-900/20 text-[11.5px] text-slate-500 dark:text-slate-400 rounded-2xl mb-2.5 animate-fade-in">
+              <span>Replying to <span className="font-bold text-blue-500">@{replyingTo.name}</span></span>
+              <button onClick={() => setReplyingTo(null)} className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Comment input */}
-          <div className="flex items-center gap-2.5 mb-3">
+          <div className="flex items-center gap-2.5 mb-3.5">
             <div className="relative shrink-0">
               <div className="relative w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-white/10">
                 {currentUser?.avatar ? (
@@ -478,7 +507,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleComment()}
-                placeholder="Add a comment…"
+                placeholder={replyingTo ? `Reply to @${replyingTo.name?.split(' ')[0]}…` : "Add a comment…"}
                 className="flex-1 bg-transparent text-[13.5px] text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none"
               />
               <button
@@ -492,27 +521,74 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
           </div>
 
           {/* Comments list */}
-          {post.comments && post.comments.length > 0 && (
-            <div className="space-y-2.5">
-              {post.comments.map((c, i) => (
-                <div key={i} className="flex gap-2.5 animate-fade-in">
-                  <img src={c.avatar} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-1">
-                      <p className="text-[13px] text-slate-800 dark:text-slate-200 leading-snug">
-                        <span className="font-bold mr-1.5">{c.name}</span>
-                        {c.text}
-                      </p>
-                      {c.userId === currentUserId && (
-                        <button onClick={() => onDeleteComment(post.id, c.id)} className="shrink-0 p-0.5 text-slate-300 hover:text-rose-400 transition-colors active:scale-90">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
+          {topLevelComments && topLevelComments.length > 0 && (
+            <div className="space-y-3.5">
+              {topLevelComments.map((c) => {
+                const replies = getRepliesForComment(c.id);
+                return (
+                  <div key={c.id} className="animate-fade-in space-y-2.5">
+                    {/* Top Level Comment */}
+                    <div className="flex gap-2.5">
+                      <img src={c.avatar} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1">
+                          <p className="text-[13px] text-slate-800 dark:text-slate-200 leading-snug">
+                            <span className="font-bold mr-1.5">{c.name}</span>
+                            {c.text}
+                          </p>
+                          {c.userId === currentUserId && (
+                            <button onClick={() => onDeleteComment(post.id, c.id)} className="shrink-0 p-0.5 text-slate-300 hover:text-rose-400 transition-colors active:scale-90">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-[11px] text-slate-400 font-medium">{formatTimeAgo(c.timestamp)}</span>
+                          <button
+                            onClick={() => handleReplyClick(c)}
+                            className="text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 transition-colors active:scale-90"
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{formatTimeAgo(c.timestamp)}</p>
+
+                    {/* Replies (Nested & Indented) */}
+                    {replies.length > 0 && (
+                      <div className="pl-9 space-y-3 border-l border-slate-100 dark:border-white/[0.05] ml-3.5">
+                        {replies.map((reply) => (
+                          <div key={reply.id} className="flex gap-2.5 animate-fade-in">
+                            <img src={reply.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-1">
+                                <p className="text-[12.5px] text-slate-800 dark:text-slate-200 leading-snug">
+                                  <span className="font-bold mr-1.5">{reply.name}</span>
+                                  {reply.text}
+                                </p>
+                                {reply.userId === currentUserId && (
+                                  <button onClick={() => onDeleteComment(post.id, reply.id)} className="shrink-0 p-0.5 text-slate-300 hover:text-rose-400 transition-colors active:scale-90">
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1.5">
+                                <span className="text-[10px] text-slate-400 font-medium">{formatTimeAgo(reply.timestamp)}</span>
+                                <button
+                                  onClick={() => handleReplyClick(c)}
+                                  className="text-[10px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 transition-colors active:scale-90"
+                                >
+                                  Reply
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -639,7 +715,7 @@ export default function Feed() {
 
   const handleDelete         = async (id) => { await deletePost(id); setAllPosts(prev => prev.filter(p => p.id !== id)); };
   const handleUpdate         = async (id, c) => { await updatePost(id, c); setAllPosts(prev => prev.map(p => p.id === id ? { ...p, content: c } : p)); };
-  const handleComment        = async (id, t) => { await addComment(id, user.id, t); const comments = await getPostComments(id); setAllPosts(prev => prev.map(p => p.id === id ? { ...p, comments } : p)); };
+  const handleComment        = async (id, t, parentId = null) => { await addComment(id, user.id, t, parentId); const comments = await getPostComments(id); setAllPosts(prev => prev.map(p => p.id === id ? { ...p, comments } : p)); };
   const handleDeleteComment  = async (id, cid) => { await deleteComment(cid); const comments = await getPostComments(id); setAllPosts(prev => prev.map(p => p.id === id ? { ...p, comments } : p)); };
 
   return (

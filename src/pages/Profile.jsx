@@ -260,6 +260,7 @@ export default function Profile() {
   const [showCommentInput, setShowCommentInput] = useState(null);
   const [shareFlipped, setShareFlipped] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
   const [showHeartPop, setShowHeartPop] = useState(false);
 
   const [showUploadPaper, setShowUploadPaper] = useState(false);
@@ -321,7 +322,7 @@ export default function Profile() {
   const handlePostComment = async (postId) => {
     if (!commentText.trim() || !currentUser?.id) return;
     try {
-      await addComment(postId, currentUser.id, commentText);
+      await addComment(postId, currentUser.id, commentText, replyingTo?.id);
       const comments = await getPostComments(postId);
       const updated = userPosts.map(p => p.id === postId ? { ...p, comments: comments } : p);
       setUserPosts(updated);
@@ -330,9 +331,28 @@ export default function Profile() {
       }
       setCommentText('');
       setShowCommentInput(null);
+      setReplyingTo(null);
     } catch (e) {
       console.warn('Failed to post comment:', e);
     }
+  };
+
+  const topLevelComments = useMemo(() => {
+    return (selectedPost?.comments || []).filter(c => !c.parentId);
+  }, [selectedPost?.comments]);
+
+  const getRepliesForComment = (commentId) => {
+    return (selectedPost?.comments || []).filter(c => c.parentId === commentId);
+  };
+
+  const handleReplyClick = (comment) => {
+    setReplyingTo(comment);
+    const tag = `@${comment.name?.split(' ')[0]} `;
+    if (!commentText.startsWith(tag)) {
+      setCommentText(prev => prev.trim() ? `${tag}${prev}` : tag);
+    }
+    const inputEl = document.getElementById('comment-input-field');
+    inputEl?.focus();
   };
 
   const handleLikePost = async (postId) => {
@@ -704,21 +724,59 @@ export default function Profile() {
 
                       {/* Comments */}
                       <div className="space-y-3.5 pt-1">
-                        {selectedPost.comments?.length > 0 ? (
-                          selectedPost.comments.map((c, i) => (
-                            <div key={i} className="flex gap-3 items-start group">
-                              <img src={c.avatar} alt="" className="w-8 h-8 rounded-full shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-slate-800 dark:text-slate-200">
-                                  <span className="font-semibold text-slate-900 dark:text-white mr-1.5">{c.name}</span>
-                                  <span className="whitespace-pre-wrap leading-relaxed">{c.text}</span>
-                                </p>
-                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-2">
-                                  <span>{formatTimeAgo(c.timestamp)}</span>
-                                </p>
+                        {topLevelComments?.length > 0 ? (
+                          topLevelComments.map((c) => {
+                            const replies = getRepliesForComment(c.id);
+                            return (
+                              <div key={c.id} className="space-y-2.5 animate-fade-in">
+                                {/* Top Level Comment */}
+                                <div className="flex gap-3 items-start group">
+                                  <img src={c.avatar} alt="" className="w-8 h-8 rounded-full shrink-0 object-cover" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-slate-800 dark:text-slate-200">
+                                      <span className="font-semibold text-slate-900 dark:text-white mr-1.5">{c.name}</span>
+                                      <span className="whitespace-pre-wrap leading-relaxed">{c.text}</span>
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-2.5">
+                                      <span>{formatTimeAgo(c.timestamp)}</span>
+                                      <button 
+                                        onClick={() => handleReplyClick(c)}
+                                        className="font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 transition-colors active:scale-95"
+                                      >
+                                        Reply
+                                      </button>
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Replies */}
+                                {replies.length > 0 && (
+                                  <div className="pl-9 space-y-3 border-l border-slate-100 dark:border-white/[0.05] ml-4">
+                                    {replies.map((reply) => (
+                                      <div key={reply.id} className="flex gap-2.5 items-start animate-fade-in">
+                                        <img src={reply.avatar} alt="" className="w-6.5 h-6.5 rounded-full shrink-0 object-cover border border-slate-100 dark:border-white/10" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[13px] text-slate-800 dark:text-slate-200">
+                                            <span className="font-semibold text-slate-900 dark:text-white mr-1.5">{reply.name}</span>
+                                            <span className="whitespace-pre-wrap leading-relaxed">{reply.text}</span>
+                                          </p>
+                                          <p className="text-[9.5px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-2.5">
+                                            <span>{formatTimeAgo(reply.timestamp)}</span>
+                                            <button 
+                                              onClick={() => handleReplyClick(c)}
+                                              className="font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 transition-colors active:scale-95"
+                                            >
+                                              Reply
+                                            </button>
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))
+                            );
+                          })
                         ) : (
                           <div className="flex flex-col items-center justify-center py-12 text-center">
                             <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-900/40 flex items-center justify-center mb-2 border border-slate-100/50 dark:border-slate-800/50">
@@ -790,25 +848,35 @@ export default function Profile() {
                       </div>
 
                       {/* Comment Input */}
-                      <div className="flex gap-2.5 mt-3 items-center">
-                        <img src={currentUser?.avatar} alt="" className="w-7 h-7 rounded-full shrink-0" />
-                        <div className="flex-1 flex items-center bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 rounded-full px-3.5 py-1.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500/35 transition-all">
-                          <input 
-                            id="comment-input-field"
-                            type="text" 
-                            value={commentText} 
-                            onChange={e => setCommentText(e.target.value)} 
-                            onKeyDown={e => { if (e.key === 'Enter' && commentText.trim()) handlePostComment(selectedPost.id); }}
-                            placeholder="Add a comment..." 
-                            className="flex-1 text-xs bg-transparent border-none text-slate-900 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400 dark:placeholder-slate-500 py-0.5" 
-                          />
-                          <button 
-                            onClick={() => handlePostComment(selectedPost.id)} 
-                            disabled={!commentText.trim()}
-                            className="text-blue-500 text-xs font-semibold disabled:opacity-40 hover:text-blue-600 transition-colors px-1"
-                          >
-                            Post
-                          </button>
+                      <div className="mt-3">
+                        {replyingTo && (
+                          <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50/50 dark:bg-blue-950/10 border border-blue-100/40 dark:border-blue-900/20 text-[10px] text-slate-500 dark:text-slate-400 rounded-xl mb-2 animate-fade-in">
+                            <span>Replying to <span className="font-bold text-blue-500">@{replyingTo.name}</span></span>
+                            <button onClick={() => setReplyingTo(null)} className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-350">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex gap-2.5 items-center">
+                          <img src={currentUser?.avatar} alt="" className="w-7 h-7 rounded-full shrink-0 object-cover" />
+                          <div className="flex-1 flex items-center bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 rounded-full px-3.5 py-1.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500/35 transition-all">
+                            <input 
+                              id="comment-input-field"
+                              type="text" 
+                              value={commentText} 
+                              onChange={e => setCommentText(e.target.value)} 
+                              onKeyDown={e => { if (e.key === 'Enter' && commentText.trim()) handlePostComment(selectedPost.id); }}
+                              placeholder={replyingTo ? `Reply to @${replyingTo.name?.split(' ')[0]}…` : "Add a comment..."}
+                              className="flex-1 text-xs bg-transparent border-none text-slate-900 dark:text-white focus:outline-none focus:ring-0 placeholder-slate-400 dark:placeholder-slate-500 py-0.5" 
+                            />
+                            <button 
+                              onClick={() => handlePostComment(selectedPost.id)} 
+                              disabled={!commentText.trim()}
+                              className="text-blue-500 text-xs font-semibold disabled:opacity-40 hover:text-blue-600 transition-colors px-1"
+                            >
+                              Post
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

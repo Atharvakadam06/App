@@ -356,15 +356,16 @@ export async function getPostComments(postId) {
     avatar: r.avatar,
     text: r.text,
     timestamp: r.timestamp,
+    parentId: r.parent_id || null,
   }));
 }
 
-export async function addComment(postId, userId, text) {
+export async function addComment(postId, userId, text, parentId = null) {
   await ensureDb();
   const id = Date.now().toString();
   await execute(
-    'INSERT INTO comments (id, post_id, user_id, text, timestamp) VALUES (?, ?, ?, ?, ?)',
-    [id, postId, userId, text, getCurrentTimestamp()]
+    'INSERT INTO comments (id, post_id, user_id, text, timestamp, parent_id) VALUES (?, ?, ?, ?, ?, ?)',
+    [id, postId, userId, text, getCurrentTimestamp(), parentId]
   );
   return id;
 }
