@@ -261,6 +261,7 @@ export default function Profile() {
   const [shareFlipped, setShareFlipped] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
+  const [expandedReplies, setExpandedReplies] = useState({});
   const [showHeartPop, setShowHeartPop] = useState(false);
 
   const [showUploadPaper, setShowUploadPaper] = useState(false);
@@ -329,6 +330,9 @@ export default function Profile() {
       if (selectedPost?.id === postId) {
         setSelectedPost({ ...selectedPost, comments: comments });
       }
+      if (replyingTo?.id) {
+        setExpandedReplies(prev => ({ ...prev, [replyingTo.id]: true }));
+      }
       setCommentText('');
       setShowCommentInput(null);
       setReplyingTo(null);
@@ -347,12 +351,20 @@ export default function Profile() {
 
   const handleReplyClick = (comment) => {
     setReplyingTo(comment);
+    setExpandedReplies(prev => ({ ...prev, [comment.id]: true }));
     const tag = `@${comment.name?.split(' ')[0]} `;
     if (!commentText.startsWith(tag)) {
       setCommentText(prev => prev.trim() ? `${tag}${prev}` : tag);
     }
     const inputEl = document.getElementById('comment-input-field');
     inputEl?.focus();
+  };
+
+  const toggleReplies = (commentId) => {
+    setExpandedReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
   };
 
   const handleLikePost = async (postId) => {
@@ -751,27 +763,39 @@ export default function Profile() {
 
                                 {/* Replies */}
                                 {replies.length > 0 && (
-                                  <div className="pl-9 space-y-3 border-l border-slate-100 dark:border-white/[0.05] ml-4">
-                                    {replies.map((reply) => (
-                                      <div key={reply.id} className="flex gap-2.5 items-start animate-fade-in">
-                                        <img src={reply.avatar} alt="" className="w-6.5 h-6.5 rounded-full shrink-0 object-cover border border-slate-100 dark:border-white/10" />
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-[13px] text-slate-800 dark:text-slate-200">
-                                            <span className="font-semibold text-slate-900 dark:text-white mr-1.5">{reply.name}</span>
-                                            <span className="whitespace-pre-wrap leading-relaxed">{reply.text}</span>
-                                          </p>
-                                          <p className="text-[9.5px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-2.5">
-                                            <span>{formatTimeAgo(reply.timestamp)}</span>
-                                            <button 
-                                              onClick={() => handleReplyClick(c)}
-                                              className="font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 transition-colors active:scale-95"
-                                            >
-                                              Reply
-                                            </button>
-                                          </p>
-                                        </div>
+                                  <div className="pl-9 space-y-2 mt-1">
+                                    <button
+                                      onClick={() => toggleReplies(c.id)}
+                                      className="flex items-center gap-2 text-[10.5px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors active:scale-95 mb-1"
+                                    >
+                                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-850" />
+                                      {expandedReplies[c.id] ? 'Hide replies' : `View replies (${replies.length})`}
+                                    </button>
+
+                                    {expandedReplies[c.id] && (
+                                      <div className="space-y-3 border-l border-slate-100 dark:border-white/[0.05] pl-3.5 ml-2 mt-2.5 animate-fade-in">
+                                        {replies.map((reply) => (
+                                          <div key={reply.id} className="flex gap-2.5 items-start animate-fade-in">
+                                            <img src={reply.avatar} alt="" className="w-6.5 h-6.5 rounded-full shrink-0 object-cover border border-slate-100 dark:border-white/10" />
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-[13px] text-slate-800 dark:text-slate-200 font-normal">
+                                                <span className="font-semibold text-slate-900 dark:text-white mr-1.5">{reply.name}</span>
+                                                {reply.text}
+                                              </p>
+                                              <p className="text-[9.5px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-2.5">
+                                                <span>{formatTimeAgo(reply.timestamp)}</span>
+                                                <button 
+                                                  onClick={() => handleReplyClick(c)}
+                                                  className="font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 transition-colors active:scale-95"
+                                                >
+                                                  Reply
+                                                </button>
+                                              </p>
+                                            </div>
+                                          </div>
+                                        ))}
                                       </div>
-                                    ))}
+                                    )}
                                   </div>
                                 )}
                               </div>

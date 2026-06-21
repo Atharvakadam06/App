@@ -76,6 +76,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
   const [showComments, setShowComments]       = useState(false);
   const [commentText, setCommentText]         = useState('');
   const [replyingTo, setReplyingTo]           = useState(null);
+  const [expandedReplies, setExpandedReplies] = useState({});
   const [showHeartOverlay, setShowHeartOverlay] = useState(false);
   const [showImageLightbox, setShowImageLightbox] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -173,6 +174,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
 
   const handleReplyClick = (comment) => {
     setReplyingTo(comment);
+    setExpandedReplies(prev => ({ ...prev, [comment.id]: true }));
     const tag = `@${comment.name?.split(' ')[0]} `;
     if (!commentText.startsWith(tag)) {
       setCommentText(prev => prev.trim() ? `${tag}${prev}` : tag);
@@ -180,9 +182,19 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
     commentInputRef.current?.focus();
   };
 
+  const toggleReplies = (commentId) => {
+    setExpandedReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
+  };
+
   const handleComment = () => {
     if (!commentText.trim()) return;
     onComment(post.id, commentText, replyingTo?.id);
+    if (replyingTo?.id) {
+      setExpandedReplies(prev => ({ ...prev, [replyingTo.id]: true }));
+    }
     setCommentText('');
     setReplyingTo(null);
   };
@@ -556,34 +568,46 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
 
                     {/* Replies (Nested & Indented) */}
                     {replies.length > 0 && (
-                      <div className="pl-9 space-y-3 border-l border-slate-100 dark:border-white/[0.05] ml-3.5">
-                        {replies.map((reply) => (
-                          <div key={reply.id} className="flex gap-2.5 animate-fade-in">
-                            <img src={reply.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-1">
-                                <p className="text-[12.5px] text-slate-800 dark:text-slate-200 leading-snug">
-                                  <span className="font-bold mr-1.5">{reply.name}</span>
-                                  {reply.text}
-                                </p>
-                                {reply.userId === currentUserId && (
-                                  <button onClick={() => onDeleteComment(post.id, reply.id)} className="shrink-0 p-0.5 text-slate-300 hover:text-rose-400 transition-colors active:scale-90">
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                )}
+                      <div className="pl-9 space-y-2 mt-1">
+                        <button
+                          onClick={() => toggleReplies(c.id)}
+                          className="flex items-center gap-2 text-[11px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-305 transition-colors active:scale-95"
+                        >
+                          <span className="w-4 h-px bg-slate-200 dark:bg-slate-800" />
+                          {expandedReplies[c.id] ? 'Hide replies' : `View replies (${replies.length})`}
+                        </button>
+
+                        {expandedReplies[c.id] && (
+                          <div className="space-y-3 border-l border-slate-100 dark:border-white/[0.05] pl-3.5 ml-2 mt-2.5 animate-fade-in">
+                            {replies.map((reply) => (
+                              <div key={reply.id} className="flex gap-2.5 animate-fade-in">
+                                <img src={reply.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-1">
+                                    <p className="text-[12.5px] text-slate-800 dark:text-slate-200 leading-snug">
+                                      <span className="font-bold mr-1.5">{reply.name}</span>
+                                      {reply.text}
+                                    </p>
+                                    {reply.userId === currentUserId && (
+                                      <button onClick={() => onDeleteComment(post.id, reply.id)} className="shrink-0 p-0.5 text-slate-300 hover:text-rose-400 transition-colors active:scale-90">
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1.5">
+                                    <span className="text-[10px] text-slate-400 font-medium">{formatTimeAgo(reply.timestamp)}</span>
+                                    <button
+                                      onClick={() => handleReplyClick(c)}
+                                      className="text-[10px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 transition-colors active:scale-90"
+                                    >
+                                      Reply
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3 mt-1.5">
-                                <span className="text-[10px] text-slate-400 font-medium">{formatTimeAgo(reply.timestamp)}</span>
-                                <button
-                                  onClick={() => handleReplyClick(c)}
-                                  className="text-[10px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 transition-colors active:scale-90"
-                                >
-                                  Reply
-                                </button>
-                              </div>
-                            </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
                   </div>
