@@ -150,10 +150,12 @@ export default function Marketplace() {
         }
         prodList = await getAllProducts();
       }
-      setProducts(prodList);
+      const mapped = prodList.map(p => p.category === 'Books' ? { ...p, category: 'Other' } : p);
+      setProducts(mapped);
     } catch (e) {
       console.warn('Error loading products:', e);
-      setProducts(defaultProducts);
+      const mappedDefaults = defaultProducts.map(p => p.category === 'Books' ? { ...p, category: 'Other' } : p);
+      setProducts(mappedDefaults);
     } finally {
       setLoading(false);
     }
