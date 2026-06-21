@@ -635,27 +635,8 @@ export default function Feed() {
 
   return (
     <div className="feed-root">
-      {/* ── Scrollable mobile brand header ── */}
-      <div className="lg:hidden flex items-center justify-between px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-white flex items-center justify-center shadow-md shadow-slate-900/20 dark:shadow-white/10">
-            <img src="/logo.svg" alt="StuGrow" className="w-4.5 h-4.5" onError={(e) => { e.target.style.display = 'none'; }} />
-          </div>
-          <span className="text-[22px] font-black text-slate-900 dark:text-white tracking-tight leading-none">StuGrow</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {/* Search toggle */}
-          <button
-            onClick={() => { setSearchOpen(o => !o); setTimeout(() => searchRef.current?.focus(), 100); }}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-white/5 active:scale-90 transition-all"
-          >
-            <Search className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-          </button>
-        </div>
-      </div>
-
       {/* ── Desktop search bar ── */}
-      <div className="hidden lg:block px-4 pt-2 pb-1 max-w-2xl mx-auto w-full">
+      <div className="hidden lg:block px-4 pt-3 pb-1 max-w-2xl mx-auto w-full">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -667,23 +648,6 @@ export default function Feed() {
           />
         </div>
       </div>
-
-      {/* ── Mobile expandable search ── */}
-      {searchOpen && (
-        <div className="lg:hidden px-4 pb-2 animate-slide-down">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              ref={searchRef}
-              type="text"
-              placeholder="Search posts, people…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-white/[0.05] border border-transparent focus:border-slate-300 dark:focus:border-white/10 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none transition-colors"
-            />
-          </div>
-        </div>
-      )}
 
       {/* ── Category Pill Filter ── */}
       <div
