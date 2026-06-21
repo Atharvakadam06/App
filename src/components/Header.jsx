@@ -1,4 +1,65 @@
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Bell, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { useNotifications } from '../context/NotificationContext';
+
 export default function Header({ title, subtitle }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { darkMode, toggleTheme } = useTheme();
+  const { notifications } = useNotifications();
+  const unreadNotifCount = notifications.filter(n => !n.read).length;
+
+  // On the feed page, hide the mobile header — Feed renders its own brand header
+  const isFeed = location.pathname === '/';
+
+  // On mobile + feed: completely hide sticky header; feed has inline brand bar
+  if (isFeed) {
+    return (
+      <header className="sticky top-0 z-30 shrink-0 safe-area-top">
+        {/* Mobile feed: only show a thin bar with theme + notifications (no logo or title) */}
+        <div className="lg:hidden bg-white/90 dark:bg-[#080b14]/90 backdrop-blur-2xl border-b border-slate-200/60 dark:border-white/[0.04]">
+          <div className="flex items-center justify-end gap-1.5 px-4 py-2 min-h-[52px]">
+            <button type="button" onClick={toggleTheme} className="header-action-btn" title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} aria-label="Toggle theme">
+              {darkMode ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
+            </button>
+            <button type="button" onClick={() => navigate('/profile')} className="header-action-btn relative" title="Notifications" aria-label="Notifications">
+              <Bell className="w-[18px] h-[18px]" />
+              {unreadNotifCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-scale-in">
+                  {unreadNotifCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop: full header */}
+        <div className="hidden lg:block bg-white/90 dark:bg-[#080b14]/90 backdrop-blur-2xl border-b border-slate-200/60 dark:border-white/[0.04]">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 min-h-[60px]">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{title}</h1>
+              {subtitle && <p className="text-xs text-slate-400 dark:text-slate-500 -mt-0.5 font-medium">{subtitle}</p>}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button type="button" onClick={toggleTheme} className="header-action-btn" title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} aria-label="Toggle theme">
+                {darkMode ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
+              </button>
+              <button type="button" onClick={() => navigate('/profile')} className="header-action-btn relative" title="Notifications" aria-label="Notifications">
+                <Bell className="w-[18px] h-[18px]" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-scale-in">
+                    {unreadNotifCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="sticky top-0 z-30 shrink-0 safe-area-top">
       <div className="bg-white/90 dark:bg-[#080b14]/90 backdrop-blur-2xl border-b border-slate-200/60 dark:border-white/[0.04]">
@@ -35,6 +96,40 @@ export default function Header({ title, subtitle }) {
                 {subtitle}
               </p>
             )}
+          </div>
+
+          {/* Right side actions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Dark mode toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="header-action-btn"
+              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle theme"
+            >
+              {darkMode ? (
+                <Sun className="w-[18px] h-[18px]" />
+              ) : (
+                <Moon className="w-[18px] h-[18px]" />
+              )}
+            </button>
+
+            {/* Notifications bell */}
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              className="header-action-btn relative"
+              title="Notifications"
+              aria-label="Notifications"
+            >
+              <Bell className="w-[18px] h-[18px]" />
+              {unreadNotifCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-scale-in">
+                  {unreadNotifCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
