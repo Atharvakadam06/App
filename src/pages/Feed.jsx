@@ -275,7 +275,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
           {/* Double-tap heart overlay */}
           {showHeartOverlay && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-              <Heart className="w-24 h-24 text-pink-300/90 fill-pink-300/90 drop-shadow-2xl animate-elegant-heart" />
+              <Heart className="w-24 h-24 text-rose-500 fill-rose-500 drop-shadow-2xl animate-elegant-heart" />
             </div>
           )}
         </div>
