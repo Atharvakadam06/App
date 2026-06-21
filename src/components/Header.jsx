@@ -1,15 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Sun, Moon } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
-import { useNotifications } from '../context/NotificationContext';
-
 export default function Header({ title, subtitle }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { darkMode, toggleTheme } = useTheme();
-  const { notifications } = useNotifications();
-  const unreadNotifCount = notifications.filter(n => !n.read).length;
-
   return (
     <header className="sticky top-0 z-30 shrink-0 safe-area-top">
       <div className="bg-white/90 dark:bg-[#080b14]/90 backdrop-blur-2xl border-b border-slate-200/60 dark:border-white/[0.04]">
@@ -47,8 +36,6 @@ export default function Header({ title, subtitle }) {
               </p>
             )}
           </div>
-
-
         </div>
       </div>
     </header>
