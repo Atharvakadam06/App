@@ -74,11 +74,6 @@ export default function Header({ title, subtitle }) {
               aria-label="Notifications"
             >
               <Bell className="w-[18px] h-[18px]" />
-              {unreadNotifCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-scale-in">
-                  {unreadNotifCount}
-                </span>
-              )}
             </button>
           </div>
         </div>
