@@ -52,7 +52,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
             <Plus className="w-4 h-4" strokeWidth={2.5} />
           </button>
         </div>
-        <ProfessionalSearch placeholder="Search..." value={searchQuery} onChange={setSearchQuery} className="bg-gray-50 dark:bg-[#0f131f] border-gray-200/70 dark:border-gray-700/50 rounded-xl text-[13px]" />
+        <ProfessionalSearch placeholder="Search..." value={searchQuery} onChange={setSearchQuery} />
       </div>
       {/* Scrollable List */}
       <div className="flex-1 overflow-y-auto -webkit-overflow-scrolling: touch overscroll-none">
@@ -105,7 +105,7 @@ function NewChatModal({ users, currentUser, onClose, onStart }) {
           <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/70 flex items-center justify-center active:scale-90"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
         <div className="mb-4">
-          <ProfessionalSearch placeholder="Search students..." value={search} onChange={setUserSearch} className="bg-gray-50 dark:bg-[#0f131f] border-gray-200/70 dark:border-gray-700/50 rounded-xl text-[13px]" />
+          <ProfessionalSearch placeholder="Search students..." value={search} onChange={setUserSearch} />
         </div>
         <div className="flex-1 overflow-y-auto space-y-0.5">
           {filtered.length === 0 ? <p className="text-[13px] text-gray-400 text-center py-8">No students found</p> : filtered.map(u => (

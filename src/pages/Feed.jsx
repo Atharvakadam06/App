@@ -14,6 +14,7 @@ import {
 } from '../services/data';
 import { usePostLike } from '../context/PostLikeContext';
 import { matchSearch } from '../utils/searchUtils';
+import ProfessionalSearch from '../components/ProfessionalSearch';
 import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo } from '../utils/timeUtils';
 
@@ -752,30 +753,20 @@ export default function Feed() {
             <p className="text-[12px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">What's happening on campus</p>
           </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search posts, people…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-white/[0.05] border border-transparent focus:border-slate-300 dark:focus:border-white/10 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none transition-colors"
-          />
-        </div>
+        <ProfessionalSearch
+          placeholder="Search posts, people…"
+          value={searchQuery}
+          onChange={setSearchQuery}
+        />
       </div>
 
       {/* ── Desktop search bar ── */}
       <div className="hidden lg:block px-4 pt-3 pb-1 max-w-2xl mx-auto w-full">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search posts, people…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-white/[0.05] border border-transparent focus:border-slate-300 dark:focus:border-white/10 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none transition-colors"
-          />
-        </div>
+        <ProfessionalSearch
+          placeholder="Search posts, people…"
+          value={searchQuery}
+          onChange={setSearchQuery}
+        />
       </div>
 
       {/* ── Category Pill Filter ── */}

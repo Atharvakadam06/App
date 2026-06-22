@@ -28,6 +28,7 @@ import {
   createConversation,
 } from '../services/data';
 import { matchSearch } from '../utils/searchUtils';
+import ProfessionalSearch from '../components/ProfessionalSearch';
 
 export default function Marketplace() {
   const { user } = useAuth();
@@ -307,16 +308,12 @@ export default function Marketplace() {
       {/* Search and Filters Bar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
         {/* Search */}
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search projects, electronics..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input-field pl-11 w-full bg-white dark:bg-[#0e1322] border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-slate-400 focus:border-transparent rounded-2xl h-11"
-          />
-        </div>
+        <ProfessionalSearch
+          placeholder="Search projects, electronics..."
+          value={searchQuery}
+          onChange={setSearchQuery}
+          className="flex-1 w-full"
+        />
 
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
