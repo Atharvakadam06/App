@@ -7,6 +7,7 @@ import { uploadToCloudinary } from '../services/cloudinary';
 import { createBook, getAllBooks, deleteBook } from '../services/data';
 import CustomSelect from '../components/CustomSelect';
 import ProfessionalSearch from '../components/ProfessionalSearch';
+import { matchSearch } from '../utils/searchUtils';
 
 function BookCard({ book, requested, onRequest, onDelete, currentUserId }) {
   const isOwner = book.uploadedBy?.id === currentUserId;
@@ -141,7 +142,7 @@ export default function BookExchange() {
   };
 
   const filteredBooks = books.filter(book => {
-    if (searchQuery && !book.title.toLowerCase().includes(searchQuery.toLowerCase()) && !book.author?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && !matchSearch(book.title, searchQuery) && !matchSearch(book.author, searchQuery)) return false;
     if (selectedSubject !== 'All' && book.subject !== selectedSubject) return false;
     if (selectedCondition !== 'All' && book.condition !== selectedCondition) return false;
     if (availability === 'Available' && !book.available) return false;

@@ -12,6 +12,7 @@ import { uploadToCloudinary } from '../services/cloudinary';
 import { getConversations, getMessages, sendMessage, createConversation, editMessage, deleteMessageEveryone } from '../services/data';
 import { formatTimeAgo } from '../utils/timeUtils';
 import ProfessionalSearch from '../components/ProfessionalSearch';
+import { matchSearch } from '../utils/searchUtils';
 
 function EmojiPicker({ onSelect, onClose }) {
   const emojis = ['😀','😂','❤️','👍','👋','🎉','🔥','💯','😊','🤔','👏','🙏','💪','✨','🚀','📚','🎓','💡','⭐','🌟','😍','🥳','😎','🤝'];
@@ -40,7 +41,7 @@ function EmojiPicker({ onSelect, onClose }) {
 }
 
 function ConversationList({ conversations, selectedId, onSelect, searchQuery, setSearchQuery, onNewChat }) {
-  const filtered = conversations.filter(c => c.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filtered = conversations.filter(c => matchSearch(c.user?.name, searchQuery));
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#0a0d14] sm:border-r border-gray-200/70 dark:border-gray-700/50 w-full sm:w-80">
       {/* Fixed Header */}
@@ -95,7 +96,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
 
 function NewChatModal({ users, currentUser, onClose, onStart }) {
   const [search, setUserSearch] = useState('');
-  const filtered = users.filter(u => u.id !== currentUser?.id && u.name?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = users.filter(u => u.id !== currentUser?.id && (matchSearch(u.name, search) || matchSearch(u.username, search)));
   return (
     <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
       <div className="bg-white dark:bg-[#0c1018] border border-gray-200/80 dark:border-gray-700/60 p-5 sm:p-6 w-full max-w-sm max-h-[60vh] sm:max-h-[70vh] flex flex-col rounded-t-2xl sm:rounded-2xl animate-scale-in" onClick={e => e.stopPropagation()}>

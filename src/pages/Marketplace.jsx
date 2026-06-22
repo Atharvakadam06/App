@@ -27,6 +27,7 @@ import {
   updateProductStatus,
   createConversation,
 } from '../services/data';
+import { matchSearch } from '../utils/searchUtils';
 
 export default function Marketplace() {
   const { user } = useAuth();
@@ -287,12 +288,11 @@ export default function Marketplace() {
   const filteredProducts = products
     .filter((p) => activeCategory === 'All' || p.category === activeCategory)
     .filter((p) => {
-      const query = searchQuery.toLowerCase().trim();
-      if (!query) return true;
+      if (!searchQuery) return true;
       return (
-        p.title.toLowerCase().includes(query) ||
-        p.description.toLowerCase().includes(query) ||
-        p.category.toLowerCase().includes(query)
+        matchSearch(p.title, searchQuery) ||
+        matchSearch(p.description, searchQuery) ||
+        matchSearch(p.category, searchQuery)
       );
     })
     .filter((p) => conditionFilter === 'All' || p.condition === conditionFilter)

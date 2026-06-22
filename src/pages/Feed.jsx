@@ -13,6 +13,7 @@ import {
   addComment, getPostComments, deleteComment, createReport
 } from '../services/data';
 import { usePostLike } from '../context/PostLikeContext';
+import { matchSearch } from '../utils/searchUtils';
 import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo } from '../utils/timeUtils';
 
@@ -711,8 +712,7 @@ export default function Feed() {
   const filteredPosts = useMemo(() => {
     let list = allPosts;
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(p => p.content?.toLowerCase().includes(q) || p.user?.name?.toLowerCase().includes(q));
+      list = list.filter(p => matchSearch(p.content, searchQuery) || matchSearch(p.user?.name, searchQuery));
     }
     if (activeCategory) list = list.filter(p => p.category === activeCategory);
     return list;

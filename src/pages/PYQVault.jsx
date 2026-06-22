@@ -8,6 +8,7 @@ import { uploadToGofile } from '../services/gofile';
 import { createPaper, getAllPapers, incrementPaperDownloads, deletePaper } from '../services/data';
 import CustomSelect from '../components/CustomSelect';
 import ProfessionalSearch from '../components/ProfessionalSearch';
+import { matchSearch } from '../utils/searchUtils';
 
 function PaperCard({ paper, onDownload, downloaded, onDelete, onView, currentUserId }) {
   const isOwner = paper.uploadedBy?.id === currentUserId;
@@ -195,7 +196,7 @@ export default function PYQVault() {
 
   const handleView = (paper) => setViewingPaper(paper);
   const filteredPapers = papers.filter(paper => {
-    if (searchQuery && !paper.title.toLowerCase().includes(searchQuery.toLowerCase()) && !paper.subject?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && !matchSearch(paper.title, searchQuery) && !matchSearch(paper.subject, searchQuery)) return false;
     if (selectedBranch !== 'All' && paper.subject !== selectedBranch) return false;
     if (selectedSemester !== 'All' && paper.semester !== selectedSemester) return false;
     return true;

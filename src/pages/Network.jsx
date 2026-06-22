@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { toggleLink, getLinks, createConversation } from '../services/data';
 import ProfessionalSearch from '../components/ProfessionalSearch';
+import { matchSearch } from '../utils/searchUtils';
 
 export default function Network() {
   const { user, users, refreshUsers } = useAuth();
@@ -76,15 +77,19 @@ export default function Network() {
       .sort((a, b) => b.score - a.score);
 
     const filtered = searchQuery
-      ? [...suggestedList, ...followingList].filter(u =>
-          u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          u.username?.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+      ? {
+          suggested: suggestedList.filter(u =>
+            matchSearch(u.name, searchQuery) || matchSearch(u.username, searchQuery)
+          ),
+          following: followingList.filter(u =>
+            matchSearch(u.name, searchQuery) || matchSearch(u.username, searchQuery)
+          )
+        }
       : { following: followingList, suggested: suggestedList };
 
     return {
-      suggested: filtered.suggested || [],
-      following: filtered.following || followingList
+      suggested: filtered.suggested,
+      following: filtered.following
     };
   }, [otherUsers, linkedUsers, user, searchQuery]);
 
