@@ -103,7 +103,7 @@ function StarredMessagesModal({ currentUser, onClose, onJump }) {
   );
 }
 
-function ConversationList({ conversations, selectedId, onSelect, searchQuery, setSearchQuery, onNewChat, onOpenStarred }) {
+function ConversationList({ conversations, selectedId, onSelect, searchQuery, setSearchQuery, onNewChat, onOpenStarred, loading }) {
   const [shouldAnimate, setShouldAnimate] = useState(true);
 
   useEffect(() => {
@@ -135,14 +135,26 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
       </div>
       {/* Scrollable List */}
       <div className="flex-1 overflow-y-auto -webkit-overflow-scrolling: touch overscroll-none">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="p-4 space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 animate-pulse px-1">
+                <div className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800/80" />
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="h-3.5 bg-gray-100 dark:bg-gray-800/80 rounded-lg w-20" />
+                  <div className="h-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg w-32" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex items-center justify-center p-6 h-full">
             <div className="text-center">
               <div className="w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center mx-auto mb-3">
                 <Inbox className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
               </div>
               <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100">No conversations</p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Start a new chat</p>
+              <p className="text-[11px] text-gray-550 dark:text-gray-400 mt-1">Start a new chat</p>
             </div>
           </div>
         ) : (
@@ -164,7 +176,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
                   <span className="text-[13px] font-semibold text-gray-900 dark:text-white truncate">{conv.user?.name}</span>
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium ml-2 shrink-0">{formatTimeAgo(conv.timestamp)}</span>
                 </div>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{conv.lastMessage || 'Start a conversation'}</p>
+                <p className="text-[11px] text-gray-550 dark:text-gray-400 truncate">{conv.lastMessage || 'Start a conversation'}</p>
               </div>
               {conv.unread > 0 && <span className="min-w-[18px] h-[18px] rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] flex items-center justify-center font-bold px-1 shadow-sm ml-1">{conv.unread}</span>}
             </button>
@@ -898,7 +910,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                   <div
                     key={message.id}
                     id={`msg-${message.id}`}
-                    className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in group relative select-none`}
+                    className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in group relative select-none no-swipe`}
                     style={{ animationDuration: '0.2s' }}
                     onContextMenu={(e) => handleContextMenu(e, message)}
                     onTouchStart={(e) => {
@@ -1409,26 +1421,6 @@ export default function Messages() {
     setMobileOpenChat(true);
   };
 
-  if (loading) {
-    return (
-      <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none">
-        <div className="shrink-0 p-4 sm:p-5 border-b border-gray-200/70 dark:border-gray-700/50">
-          <div className="h-5 bg-gray-100 dark:bg-gray-800/60 rounded-lg w-24 mb-3" />
-          <div className="h-10 bg-gray-100 dark:bg-gray-800/60 rounded-2xl w-full" />
-        </div>
-        <div className="flex-1 overflow-hidden p-4 space-y-3 overscroll-none">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[70%] ${i % 2 === 0 ? 'order-2' : ''}`}>
-                <div className="h-12 bg-gray-100 dark:bg-gray-800/60 rounded-2xl w-44" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none messages-fullscreen">
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
@@ -1475,6 +1467,7 @@ export default function Messages() {
             setSearchQuery={setSearchQuery}
             onNewChat={() => setShowNewChat(true)}
             onOpenStarred={() => setShowStarred(true)}
+            loading={loading}
           />
         </div>
 

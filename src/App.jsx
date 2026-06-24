@@ -6,7 +6,7 @@ import { NotificationProvider, useNotifications } from './context/NotificationCo
 import { PostLikeProvider } from './context/PostLikeContext';
 import { PostSaveProvider } from './context/PostSaveContext';
 import { ToastProvider } from './context/ToastContext';
-import { LayoutProvider } from './context/LayoutContext';
+import { LayoutProvider, useLayout } from './context/LayoutContext';
 import { MessageProvider } from './context/MessageContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -65,6 +65,7 @@ const pageMeta = {
 function AuthGate() {
   const { user, isLoading } = useAuth();
   const { addNotification, notifications } = useNotifications();
+  const { hideMobileNav } = useLayout();
   const [showSignup, setShowSignup] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -107,12 +108,22 @@ function AuthGate() {
       return;
     }
 
-    // Climb parent tags to verify if the gesture occurs inside inner scrolling widgets
+    // Swipe right to close chat when in mobile view and a chat conversation is active
+    if (location.pathname === '/inbox' && hideMobileNav) {
+      if (diffX > 0) {
+        window.history.back();
+      }
+      return;
+    }
+
+    // Climb parent tags to verify if the gesture occurs inside an actually horizontally scrollable container
     let target = e.target;
     while (target && target !== e.currentTarget) {
+      const style = window.getComputedStyle(target);
+      const isScrollableX = (target.scrollWidth > target.clientWidth) && (style.overflowX === 'auto' || style.overflowX === 'scroll');
+
       if (
-        target.scrollHeight > target.clientHeight ||
-        target.scrollWidth > target.clientWidth ||
+        isScrollableX ||
         target.classList.contains('no-swipe') ||
         target.classList.contains('overflow-x-auto') ||
         target.classList.contains('overscroll-y-contain')
