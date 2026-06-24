@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Send, Paperclip, Image as ImageIcon, Smile, ArrowLeft, Inbox, X, Plus,
-  CornerUpLeft, Star, Copy, Trash2, Edit3, ShieldAlert, Phone, Video, Search
+  CornerUpLeft, Star, Copy, Trash2, Edit3, ShieldAlert, Phone, Video, Search,
+  Bell, BellOff, User, Lock, Clock, Link, FileText, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -104,14 +105,27 @@ function StarredMessagesModal({ currentUser, onClose, onJump }) {
 }
 
 function ConversationList({ conversations, selectedId, onSelect, searchQuery, setSearchQuery, onNewChat, onOpenStarred, loading }) {
+  const { user: currentUser } = useAuth();
   const [shouldAnimate, setShouldAnimate] = useState(true);
+  const [nicknameTrigger, setNicknameTrigger] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setShouldAnimate(false), 800);
     return () => clearTimeout(timer);
   }, []);
 
-  const filtered = conversations.filter(c => matchSearch(c.user?.name, searchQuery));
+  useEffect(() => {
+    const updateList = () => setNicknameTrigger(prev => prev + 1);
+    window.addEventListener('stugrow-nickname-changed', updateList);
+    return () => window.removeEventListener('stugrow-nickname-changed', updateList);
+  }, []);
+
+  const getDisplayName = (convUser) => {
+    if (!currentUser || !convUser) return '';
+    return localStorage.getItem(`stugrow_nickname_${currentUser.id}_${convUser.id}`) || convUser.name;
+  };
+
+  const filtered = conversations.filter(c => matchSearch(getDisplayName(c.user), searchQuery));
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#0a0d14] sm:border-r border-gray-200/70 dark:border-gray-700/50 w-full sm:w-80">
       {/* Fixed Header */}
@@ -173,7 +187,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[13px] font-semibold text-gray-900 dark:text-white truncate">{conv.user?.name}</span>
+                  <span className="text-[13px] font-semibold text-gray-900 dark:text-white truncate">{getDisplayName(conv.user)}</span>
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium ml-2 shrink-0">{formatTimeAgo(conv.timestamp)}</span>
                 </div>
                 <p className="text-[11px] text-gray-550 dark:text-gray-400 truncate">{conv.lastMessage || 'Start a conversation'}</p>
@@ -213,7 +227,422 @@ function NewChatModal({ users, currentUser, onClose, onStart }) {
   );
 }
 
+function ChatDetails({ recipientUser, messages, conversation, onBack, onSearch }) {
+  const { user } = useAuth();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('media'); // 'media' | 'links' | 'docs'
+  
+  // Localized states stored in localStorage for custom DM wallpaper and muted state
+  const [isMuted, setIsMuted] = useState(() => {
+    const muted = JSON.parse(localStorage.getItem(`stugrow_muted_chats_${user?.id}`)) || [];
+    return muted.includes(conversation.id);
+  });
+  
+  const [selectedTheme, setSelectedTheme] = useState(() => {
+    return localStorage.getItem(`stugrow_chat_theme_${conversation.id}`) || 'default';
+  });
+
+  const [disappearingState, setDisappearingState] = useState(() => {
+    return localStorage.getItem(`stugrow_chat_disappearing_${conversation.id}`) || 'off';
+  });
+
+  const [nickname, setNickname] = useState(() => {
+    return localStorage.getItem(`stugrow_nickname_${user?.id}_${recipientUser.id}`) || '';
+  });
+
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState(nickname);
+
+  // Parse messages for shared items
+  const sharedItems = useMemo(() => {
+    const media = [];
+    const links = [];
+    const docs = [];
+
+    // Regex to match URLs
+    const urlRegex = /(https?:\/\/[^\s]+)/gi;
+
+    messages.forEach(msg => {
+      // 1. Media (Images)
+      if (msg.file && msg.fileType?.startsWith('image/')) {
+        media.push({
+          id: msg.id,
+          url: msg.file,
+          timestamp: msg.timestamp
+        });
+      }
+      // 2. Docs (Files that are not images)
+      else if (msg.file) {
+        docs.push({
+          id: msg.id,
+          name: msg.fileName || 'Attachment',
+          url: msg.file,
+          fileType: msg.fileType,
+          timestamp: msg.timestamp
+        });
+      }
+      // 3. Links
+      if (msg.content) {
+        const matches = msg.content.match(urlRegex);
+        if (matches) {
+          matches.forEach(match => {
+            links.push({
+              id: msg.id + '_' + match,
+              url: match,
+              timestamp: msg.timestamp
+            });
+          });
+        }
+      }
+    });
+
+    return { media, links, docs };
+  }, [messages]);
+
+  const handleToggleMute = () => {
+    const mutedKey = `stugrow_muted_chats_${user?.id}`;
+    let muted = JSON.parse(localStorage.getItem(mutedKey)) || [];
+    if (isMuted) {
+      muted = muted.filter(id => id !== conversation.id);
+      addToast('Conversation unmuted', 'success');
+    } else {
+      muted.push(conversation.id);
+      addToast('Conversation muted', 'success');
+    }
+    localStorage.setItem(mutedKey, JSON.stringify(muted));
+    setIsMuted(!isMuted);
+  };
+
+  const handleThemeChange = (themeName) => {
+    localStorage.setItem(`stugrow_chat_theme_${conversation.id}`, themeName);
+    setSelectedTheme(themeName);
+    addToast(`Theme changed to ${themeName}`, 'success');
+    window.dispatchEvent(new Event('stugrow-chat-theme-changed'));
+  };
+
+  const handleDisappearingChange = (e) => {
+    const val = e.target.value;
+    localStorage.setItem(`stugrow_chat_disappearing_${conversation.id}`, val);
+    setDisappearingState(val);
+    addToast(`Disappearing messages set to ${val === 'off' ? 'Off' : val}`, 'success');
+  };
+
+  const handleSaveNickname = () => {
+    const trim = nicknameInput.trim();
+    if (trim) {
+      localStorage.setItem(`stugrow_nickname_${user?.id}_${recipientUser.id}`, trim);
+      setNickname(trim);
+      addToast('Nickname updated', 'success');
+    } else {
+      localStorage.removeItem(`stugrow_nickname_${user?.id}_${recipientUser.id}`);
+      setNickname('');
+      addToast('Nickname cleared', 'success');
+    }
+    setIsEditingNickname(false);
+    window.dispatchEvent(new Event('stugrow-nickname-changed'));
+  };
+
+  const handleProfileClick = () => {
+    if (recipientUser.id === user.id) navigate('/profile');
+    else navigate(`/profile/${recipientUser.id}`);
+  };
+
+  const handleClearHistory = () => {
+    if (window.confirm("Are you sure you want to clear chat history? This will hide all messages for you.")) {
+      const deletedKey = `stugrow_deleted_dm_messages_${user.id}`;
+      const deleted = JSON.parse(localStorage.getItem(deletedKey)) || [];
+      messages.forEach(m => {
+        if (!deleted.includes(m.id)) deleted.push(m.id);
+      });
+      localStorage.setItem(deletedKey, JSON.stringify(deleted));
+      
+      messages.forEach(async (m) => {
+        try {
+          await deleteMessageForUser(user.id, m.id);
+        } catch {}
+      });
+      
+      addToast('Chat history cleared', 'success');
+      onBack();
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    }
+  };
+
+  const themesList = [
+    { id: 'default', label: 'Default', bg: 'bg-[#faf8f5] dark:bg-[#080b14] border-slate-350 dark:border-slate-800' },
+    { id: 'indigo', label: 'Indigo Glow', bg: 'bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/20 dark:to-purple-950/20 border-indigo-400' },
+    { id: 'rose', label: 'Rose Whisper', bg: 'bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/20 dark:to-pink-950/20 border-rose-400' },
+    { id: 'emerald', label: 'Emerald Garden', bg: 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-400' },
+    { id: 'dark-night', label: 'Dark Night', bg: 'bg-slate-900 border-slate-700' }
+  ];
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-[#080b14]">
+      {/* Header */}
+      <div className="shrink-0 flex items-center gap-3 px-3 sm:px-4 h-14 sm:h-[60px] border-b border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-[#0a0d14]">
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-105 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
+          <ArrowLeft className="w-5 h-5 text-gray-500" strokeWidth={2.5} />
+        </button>
+        <span className="text-[14px] font-bold text-slate-900 dark:text-white">Details</span>
+      </div>
+
+      {/* Main Details Panel */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+        {/* User Card */}
+        <div className="flex flex-col items-center text-center space-y-2">
+          <div className="relative group cursor-pointer" onClick={handleProfileClick}>
+            <img src={recipientUser.avatar} alt={recipientUser.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover ring-4 ring-slate-100 dark:ring-white/[0.06] hover:scale-105 transition-transform duration-300 shadow-md" />
+            {isUserOnline(recipientUser.lastActive) && (
+              <span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 rounded-full ring-4 ring-white dark:ring-[#080b14]" />
+            )}
+          </div>
+          <div>
+            <h2 className="text-[16px] font-black text-slate-900 dark:text-white">
+              {nickname || recipientUser.name}
+            </h2>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">@{recipientUser.username}</p>
+            {nickname && (
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 italic mt-0.5">Real Name: {recipientUser.name}</p>
+            )}
+          </div>
+          {recipientUser.college && (
+            <span className="inline-flex text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-50 dark:bg-white/[0.03] text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/[0.05]">
+              {recipientUser.college}
+            </span>
+          )}
+        </div>
+
+        {/* Action Row */}
+        <div className="grid grid-cols-4 gap-2 px-2 max-w-sm mx-auto">
+          <button onClick={handleProfileClick} className="flex flex-col items-center space-y-1.5 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-all group">
+            <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/[0.05] flex items-center justify-center text-slate-500 dark:text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 group-hover:border-blue-200 dark:group-hover:border-blue-900/40 transition-colors">
+              <User className="w-[18px] h-[18px]" strokeWidth={2} />
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300">Profile</span>
+          </button>
+          
+          <button onClick={onSearch} className="flex flex-col items-center space-y-1.5 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-all group">
+            <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/[0.05] flex items-center justify-center text-slate-500 dark:text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 group-hover:border-blue-200 dark:group-hover:border-blue-900/40 transition-colors">
+              <Search className="w-[18px] h-[18px]" strokeWidth={2} />
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300">Search</span>
+          </button>
+
+          <button onClick={handleToggleMute} className="flex flex-col items-center space-y-1.5 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-all group">
+            <div className={`w-10 h-10 rounded-full bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/[0.05] flex items-center justify-center transition-colors ${isMuted ? 'text-rose-500 border-rose-200/50' : 'text-slate-500 dark:text-slate-400 group-hover:text-amber-500 group-hover:border-amber-200'}`}>
+              {isMuted ? <BellOff className="w-[18px] h-[18px]" strokeWidth={2} /> : <Bell className="w-[18px] h-[18px]" strokeWidth={2} />}
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300">
+              {isMuted ? 'Unmute' : 'Mute'}
+            </span>
+          </button>
+
+          <button onClick={handleClearHistory} className="flex flex-col items-center space-y-1.5 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-all group">
+            <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/[0.05] flex items-center justify-center text-slate-500 dark:text-slate-400 group-hover:text-rose-500 group-hover:border-rose-200 dark:group-hover:border-rose-950/40 transition-colors">
+              <Trash2 className="w-[18px] h-[18px]" strokeWidth={2} />
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300">Clear Chat</span>
+          </button>
+        </div>
+
+        <hr className="border-slate-150 dark:border-slate-800/80" />
+
+        {/* Options List */}
+        <div className="space-y-4 text-left max-w-md mx-auto">
+          {/* Nickname setting */}
+          <div className="flex flex-col space-y-1.5 p-3 rounded-2xl bg-slate-50/50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/[0.03]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Edit3 className="w-[17px] h-[17px] text-slate-450" />
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Chat Nickname</span>
+              </div>
+              {!isEditingNickname && (
+                <button onClick={() => { setIsEditingNickname(true); setNicknameInput(nickname); }} className="text-[11px] font-bold text-blue-500 hover:text-blue-600 active:scale-95 transition-all">
+                  {nickname ? 'Edit' : 'Set'}
+                </button>
+              )}
+            </div>
+            {isEditingNickname ? (
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="text"
+                  value={nicknameInput}
+                  onChange={(e) => setNicknameInput(e.target.value)}
+                  placeholder="Set user nickname..."
+                  className="flex-1 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1018] border border-slate-200 dark:border-slate-800 text-[12px] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  autoFocus
+                />
+                <button onClick={handleSaveNickname} className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-[11px] font-bold active:scale-95 transition-all">
+                  Save
+                </button>
+                <button onClick={() => setIsEditingNickname(false)} className="px-2 py-1.5 text-[11px] text-slate-500 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-xl transition-all">
+                  Cancel
+                </button>
+              </div>
+            ) : nickname && (
+              <p className="text-[12px] font-medium text-slate-650 dark:text-slate-400 pl-[30px]">{nickname}</p>
+            )}
+          </div>
+
+          {/* Theme setting */}
+          <div className="flex flex-col space-y-2 p-3 rounded-2xl bg-slate-50/50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/[0.03]">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-[17px] h-[17px] text-slate-450" />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Chat Wallpaper</span>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5 pt-1.5 pl-[30px]">
+              {themesList.map(theme => (
+                <button
+                  key={theme.id}
+                  onClick={() => handleThemeChange(theme.id)}
+                  title={theme.label}
+                  className={`h-8 rounded-xl border-2 flex items-center justify-center text-[10px] font-bold text-slate-500 transition-all active:scale-90 ${theme.bg} ${selectedTheme === theme.id ? 'ring-2 ring-blue-500 border-transparent scale-105' : 'hover:scale-102 hover:border-slate-400'}`}
+                >
+                  {theme.label[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Disappearing messages */}
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/[0.03]">
+            <div className="flex items-center gap-3">
+              <Clock className="w-[17px] h-[17px] text-slate-450" />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Disappearing Messages</span>
+            </div>
+            <select
+              value={disappearingState}
+              onChange={handleDisappearingChange}
+              className="bg-transparent text-[11px] font-bold text-slate-650 dark:text-slate-450 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+            >
+              <option value="off" className="bg-white dark:bg-[#0c1018]">Off</option>
+              <option value="24h" className="bg-white dark:bg-[#0c1018]">24 Hours</option>
+              <option value="7d" className="bg-white dark:bg-[#0c1018]">7 Days</option>
+            </select>
+          </div>
+        </div>
+
+        <hr className="border-slate-150 dark:border-slate-800/80" />
+
+        {/* Shared items Tabs */}
+        <div className="space-y-4 max-w-md mx-auto">
+          <div className="flex border-b border-slate-150 dark:border-slate-850">
+            <button
+              onClick={() => setActiveTab('media')}
+              className={`flex-1 pb-2.5 text-center text-xs font-bold transition-all border-b-2 ${activeTab === 'media' ? 'text-slate-900 dark:text-white border-slate-900 dark:border-white' : 'text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-400'}`}
+            >
+              Media
+            </button>
+            <button
+              onClick={() => setActiveTab('links')}
+              className={`flex-1 pb-2.5 text-center text-xs font-bold transition-all border-b-2 ${activeTab === 'links' ? 'text-slate-900 dark:text-white border-slate-900 dark:border-white' : 'text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-400'}`}
+            >
+              Links
+            </button>
+            <button
+              onClick={() => setActiveTab('docs')}
+              className={`flex-1 pb-2.5 text-center text-xs font-bold transition-all border-b-2 ${activeTab === 'docs' ? 'text-slate-900 dark:text-white border-slate-900 dark:border-white' : 'text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-400'}`}
+            >
+              Files
+            </button>
+          </div>
+
+          {/* Shared Tab Content */}
+          <div className="min-h-[160px]">
+            {activeTab === 'media' && (
+              sharedItems.media.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">No shared photos or videos</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {sharedItems.media.map(item => (
+                    <a
+                      key={item.id}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="aspect-square rounded-xl overflow-hidden border border-slate-100 dark:border-white/[0.05] hover:opacity-90 active:scale-95 transition-all block bg-slate-50 dark:bg-white/[0.01]"
+                    >
+                      <img src={item.url} alt="" className="w-full h-full object-cover animate-fade-in" loading="lazy" />
+                    </a>
+                  ))}
+                </div>
+              )
+            )}
+
+            {activeTab === 'links' && (
+              sharedItems.links.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">No shared links</p>
+                </div>
+              ) : (
+                <div className="space-y-2 text-left">
+                  {sharedItems.links.map(item => (
+                    <a
+                      key={item.id}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/[0.03] hover:bg-slate-100/50 dark:hover:bg-white/[0.03] active:scale-[0.99] transition-all group animate-fade-in"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center shrink-0">
+                        <Link className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                          {item.url}
+                        </p>
+                        <p className="text-[9px] text-slate-400 mt-0.5">{formatTimeAgo(item.timestamp)}</p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )
+            )}
+
+            {activeTab === 'docs' && (
+              sharedItems.docs.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">No shared files</p>
+                </div>
+              ) : (
+                <div className="space-y-2 text-left">
+                  {sharedItems.docs.map(item => (
+                    <a
+                      key={item.id}
+                      href={item.url}
+                      download={item.name}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/[0.03] hover:bg-slate-100/50 dark:hover:bg-white/[0.03] active:scale-[0.99] transition-all group animate-fade-in"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-emerald-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+                          {item.name}
+                        </p>
+                        <p className="text-[9px] text-slate-400 mt-0.5">{formatTimeAgo(item.timestamp)}</p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ChatView({ conversation, user, onBack, addToast, addNotification, users, initialHighlightMessageId, clearInitialHighlightMessageId, refreshUnread, refreshInbox }) {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
@@ -276,6 +705,72 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
   const lastTypedRef = useRef(0);
   const isFirstLoadRef = useRef(true);
   const prevMessageIdsRef = useRef(new Set());
+
+  const [showDetails, setShowDetails] = useState(false);
+
+  const [customNickname, setCustomNickname] = useState(() => {
+    return localStorage.getItem(`stugrow_nickname_${user?.id}_${conversation.user?.id}`) || '';
+  });
+
+  const [chatTheme, setChatTheme] = useState(() => {
+    return localStorage.getItem(`stugrow_chat_theme_${conversation.id}`) || 'default';
+  });
+
+  useEffect(() => {
+    setCustomNickname(localStorage.getItem(`stugrow_nickname_${user?.id}_${conversation.user?.id}`) || '');
+    setChatTheme(localStorage.getItem(`stugrow_chat_theme_${conversation.id}`) || 'default');
+  }, [conversation.user?.id, conversation.id, user?.id]);
+
+  useEffect(() => {
+    const handleNicknameChange = () => {
+      setCustomNickname(localStorage.getItem(`stugrow_nickname_${user?.id}_${conversation.user?.id}`) || '');
+    };
+    const handleThemeChange = () => {
+      setChatTheme(localStorage.getItem(`stugrow_chat_theme_${conversation.id}`) || 'default');
+    };
+    window.addEventListener('stugrow-nickname-changed', handleNicknameChange);
+    window.addEventListener('stugrow-chat-theme-changed', handleThemeChange);
+    return () => {
+      window.removeEventListener('stugrow-nickname-changed', handleNicknameChange);
+      window.removeEventListener('stugrow-chat-theme-changed', handleThemeChange);
+    };
+  }, [conversation.user?.id, conversation.id, user?.id]);
+
+  // Details popstate interceptor to close details on back button instead of leaving the chat
+  useEffect(() => {
+    if (!showDetails) return;
+
+    window.history.pushState({ detailsOpen: true }, '');
+
+    const handlePopState = (e) => {
+      setShowDetails(false);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (window.history.state?.detailsOpen) {
+        window.history.back();
+      }
+    };
+  }, [showDetails]);
+
+  const getThemeBgClass = () => {
+    switch (chatTheme) {
+      case 'indigo':
+        return 'bg-gradient-to-br from-indigo-50/60 to-violet-50/60 dark:from-indigo-950/10 dark:to-purple-950/10';
+      case 'rose':
+        return 'bg-gradient-to-br from-rose-50/60 to-pink-50/60 dark:from-rose-950/10 dark:to-pink-950/10';
+      case 'emerald':
+        return 'bg-gradient-to-br from-emerald-50/60 to-teal-50/60 dark:from-emerald-950/10 dark:to-teal-950/10';
+      case 'dark-night':
+        return 'bg-slate-900';
+      case 'default':
+      default:
+        return 'bg-slate-50/40 dark:bg-[#080b14]';
+    }
+  };
 
   // Sync recipient details when conversation changes and reset scrolling flags
   useEffect(() => {
@@ -774,7 +1269,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
   }, [messages, user.id]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white dark:bg-[#080b14]">
+    <div className="flex flex-col h-full min-h-0 bg-white dark:bg-[#080b14] relative overflow-hidden">
 
       {/* ── Call Screen Overlay ── */}
       {activeCall && (
@@ -791,28 +1286,35 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
 
       {/* Chat Header */}
       <div className="shrink-0 flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 h-14 sm:h-[60px] border-b border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-[#0a0d14]">
-        <button onClick={onBack} className="sm:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
+        <button onClick={onBack} className="sm:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-105 dark:hover:bg-gray-800/60 active:scale-90 transition-all">
           <ArrowLeft className="w-5 h-5 text-gray-500" strokeWidth={2.5} />
         </button>
-        <div className="relative shrink-0">
-          <img src={recipientUser?.avatar} alt={recipientUser?.name} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-800 shadow-sm" />
-          {isUserOnline(recipientUser?.lastActive) && (
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-[#0a0d14]" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0 text-left">
-          <h3 className="text-[13px] sm:text-[14px] font-bold text-slate-900 dark:text-white truncate leading-tight">{recipientUser?.name}</h3>
-          {isOtherTyping ? (
-            <p className="text-[10px] sm:text-[11px] text-emerald-500 font-bold mt-0.5 animate-pulse">typing...</p>
-          ) : (
-            isUserOnline(recipientUser?.lastActive) ? (
-              <p className="text-[10px] sm:text-[11px] text-emerald-500 font-bold mt-0.5">Online</p>
+        <div 
+          onClick={() => setShowDetails(true)}
+          className="flex-1 flex items-center gap-2.5 sm:gap-3 min-w-0 cursor-pointer select-none active:opacity-75 transition-all py-1 rounded-xl"
+        >
+          <div className="relative shrink-0">
+            <img src={recipientUser?.avatar} alt={recipientUser?.name} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-800 shadow-sm" />
+            {isUserOnline(recipientUser?.lastActive) && (
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-[#0a0d14]" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <h3 className="text-[13px] sm:text-[14px] font-bold text-slate-900 dark:text-white truncate leading-tight">
+              {customNickname || recipientUser?.name}
+            </h3>
+            {isOtherTyping ? (
+              <p className="text-[10px] sm:text-[11px] text-emerald-500 font-bold mt-0.5 animate-pulse">typing...</p>
             ) : (
-              <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">
-                {recipientUser?.lastActive ? `Active ${formatTimeAgo(recipientUser.lastActive)}` : 'Offline'}
-              </p>
-            )
-          )}
+              isUserOnline(recipientUser?.lastActive) ? (
+                <p className="text-[10px] sm:text-[11px] text-emerald-500 font-bold mt-0.5">Online</p>
+              ) : (
+                <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">
+                  {recipientUser?.lastActive ? `Active ${formatTimeAgo(recipientUser.lastActive)}` : 'Offline'}
+                </p>
+              )
+            )}
+          </div>
         </div>
         {/* Call & Search Buttons */}
         <div className="flex items-center gap-0.5 shrink-0">
@@ -868,7 +1370,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       {/* Scrollable Messages */}
       <div
         ref={chatContainerRef}
-        className="flex-1 h-full overflow-y-auto -webkit-overflow-scrolling: touch overscroll-none px-3 sm:px-4 py-3 space-y-4 bg-slate-50/40 dark:bg-[#080b14]"
+        className={`flex-1 h-full overflow-y-auto -webkit-overflow-scrolling: touch overscroll-none px-3 sm:px-4 py-3 space-y-4 transition-colors duration-300 ${getThemeBgClass()}`}
         style={{ scrollBehavior: 'auto' }}
       >
         {showSpinner ? (
@@ -1250,6 +1752,30 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
           </div>
         </div>
       )}
+
+      {/* Slide-out details page overlay */}
+      <div 
+        className={`absolute inset-0 z-50 bg-white dark:bg-[#080b14] flex flex-col ${
+          showDetails ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        style={{
+          transition: 'transform 380ms cubic-bezier(0.16, 1, 0.3, 1)',
+          willChange: 'transform'
+        }}
+      >
+        {showDetails && (
+          <ChatDetails
+            recipientUser={recipientUser}
+            messages={messages}
+            conversation={conversation}
+            onBack={() => setShowDetails(false)}
+            onSearch={() => {
+              setShowDetails(false);
+              setSearchOpen(true);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
