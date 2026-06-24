@@ -273,6 +273,14 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
     setThreadSearchQuery('');
   }, [conversation]);
 
+  const refreshUnreadRef = useRef(refreshUnread);
+  const refreshInboxRef = useRef(refreshInbox);
+
+  useEffect(() => {
+    refreshUnreadRef.current = refreshUnread;
+    refreshInboxRef.current = refreshInbox;
+  }, [refreshUnread, refreshInbox]);
+
   // Live polling for conversation DMs + active status + call state (every 3 seconds)
   useEffect(() => {
     // Delay initial database query and state update on mobile viewports to allow smooth sliding animation
@@ -283,8 +291,8 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
 
     // Mark as read and update own status on open
     markMessagesAsRead(conversation.id, user.id).then(() => {
-      refreshUnread?.();
-      refreshInbox?.();
+      refreshUnreadRef.current?.();
+      refreshInboxRef.current?.();
     }).catch(console.warn);
     updateUserLastActive(user.id).catch(console.warn);
 
@@ -336,7 +344,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       // Clear own typing status when leaving
       setTypingStatus(conversation.id, user.id, false).catch(console.warn);
     };
-  }, [conversation.id, user.id, refreshUnread]);
+  }, [conversation.id, user.id]);
 
   // Highlight scroll target logic for Starred Messages Jumping
   useEffect(() => {
@@ -1250,32 +1258,31 @@ export default function Messages() {
   const [showStarred, setShowStarred] = useState(false);
   const [initialHighlightMessageId, setInitialHighlightMessageId] = useState(null);
 
+  const lastProcessedConversationIdRef = useRef(null);
+
   const handleSelectConversation = useCallback((id) => {
     setSelectedConversation(id);
     setMobileOpenChat(true);
-    setConversations(prev => {
-      const conv = prev.find(c => c.id === id);
-      const hadUnread = conv && conv.unread > 0;
-      setTimeout(() => {
-        openConversation(id, hadUnread);
-      }, 0);
-      if (hadUnread) {
-        return prev.map(c => c.id === id ? { ...c, unread: 0 } : c);
-      }
-      return prev;
-    });
-  }, [openConversation]);
+  }, []);
 
   useEffect(() => {
     if (selectedConversation) {
-      openConversation(selectedConversation, false);
+      if (lastProcessedConversationIdRef.current !== selectedConversation) {
+        lastProcessedConversationIdRef.current = selectedConversation;
+        const conv = conversations.find(c => c.id === selectedConversation);
+        const hadUnread = conv && conv.unread > 0;
+        openConversation(selectedConversation, hadUnread);
+        if (hadUnread) {
+          setConversations(prev => prev.map(c => c.id === selectedConversation ? { ...c, unread: 0 } : c));
+        }
+      }
     } else {
-      closeConversation();
+      if (lastProcessedConversationIdRef.current !== null) {
+        lastProcessedConversationIdRef.current = null;
+        closeConversation();
+      }
     }
-    return () => {
-      closeConversation();
-    };
-  }, [selectedConversation, openConversation, closeConversation]);
+  }, [selectedConversation, conversations, openConversation, closeConversation]);
 
   const refreshInbox = useCallback(async () => {
     if (!user?.id) return;
@@ -1295,8 +1302,6 @@ export default function Messages() {
   // ── Global incoming call detection (works from any conversation) ──
   const [globalIncoming, setGlobalIncoming] = useState(null);
   const [globalCaller, setGlobalCaller] = useState(null);
-
-
 
   const conversation = conversations.find(c => c.id === selectedConversation);
 
@@ -1349,27 +1354,27 @@ export default function Messages() {
     return () => clearInterval(interval);
   }, [user?.id, users]);
 
+  // Ref-based polling to prevent unstable dependency re-runs/flickering
+  const loadRef = useRef();
+  loadRef.current = async (isFirst = false) => {
+    if (isFirst) setLoading(true);
+    try {
+      await refreshUsers();
+      await refreshInbox();
+      refreshUnread?.();
+    } catch (e) {
+      console.warn('Failed to load conversations:', e);
+    } finally {
+      if (isFirst) setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!user?.id) return;
-
-    const load = async (isFirst = false) => {
-      if (isFirst) setLoading(true);
-      try {
-        await refreshUsers();
-        await refreshInbox();
-        refreshUnread?.();
-      } catch (e) {
-        console.warn('Failed to load conversations:', e);
-      } finally {
-        if (isFirst) setLoading(false);
-      }
-    };
-
-    load(true);
-    const interval = setInterval(() => load(false), 3000);
-
+    loadRef.current(true);
+    const interval = setInterval(() => loadRef.current(false), 3000);
     return () => clearInterval(interval);
-  }, [user?.id, refreshUsers, refreshUnread, refreshInbox]);
+  }, [user?.id]);
 
   const startChat = useCallback(async (targetUser) => {
     try {
