@@ -208,8 +208,21 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
   const [editingMessage, setEditingMessage] = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showSpinner, setShowSpinner] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [activeImageView, setActiveImageView] = useState(null);
+
+  useEffect(() => {
+    let spinnerTimer;
+    if (loading) {
+      spinnerTimer = setTimeout(() => {
+        setShowSpinner(true);
+      }, 120);
+    } else {
+      setShowSpinner(false);
+    }
+    return () => clearTimeout(spinnerTimer);
+  }, [loading]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -838,183 +851,189 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
         className="flex-1 h-full overflow-y-auto -webkit-overflow-scrolling: touch overscroll-none px-3 sm:px-4 py-3 space-y-4 bg-slate-50/40 dark:bg-[#080b14]"
         style={{ scrollBehavior: 'auto' }}
       >
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-full space-y-2">
+        {showSpinner ? (
+          <div className="flex flex-col items-center justify-center h-full space-y-2 animate-fade-in">
             <div className="w-6 h-6 border-2 border-slate-350 dark:border-slate-700 border-t-slate-900 dark:border-t-white rounded-full animate-spin" />
             <p className="text-[11px] text-slate-400">Loading messages...</p>
           </div>
-        ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-white dark:bg-[#0c1018] border border-gray-200/60 dark:border-gray-700/40 flex items-center justify-center mx-auto mb-3 shadow-sm">
-                <Send className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
-              </div>
-              <p className="text-[13px] font-medium text-gray-500 dark:text-gray-400">Say hello! 👋</p>
-            </div>
-          </div>
-        ) : filteredMessages.length === 0 ? (
-          <div className="flex items-center justify-center h-full animate-fade-in">
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/[0.04] flex items-center justify-center mx-auto mb-3 text-slate-400">
-                <Search className="w-5 h-5" />
-              </div>
-              <p className="text-[13px] font-semibold text-gray-400 dark:text-gray-500">No matching messages found</p>
-              <p className="text-[11px] text-gray-550 dark:text-gray-600 mt-0.5">Try searching for different keywords</p>
-            </div>
-          </div>
+        ) : loading ? (
+          <div className="h-full" />
         ) : (
-          filteredMessages.map((message, i) => {
-            const isMine = message.senderId === user?.id;
-            const parentMsg = message.parentId ? messages.find(m => m.id === message.parentId) : null;
-            const showAvatar = !isMine && (i === 0 || messages[i - 1]?.senderId !== message.senderId);
-            const isThisSwiping = swipingMessageId === message.id;
-
-            return (
-              <div
-                key={message.id}
-                id={`msg-${message.id}`}
-                className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in group relative select-none`}
-                style={{ animationDuration: '0.2s' }}
-                onContextMenu={(e) => handleContextMenu(e, message)}
-                onTouchStart={(e) => {
-                  onTouchStart(e, message.id);
-                  handlePressStart(message);
-                }}
-                onTouchMove={(e) => {
-                  onTouchMove(e);
-                  handleTouchMoveHold();
-                }}
-                onTouchEnd={() => {
-                  onTouchEnd(message);
-                  handlePressEnd();
-                }}
-                onMouseDown={() => handlePressStart(message)}
-                onMouseUp={handlePressEnd}
-                onMouseLeave={handlePressEnd}
-              >
-                {/* Swipe Reply Icon */}
-                {isThisSwiping && swipeOffset > 15 && (
-                  <div
-                    className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-emerald-500 transition-opacity"
-                    style={{
-                      opacity: Math.min((swipeOffset - 15) / 40, 1),
-                      transform: `scale(${Math.min(swipeOffset / 55, 1)})`,
-                    }}
-                  >
-                    <CornerUpLeft className="w-5 h-5" />
+          <div className="space-y-4 animate-fade-in" style={{ animationDuration: '200ms' }}>
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center min-h-[40vh] py-10">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-white dark:bg-[#0c1018] border border-gray-200/60 dark:border-gray-700/40 flex items-center justify-center mx-auto mb-3 shadow-sm">
+                    <Send className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
                   </div>
-                )}
+                  <p className="text-[13px] font-medium text-gray-500 dark:text-gray-400">Say hello! 👋</p>
+                </div>
+              </div>
+            ) : filteredMessages.length === 0 ? (
+              <div className="flex items-center justify-center min-h-[40vh] py-10">
+                <div className="text-center">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/[0.04] flex items-center justify-center mx-auto mb-3 text-slate-400">
+                    <Search className="w-5 h-5" />
+                  </div>
+                  <p className="text-[13px] font-semibold text-gray-400 dark:text-gray-500">No matching messages found</p>
+                  <p className="text-[11px] text-gray-550 dark:text-gray-600 mt-0.5">Try searching for different keywords</p>
+                </div>
+              </div>
+            ) : (
+              filteredMessages.map((message, i) => {
+                const isMine = message.senderId === user?.id;
+                const parentMsg = message.parentId ? messages.find(m => m.id === message.parentId) : null;
+                const showAvatar = !isMine && (i === 0 || messages[i - 1]?.senderId !== message.senderId);
+                const isThisSwiping = swipingMessageId === message.id;
 
-                <div
-                  className={`flex items-end gap-1.5 max-w-[85%] sm:max-w-[70%] transition-transform duration-200 ${isMine ? 'flex-row-reverse' : ''}`}
-                  style={{
-                    transform: isThisSwiping ? `translateX(${swipeOffset}px)` : 'none',
-                  }}
-                >
-                  {!isMine && (
-                    <div className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full overflow-hidden shadow-xs mt-1">
-                      {showAvatar ? <img src={conversation.user?.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full" />}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col space-y-1">
-                    {/* Quoted parent message */}
-                    {parentMsg && (
-                      <button
-                        type="button"
-                        onClick={() => handleScrollToMessage(message.parentId)}
-                        className={`text-[11px] p-2 bg-slate-100/50 dark:bg-white/[0.02] border-l-2 border-slate-400 dark:border-slate-600 rounded-r-xl max-w-full truncate text-left active:scale-[0.98] transition-all hover:bg-slate-200/55 dark:hover:bg-white/[0.04] cursor-pointer block w-full ${isMine ? 'text-right rounded-l-xl rounded-r-none border-l-0 border-r-2' : ''}`}
+                return (
+                  <div
+                    key={message.id}
+                    id={`msg-${message.id}`}
+                    className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in group relative select-none`}
+                    style={{ animationDuration: '0.2s' }}
+                    onContextMenu={(e) => handleContextMenu(e, message)}
+                    onTouchStart={(e) => {
+                      onTouchStart(e, message.id);
+                      handlePressStart(message);
+                    }}
+                    onTouchMove={(e) => {
+                      onTouchMove(e);
+                      handleTouchMoveHold();
+                    }}
+                    onTouchEnd={() => {
+                      onTouchEnd(message);
+                      handlePressEnd();
+                    }}
+                    onMouseDown={() => handlePressStart(message)}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handlePressEnd}
+                  >
+                    {/* Swipe Reply Icon */}
+                    {isThisSwiping && swipeOffset > 15 && (
+                      <div
+                        className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-emerald-500 transition-opacity"
+                        style={{
+                          opacity: Math.min((swipeOffset - 15) / 40, 1),
+                          transform: `scale(${Math.min(swipeOffset / 55, 1)})`,
+                        }}
                       >
-                        <span className="font-bold text-slate-500 dark:text-slate-400 block mb-0.5 text-[10px]">
-                          {parentMsg.senderId === user.id ? 'Replying to yourself' : `Replying to ${conversation.user?.name}`}
-                        </span>
-                        <span className="text-slate-400 dark:text-slate-500 block truncate">
-                          {parentMsg.content || 'Attachment'}
-                        </span>
-                      </button>
+                        <CornerUpLeft className="w-5 h-5" />
+                      </div>
                     )}
 
-                    <div className={`relative rounded-2xl transition-all duration-300 ${highlightedMessageId === message.id ? 'highlight-msg-active' : ''}`}>
-                      {message.file && message.fileType?.startsWith('image/') ? (
-                        <div className="rounded-2xl overflow-hidden shadow-xs border border-gray-200/60 dark:border-gray-700/40">
-                          <img 
-                            src={message.file} 
-                            alt="Shared" 
-                            className="max-w-full max-h-48 sm:max-h-56 rounded-2xl cursor-pointer hover:opacity-95 transition-opacity" 
-                            onClick={() => setActiveImageView(message.file)}
-                            onLoad={() => {
-                              if (!initialHighlightMessageId && chatContainerRef.current) {
-                                const container = chatContainerRef.current;
-                                const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 350;
-                                if (isNearBottom) {
-                                  scrollToBottom();
-                                }
-                              }
-                            }}
-                            loading="lazy" 
-                          />
-                        </div>
-                      ) : message.file ? (
-                        <a href={message.file} download={message.fileName} className={`px-3 py-2.5 rounded-2xl shadow-xs border inline-flex items-center gap-2 ${isMine ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white' : 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-white border-slate-200/80 dark:border-slate-800/60'}`}>
-                          <Paperclip className="w-3.5 h-3.5 shrink-0" />
-                          <span className="text-[12px] font-bold truncate max-w-[120px] sm:max-w-[160px]">{message.fileName}</span>
-                        </a>
-                      ) : (
-                        <div className={`px-3.5 py-2.5 rounded-2xl shadow-xs border text-[13px] leading-relaxed break-words font-medium ${isMine ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white rounded-tr-xs' : 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-slate-200 border-slate-200/80 dark:border-slate-800/60 rounded-tl-xs'} ${message.content === '🚫 This message was deleted' ? 'text-slate-400 dark:text-slate-500 italic font-semibold border-slate-100 dark:border-slate-850/50 bg-slate-50 dark:bg-white/[0.01]' : ''}`}>
-                          <p>{message.content}</p>
+                    <div
+                      className={`flex items-end gap-1.5 max-w-[85%] sm:max-w-[70%] transition-transform duration-200 ${isMine ? 'flex-row-reverse' : ''}`}
+                      style={{
+                        transform: isThisSwiping ? `translateX(${swipeOffset}px)` : 'none',
+                      }}
+                    >
+                      {!isMine && (
+                        <div className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full overflow-hidden shadow-xs mt-1">
+                          {showAvatar ? <img src={conversation.user?.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full" />}
                         </div>
                       )}
 
-                      {/* Reply Option Trigger on Hover */}
-                      <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 z-10 ${isMine ? '-left-10' : '-right-10'}`}>
-                        <button
-                          onClick={() => setReplyingTo(message)}
-                          className="w-7 h-7 rounded-lg bg-white dark:bg-[#0c1018] border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 shadow-xs active:scale-90 transition-all"
-                          title="Reply to message"
-                        >
-                          <CornerUpLeft className="w-3.5 h-3.5" />
-                        </button>
+                      <div className="flex flex-col space-y-1">
+                        {/* Quoted parent message */}
+                        {parentMsg && (
+                          <button
+                            type="button"
+                            onClick={() => handleScrollToMessage(message.parentId)}
+                            className={`text-[11px] p-2 bg-slate-100/50 dark:bg-white/[0.02] border-l-2 border-slate-400 dark:border-slate-600 rounded-r-xl max-w-full truncate text-left active:scale-[0.98] transition-all hover:bg-slate-200/55 dark:hover:bg-white/[0.04] cursor-pointer block w-full ${isMine ? 'text-right rounded-l-xl rounded-r-none border-l-0 border-r-2' : ''}`}
+                          >
+                            <span className="font-bold text-slate-500 dark:text-slate-400 block mb-0.5 text-[10px]">
+                              {parentMsg.senderId === user.id ? 'Replying to yourself' : `Replying to ${conversation.user?.name}`}
+                            </span>
+                            <span className="text-slate-400 dark:text-slate-500 block truncate">
+                              {parentMsg.content || 'Attachment'}
+                            </span>
+                          </button>
+                        )}
+
+                        <div className={`relative rounded-2xl transition-all duration-300 ${highlightedMessageId === message.id ? 'highlight-msg-active' : ''}`}>
+                          {message.file && message.fileType?.startsWith('image/') ? (
+                            <div className="rounded-2xl overflow-hidden shadow-xs border border-gray-200/60 dark:border-gray-700/40">
+                              <img 
+                                src={message.file} 
+                                alt="Shared" 
+                                className="max-w-full max-h-48 sm:max-h-56 rounded-2xl cursor-pointer hover:opacity-95 transition-opacity" 
+                                onClick={() => setActiveImageView(message.file)}
+                                onLoad={() => {
+                                  if (!initialHighlightMessageId && chatContainerRef.current) {
+                                    const container = chatContainerRef.current;
+                                    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 350;
+                                    if (isNearBottom) {
+                                      scrollToBottom();
+                                    }
+                                  }
+                                }}
+                                loading="lazy" 
+                              />
+                            </div>
+                          ) : message.file ? (
+                            <a href={message.file} download={message.fileName} className={`px-3 py-2.5 rounded-2xl shadow-xs border inline-flex items-center gap-2 ${isMine ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white' : 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-white border-slate-200/80 dark:border-slate-800/60'}`}>
+                              <Paperclip className="w-3.5 h-3.5 shrink-0" />
+                              <span className="text-[12px] font-bold truncate max-w-[120px] sm:max-w-[160px]">{message.fileName}</span>
+                            </a>
+                          ) : (
+                            <div className={`px-3.5 py-2.5 rounded-2xl shadow-xs border text-[13px] leading-relaxed break-words font-medium ${isMine ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white rounded-tr-xs' : 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-slate-200 border-slate-200/80 dark:border-slate-800/60 rounded-tl-xs'} ${message.content === '🚫 This message was deleted' ? 'text-slate-400 dark:text-slate-500 italic font-semibold border-slate-100 dark:border-slate-850/50 bg-slate-50 dark:bg-white/[0.01]' : ''}`}>
+                              <p>{message.content}</p>
+                            </div>
+                          )}
+
+                          {/* Reply Option Trigger on Hover */}
+                          <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 z-10 ${isMine ? '-left-10' : '-right-10'}`}>
+                            <button
+                              onClick={() => setReplyingTo(message)}
+                              className="w-7 h-7 rounded-lg bg-white dark:bg-[#0c1018] border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 shadow-xs active:scale-90 transition-all"
+                              title="Reply to message"
+                            >
+                              <CornerUpLeft className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Timestamp & Star */}
+                        <div className={`flex items-center gap-1 mt-0.5 justify-start ${isMine ? 'justify-end' : ''}`}>
+                          {isStarred(message.id) && (
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0 animate-scale-in" />
+                          )}
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold">{formatTimeAgo(message.timestamp)}</span>
+                          {isMine && message.id === lastMyMessageId && (
+                            <span className={`text-[9px] font-bold ml-1 animate-fade-in ${message.read === 1 ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                              • {message.read === 1 ? 'Read' : 'Sent'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-
-                    {/* Timestamp & Star */}
-                    <div className={`flex items-center gap-1 mt-0.5 justify-start ${isMine ? 'justify-end' : ''}`}>
-                      {isStarred(message.id) && (
-                        <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0 animate-scale-in" />
-                      )}
-                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold">{formatTimeAgo(message.timestamp)}</span>
-                      {isMine && message.id === lastMyMessageId && (
-                        <span className={`text-[9px] font-bold ml-1 animate-fade-in ${message.read === 1 ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                          • {message.read === 1 ? 'Read' : 'Sent'}
-                        </span>
-                      )}
+                  </div>
+                );
+              })
+            )}
+            {isOtherTyping && (
+              <div className="flex justify-start animate-fade-in">
+                <div className="flex items-end gap-1.5 max-w-[85%] sm:max-w-[70%]">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full overflow-hidden shadow-xs mt-1">
+                    {recipientUser?.avatar ? (
+                      <img src={recipientUser.avatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-500">
+                        {recipientUser?.name?.[0]}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <div className="bg-white dark:bg-[#0c1018] border border-slate-200/80 dark:border-slate-800/60 rounded-2xl rounded-tl-xs px-3.5 py-3 shadow-xs flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
                     </div>
                   </div>
                 </div>
               </div>
-            );
-          })
-        )}
-        {isOtherTyping && (
-          <div className="flex justify-start animate-fade-in">
-            <div className="flex items-end gap-1.5 max-w-[85%] sm:max-w-[70%]">
-              <div className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full overflow-hidden shadow-xs mt-1">
-                {recipientUser?.avatar ? (
-                  <img src={recipientUser.avatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-500">
-                    {recipientUser?.name?.[0]}
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col space-y-1">
-                <div className="bg-white dark:bg-[#0c1018] border border-slate-200/80 dark:border-slate-800/60 rounded-2xl rounded-tl-xs px-3.5 py-3 shadow-xs flex items-center gap-1 text-slate-400 dark:text-slate-500">
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         )}
         <div ref={messagesEndRef} />
