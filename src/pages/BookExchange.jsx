@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { BookOpen, MessageCircle, Check, Plus, X, Inbox, Upload, Trash2, Camera } from 'lucide-react';
+import { BookOpen, MessageCircle, Check, Plus, X, Inbox, Upload, Trash2, Camera, ShoppingBag, CreditCard, Info, QrCode, AlertCircle, ChevronRight, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNavigate } from 'react-router-dom';
 import { branches } from '../data/mockData';
 import { uploadToCloudinary } from '../services/cloudinary';
-import { createBook, getAllBooks, deleteBook } from '../services/data';
+import { createBook, getAllBooks, deleteBook, createConversation } from '../services/data';
 import CustomSelect from '../components/CustomSelect';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 import { matchSearch } from '../utils/searchUtils';
 
-function BookCard({ book, requested, onRequest, onDelete, currentUserId }) {
+function BookCard({ book, requested, onRequest, onBuy, onDelete, currentUserId }) {
   const isOwner = book.uploadedBy?.id === currentUserId;
   return (
     <div className="card overflow-hidden card-hover animate-fade-in relative">
@@ -45,9 +46,15 @@ function BookCard({ book, requested, onRequest, onDelete, currentUserId }) {
         <div className="flex items-center justify-between">
           <span className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">{book.price || 'Free'}</span>
           {book.available ? (
-            <button onClick={() => onRequest(book.id)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${requested ? 'bg-[#f3f1ed] dark:bg-[#0e1322] text-slate-600 dark:text-slate-400' : 'btn-primary'}`}>
-              {requested ? <><Check className="w-4 h-4" /><span>Requested</span></> : <><MessageCircle className="w-4 h-4" /><span>Request</span></>}
-            </button>
+            book.price && book.price !== 'Free' ? (
+              <button onClick={() => onBuy(book)} className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200">
+                <ShoppingBag className="w-4 h-4" /><span>Buy Book</span>
+              </button>
+            ) : (
+              <button onClick={() => onRequest(book.id)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${requested ? 'bg-[#f3f1ed] dark:bg-[#0e1322] text-slate-600 dark:text-slate-400' : 'btn-primary'}`}>
+                {requested ? <><Check className="w-4 h-4" /><span>Requested</span></> : <><MessageCircle className="w-4 h-4" /><span>Request</span></>}
+              </button>
+            )
           ) : <span className="text-xs sm:text-sm text-slate-400 dark:text-slate-500">Not available</span>}
         </div>
       </div>
@@ -68,6 +75,8 @@ function EmptyBooks() {
 export default function BookExchange() {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const navigate = useNavigate();
+
   const [books, setBooks] = useState([]);
   const [requestedBooks, setRequestedBooks] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,11 +84,28 @@ export default function BookExchange() {
   const [selectedCondition, setSelectedCondition] = useState('All');
   const [availability, setAvailability] = useState('All');
   const [showDonate, setShowDonate] = useState(false);
-  const [donateForm, setDonateForm] = useState({ title: '', author: '', subject: '', condition: '', description: '' });
+  const [donateForm, setDonateForm] = useState({ title: '', author: '', subject: '', condition: '', description: '', price: '' });
   const [bookImage, setBookImage] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const selectedFileRef = useRef(null);
+
+  // Checkout Wizard State
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState(1); // 1: Delivery details, 2: Payment options, 3: Simulated processing/QR, 4: Success
+  const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi' or 'card'
+  const [deliveryForm, setDeliveryForm] = useState({
+    fullName: '',
+    rollNo: '',
+    hostelRoom: '',
+    phone: '',
+  });
+  const [cardForm, setCardForm] = useState({
+    cardNumber: '',
+    expiry: '',
+    cvv: '',
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -119,8 +145,70 @@ export default function BookExchange() {
 
   const handleRequest = (bookId) => setRequestedBooks(prev => ({ ...prev, [bookId]: !prev[bookId] }));
 
+  const handleStartCheckout = (book) => {
+    setSelectedBook(book);
+    setCheckoutStep(1);
+    setShowCheckout(true);
+  };
+
+  const executeCheckoutStep = () => {
+    if (checkoutStep === 1) {
+      if (!deliveryForm.fullName.trim() || !deliveryForm.rollNo.trim() || !deliveryForm.hostelRoom.trim() || !deliveryForm.phone.trim()) {
+        addToast('Please fill out all delivery fields.', 'error');
+        return;
+      }
+      setCheckoutStep(2);
+    } else if (checkoutStep === 2) {
+      if (paymentMethod === 'card') {
+        if (!cardForm.cardNumber.trim() || !cardForm.expiry.trim() || !cardForm.cvv.trim()) {
+          addToast('Please fill out all card fields.', 'error');
+          return;
+        }
+      }
+      setCheckoutStep(3);
+      // Simulate loading/QR generation
+      setTimeout(() => {
+        setCheckoutStep(4);
+      }, 3000);
+    }
+  };
+
+  const closeCheckoutAndMarkClaimed = async () => {
+    setShowCheckout(false);
+    if (!selectedBook) return;
+    try {
+      await deleteBook(selectedBook.id);
+      setBooks(prev => prev.filter(b => b.id !== selectedBook.id));
+      addToast('Book claimed and purchased successfully!', 'success');
+      setSelectedBook(null);
+    } catch (e) {
+      console.error('Failed to claim book:', e);
+      addToast('Failed to claim book.', 'error');
+    }
+  };
+
+  const handleChatWithSeller = async (seller) => {
+    if (!user) return;
+    if (!seller) return;
+    if (seller.id === user.id) {
+      alert("You cannot start a chat with yourself!");
+      return;
+    }
+    try {
+      const conversationId = await createConversation(user.id, seller.id);
+      navigate('/inbox', { state: { targetUser: seller, conversationId } });
+    } catch (e) {
+      console.error('Failed to create conversation:', e);
+      addToast('Failed to start chat with seller.', 'error');
+    }
+  };
+
   const handleDonate = async () => {
     if (!donateForm.title.trim() || !donateForm.author.trim()) return;
+    if (donateForm.price && (isNaN(donateForm.price) || Number(donateForm.price) < 0)) {
+      addToast('Price must be a valid positive number.', 'error');
+      return;
+    }
     setUploading(true);
     let imageUrl = null;
     if (selectedFileRef.current) {
@@ -128,13 +216,15 @@ export default function BookExchange() {
       catch { addToast('Failed to upload image. Check Cloudinary config.', 'error'); setUploading(false); return; }
     }
     try {
+      const priceVal = donateForm.price && Number(donateForm.price) > 0 ? `₹${Number(donateForm.price)}` : 'Free';
       await createBook({
         title: donateForm.title, author: donateForm.author, subject: donateForm.subject || 'General',
-        condition: donateForm.condition || 'Good', price: 'Free', uploadedBy: user.id, available: true, image: imageUrl, description: donateForm.description,
+        condition: donateForm.condition || 'Good', price: priceVal, uploadedBy: user.id, available: true, image: imageUrl, description: donateForm.description,
       });
       const b = await getAllBooks(); setBooks(b);
-    } catch (e) { console.error('Failed to create book:', e); }
-    setDonateForm({ title: '', author: '', subject: '', condition: '', description: '' }); setBookImage(null); selectedFileRef.current = null; setShowDonate(false); setUploading(false);
+      addToast('Book listed successfully!', 'success');
+    } catch (e) { console.error('Failed to create book:', e); addToast('Failed to list book.', 'error'); }
+    setDonateForm({ title: '', author: '', subject: '', condition: '', description: '', price: '' }); setBookImage(null); selectedFileRef.current = null; setShowDonate(false); setUploading(false);
   };
 
   const handleDelete = async (bookId) => {
@@ -175,8 +265,22 @@ export default function BookExchange() {
                 options={branches}
                 placeholder="Select Subject"
               />
-              <select className="input-field" value={donateForm.condition} onChange={(e) => setDonateForm(p => ({ ...p, condition: e.target.value }))}><option value="">Condition</option><option value="Like New">Like New</option><option value="Good">Good</option><option value="Fair">Fair</option></select>
-              <input type="text" placeholder="Description" className="input-field" value={donateForm.description} onChange={(e) => setDonateForm(p => ({ ...p, description: e.target.value }))} />
+              <select className="input-field" value={donateForm.condition} onChange={(e) => setDonateForm(p => ({ ...p, condition: e.target.value }))}>
+                <option value="">Condition</option>
+                <option value="Like New">Like New</option>
+                <option value="Good">Good</option>
+                <option value="Fair">Fair</option>
+              </select>
+              <input 
+                type="number" 
+                placeholder="Price (₹) - Leave blank for Free" 
+                className="input-field" 
+                value={donateForm.price} 
+                onChange={(e) => setDonateForm(p => ({ ...p, price: e.target.value }))} 
+              />
+            </div>
+            <div>
+              <input type="text" placeholder="Description (e.g. details about contents, condition, etc.)" className="input-field w-full" value={donateForm.description} onChange={(e) => setDonateForm(p => ({ ...p, description: e.target.value }))} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Book Cover Photo</label>
@@ -206,8 +310,247 @@ export default function BookExchange() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        {filteredBooks.length === 0 ? <EmptyBooks /> : filteredBooks.map(book => <BookCard key={book.id} book={book} requested={requestedBooks[book.id]} onRequest={handleRequest} onDelete={handleDelete} currentUserId={user?.id} />)}
+        {filteredBooks.length === 0 ? <EmptyBooks /> : filteredBooks.map(book => <BookCard key={book.id} book={book} requested={requestedBooks[book.id]} onRequest={handleRequest} onBuy={handleStartCheckout} onDelete={handleDelete} currentUserId={user?.id} />)}
       </div>
+
+      {/* Checkout/Purchase Wizard Modal */}
+      {showCheckout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+          <div className="relative bg-white dark:bg-[#080b14] w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 dark:border-[#0e1322] overflow-hidden animate-scale-in">
+            {/* Step Wizard Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-white/[0.02]">
+              <h3 className="text-sm sm:text-base font-black text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-500" />
+                Secure Checkout: Step {checkoutStep} of 4
+              </h3>
+              {checkoutStep < 4 && (
+                <button
+                  onClick={() => setShowCheckout(false)}
+                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-4 h-4 text-slate-400" />
+                </button>
+              )}
+            </div>
+
+            {/* Wizard Body */}
+            <div className="p-5">
+              {checkoutStep === 1 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="bg-[#f0f9ff] dark:bg-blue-950/20 text-[#0284c7] border border-[#bae6fd] dark:border-blue-900/30 p-3.5 rounded-xl text-xs flex gap-2">
+                    <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                    <p>Enter delivery/hostel coordinates. Payments are escrow-simulated for secure peer-to-peer collection.</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={deliveryForm.fullName}
+                      onChange={(e) => setDeliveryForm({ ...deliveryForm, fullName: e.target.value })}
+                      placeholder="e.g. Jane Doe"
+                      className="input-field w-full text-sm rounded-xl h-10"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Roll Number</label>
+                      <input
+                        type="text"
+                        value={deliveryForm.rollNo}
+                        onChange={(e) => setDeliveryForm({ ...deliveryForm, rollNo: e.target.value })}
+                        placeholder="e.g. 21BCS012"
+                        className="input-field w-full text-sm rounded-xl h-10"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Hostel Room</label>
+                      <input
+                        type="text"
+                        value={deliveryForm.hostelRoom}
+                        onChange={(e) => setDeliveryForm({ ...deliveryForm, hostelRoom: e.target.value })}
+                        placeholder="e.g. Hostel 4, Rm 102"
+                        className="input-field w-full text-sm rounded-xl h-10"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={deliveryForm.phone}
+                      onChange={(e) => setDeliveryForm({ ...deliveryForm, phone: e.target.value })}
+                      placeholder="e.g. +91 98765 43210"
+                      className="input-field w-full text-sm rounded-xl h-10"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {checkoutStep === 2 && (
+                <div className="space-y-5 animate-fade-in">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Payment Method</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setPaymentMethod('upi')}
+                      className={`p-4 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2 ${
+                        paymentMethod === 'upi'
+                          ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10 ring-1 ring-emerald-500'
+                          : 'border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <QrCode className={`w-6 h-6 ${paymentMethod === 'upi' ? 'text-emerald-500' : 'text-slate-400'}`} />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Scan UPI QR</span>
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('card')}
+                      className={`p-4 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2 ${
+                        paymentMethod === 'card'
+                          ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10 ring-1 ring-emerald-500'
+                          : 'border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <CreditCard className={`w-6 h-6 ${paymentMethod === 'card' ? 'text-emerald-500' : 'text-slate-400'}`} />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Credit/Debit Card</span>
+                    </button>
+                  </div>
+
+                  {paymentMethod === 'card' && (
+                    <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 animate-fade-in">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Card Number</label>
+                        <input
+                          type="text"
+                          value={cardForm.cardNumber}
+                          onChange={(e) => setCardForm({ ...cardForm, cardNumber: e.target.value })}
+                          placeholder="4111 2222 3333 4444"
+                          className="input-field w-full text-sm rounded-xl h-10"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Expiry Date</label>
+                          <input
+                            type="text"
+                            value={cardForm.expiry}
+                            onChange={(e) => setCardForm({ ...cardForm, expiry: e.target.value })}
+                            placeholder="MM/YY"
+                            className="input-field w-full text-sm rounded-xl h-10"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">CVV</label>
+                          <input
+                            type="password"
+                            value={cardForm.cvv}
+                            onChange={(e) => setCardForm({ ...cardForm, cvv: e.target.value })}
+                            placeholder="***"
+                            className="input-field w-full text-sm rounded-xl h-10"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'upi' && (
+                    <div className="bg-[#f0fdf4] dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 p-4 rounded-xl text-center space-y-1 animate-fade-in">
+                      <p className="text-xs font-bold uppercase tracking-widest">Instant UPI Checkout</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Generate a custom secure payment QR code to scan and complete transaction instantly.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {checkoutStep === 3 && (
+                <div className="flex flex-col items-center justify-center py-6 text-center animate-fade-in space-y-4">
+                  {paymentMethod === 'upi' ? (
+                    <>
+                      <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-100 dark:border-slate-800 flex items-center justify-center mb-2">
+                        {/* Mock QR Code */}
+                        <div className="w-40 h-40 bg-[#f8f6f3] dark:bg-slate-800/40 rounded-xl flex items-center justify-center border border-dashed border-slate-300 dark:border-slate-700 relative">
+                          <QrCode className="w-24 h-24 text-slate-600 dark:text-slate-400" />
+                          <div className="absolute inset-0 border border-emerald-500 rounded-xl animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Scan & Pay {selectedBook?.price}</p>
+                        <p className="text-xs text-slate-400">Scan using any UPI App (GPay, PhonePe, Paytm)</p>
+                      </div>
+                      <div className="w-6 h-6 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-[11px] text-slate-400 animate-pulse">Waiting for transaction confirmation...</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-12 h-12 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-2" />
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Processing Payment Securely</p>
+                      <p className="text-xs text-slate-400">Verifying bank details, please do not close the window...</p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {checkoutStep === 4 && (
+                <div className="flex flex-col items-center justify-center py-6 text-center animate-scale-in space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-xl shadow-emerald-500/20 border border-emerald-400">
+                    <Check className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-slate-900 dark:text-white mb-1">Order Placed Successfully!</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                      Congratulations! Your payment is confirmed. The book has been reserved, and the seller ({selectedBook?.uploadedBy?.name}) has been notified.
+                    </p>
+                  </div>
+                  <div className="bg-[#fcfbf9] dark:bg-[#0e1322]/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50 w-full text-left space-y-1 text-xs">
+                    <p className="text-slate-400 font-bold uppercase tracking-wider">Pickup instructions</p>
+                    <p className="text-slate-700 dark:text-slate-300 leading-normal">
+                      Use the button below to text the seller directly in messages and coordinate delivery/pickup details.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Wizard Footer Controls */}
+              {checkoutStep < 4 ? (
+                <div className="flex gap-3 border-t border-slate-100 dark:border-slate-800/60 pt-4 mt-6">
+                  {checkoutStep > 1 && checkoutStep < 3 && (
+                    <button
+                      onClick={() => setCheckoutStep(checkoutStep - 1)}
+                      className="btn border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-600 dark:text-slate-400 py-2.5 px-4 font-bold rounded-xl text-xs sm:text-sm"
+                    >
+                      Back
+                    </button>
+                  )}
+                  {checkoutStep < 3 ? (
+                    <button
+                      onClick={executeCheckoutStep}
+                      className="btn-primary flex-1 py-2.5 font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-4 mt-6">
+                  <button
+                    onClick={() => handleChatWithSeller(selectedBook.uploadedBy)}
+                    className="btn border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 py-3 font-bold rounded-xl text-sm flex items-center justify-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4 text-emerald-500" />
+                    Message Seller
+                  </button>
+                  <button
+                    onClick={closeCheckoutAndMarkClaimed}
+                    className="btn-primary py-3 font-bold rounded-xl text-sm shadow-md"
+                  >
+                    Return to Book Exchange
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -14,9 +14,9 @@ import {
 } from '../services/data';
 import { usePostLike } from '../context/PostLikeContext';
 import { matchSearch } from '../utils/searchUtils';
-import ProfessionalSearch from '../components/ProfessionalSearch';
 import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo } from '../utils/timeUtils';
+import ProfessionalSearch from '../components/ProfessionalSearch';
 
 /* ─── Category filter pill data ─── */
 const categories = [
@@ -661,8 +661,15 @@ export default function Feed() {
   const searchRef = useRef(null);
   const catRef    = useRef(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadPosts(); }, []);
+  // Poll for live likes and post details updates every 1.5 seconds
+  useEffect(() => {
+    if (!user?.id) return;
+    loadPosts();
+    const interval = setInterval(() => {
+      loadPosts();
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   /* Drag-to-scroll on category strip */
   useEffect(() => {
@@ -697,17 +704,19 @@ export default function Feed() {
 
   const loadPosts = async () => {
     try {
-      if (user?.id) await Promise.all([syncAllPosts(user.id), syncAllSaves(user.id)]);
       const posts = await getAllPostsWithDetails(user?.id);
-      const reconciled = posts.map(p => {
-        const liked = likeMap[p.id] !== undefined ? likeMap[p.id] : p.liked;
-        let likes   = likesCountMap[p.id] !== undefined ? likesCountMap[p.id] : p.likes;
-        if (liked && likes === 0) likes = 1;
-        return { ...p, liked, likes };
-      });
-      setAllPosts(reconciled);
-    } catch (e) { console.error(e); }
-    finally { setTimeout(() => setLoading(false), 200); }
+      setAllPosts(posts);
+      
+      // Update global context cache maps in background
+      if (user?.id) {
+        syncAllPosts(user.id).catch(console.warn);
+        syncAllSaves(user.id).catch(console.warn);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredPosts = useMemo(() => {
@@ -723,19 +732,47 @@ export default function Feed() {
     if (!user?.id) return;
     const post = allPosts.find(p => p.id === postId);
     if (!post) return;
+    
     const wasLiked = post.liked || false;
-    await likePost(postId, user.id);
-    const result = await toggleLike(postId, user.id, wasLiked, post.likes || 0);
-    setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: result.liked, likes: result.likes } : p));
+    const newLiked = !wasLiked;
+    const newLikes = newLiked ? (post.likes || 0) + 1 : Math.max(0, (post.likes || 0) - 1);
+    
+    // 1. Optimistic update (instant response in UI)
+    setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: newLiked, likes: newLikes } : p));
+    
+    // 2. Perform database write & context updates in background
+    try {
+      await likePost(postId, user.id);
+      await toggleLike(postId, user.id, wasLiked, post.likes || 0);
+    } catch (e) {
+      console.error('Failed to save like:', e);
+      // Revert state on failure
+      setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: wasLiked, likes: post.likes } : p));
+      addToast('Failed to like post. Please try again.', 'error');
+    }
   };
 
   const handleSave = async (postId) => {
     if (!user?.id) return;
     const post = allPosts.find(p => p.id === postId);
     if (!post) return;
-    const newSaved = await toggleSave(postId, user.id, post.saved || false);
-    await savePost(postId, user.id);
+    
+    const wasSaved = post.saved || false;
+    const newSaved = !wasSaved;
+    
+    // 1. Optimistic update
     setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, saved: newSaved } : p));
+    
+    // 2. Perform database write & context updates in background
+    try {
+      await savePost(postId, user.id);
+      await toggleSave(postId, user.id, wasSaved);
+    } catch (e) {
+      console.error('Failed to save post:', e);
+      // Revert state on failure
+      setAllPosts(prev => prev.map(p => p.id === postId ? { ...p, saved: wasSaved } : p));
+      addToast('Failed to save post. Please try again.', 'error');
+    }
   };
 
   const handleDelete         = async (id) => { await deletePost(id); setAllPosts(prev => prev.filter(p => p.id !== id)); };
@@ -753,11 +790,13 @@ export default function Feed() {
             <p className="text-[12px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">What's happening on campus</p>
           </div>
         </div>
-        <ProfessionalSearch
-          placeholder="Search posts, people…"
-          value={searchQuery}
-          onChange={setSearchQuery}
-        />
+        <div className="mt-1">
+          <ProfessionalSearch
+            placeholder="Search posts, people…"
+            value={searchQuery}
+            onChange={setSearchQuery}
+          />
+        </div>
       </div>
 
       {/* ── Desktop search bar ── */}
@@ -766,6 +805,7 @@ export default function Feed() {
           placeholder="Search posts, people…"
           value={searchQuery}
           onChange={setSearchQuery}
+          showKbdHint
         />
       </div>
 

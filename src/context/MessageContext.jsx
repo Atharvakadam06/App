@@ -7,6 +7,7 @@ const MessageContext = createContext();
 export function MessageProvider({ children }) {
   const { user } = useAuth();
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [activeConversationId, setActiveConversationId] = useState(null);
   const intervalRef = useRef(null);
 
   const fetchUnreadCount = useCallback(async () => {
@@ -16,12 +17,13 @@ export function MessageProvider({ children }) {
     }
     try {
       const convs = await getConversations(user.id);
-      const total = convs.reduce((sum, c) => sum + (c.unread || 0), 0);
+      // Filter out the active conversation from counting unread badge
+      const total = convs.filter(c => c.id !== activeConversationId && (c.unread || 0) > 0).length;
       setUnreadMessageCount(total);
     } catch (e) {
       // silently fail - badge will just show 0
     }
-  }, [user?.id]);
+  }, [user?.id, activeConversationId]);
 
   // Initial load + poll every 15 seconds for new messages
   useEffect(() => {
@@ -30,11 +32,19 @@ export function MessageProvider({ children }) {
     return () => clearInterval(intervalRef.current);
   }, [fetchUnreadCount]);
 
-  // Expose a manual refresh so Messages page can trigger it after opening a chat
-  const refreshUnread = fetchUnreadCount;
+  const openConversation = useCallback((id, hadUnread) => {
+    setActiveConversationId(id);
+    if (hadUnread) {
+      setUnreadMessageCount(prev => Math.max(0, prev - 1));
+    }
+  }, []);
+
+  const closeConversation = useCallback(() => {
+    setActiveConversationId(null);
+  }, []);
 
   return (
-    <MessageContext.Provider value={{ unreadMessageCount, refreshUnread }}>
+    <MessageContext.Provider value={{ unreadMessageCount, refreshUnread: fetchUnreadCount, openConversation, closeConversation }}>
       {children}
     </MessageContext.Provider>
   );

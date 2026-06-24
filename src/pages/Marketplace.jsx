@@ -93,20 +93,6 @@ export default function Marketplace() {
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     },
     {
-      id: 'default_2',
-      title: 'CLRS Introduction to Algorithms',
-      description: 'Third Edition of Introduction to Algorithms by Cormen, Leiserson, Rivest, and Stein. Paperback, clean interior with no pencil markings or highlight marks. In highly readable, excellent condition.',
-      price: 499,
-      category: 'Other',
-      condition: 'Good',
-      image: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=800&q=80',
-      sellerId: 'demo_bob',
-      seller: { id: 'demo_bob', name: 'Bob Patel', username: 'bob.patel', avatar: 'https://ui-avatars.com/api/?name=Bob+Patel&background=334155&color=fff&size=150', college: 'NIT Trichy' },
-      contactInfo: 'bob@college.ac.in',
-      status: 'available',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    },
-    {
       id: 'default_3',
       title: 'Varmilo VA87M Mechanical Keyboard',
       description: 'Tenkeyless layout mechanical keyboard featuring original Cherry MX Brown tactile switches. Sleek white LED backlighting with custom grey and white PBT keycaps. Cleaned and tested thoroughly.',
@@ -144,6 +130,9 @@ export default function Marketplace() {
   const loadProducts = async () => {
     setLoading(true);
     try {
+      // Clean up CLRS textbook if it was previously seeded
+      await deleteProduct('default_2').catch(() => {});
+
       let prodList = await getAllProducts();
       // Filter out empty arrays or seed default products if none exist
       if (prodList.length === 0) {
@@ -152,12 +141,12 @@ export default function Marketplace() {
         }
         prodList = await getAllProducts();
       }
-      const mapped = prodList.map(p => p.category === 'Books' ? { ...p, category: 'Other' } : p);
-      setProducts(mapped);
+      const filtered = prodList.filter(p => p.category !== 'Books');
+      setProducts(filtered);
     } catch (e) {
       console.warn('Error loading products:', e);
-      const mappedDefaults = defaultProducts.map(p => p.category === 'Books' ? { ...p, category: 'Other' } : p);
-      setProducts(mappedDefaults);
+      const filteredDefaults = defaultProducts.filter(p => p.category !== 'Books');
+      setProducts(filteredDefaults);
     } finally {
       setLoading(false);
     }
@@ -308,12 +297,14 @@ export default function Marketplace() {
       {/* Search and Filters Bar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
         {/* Search */}
-        <ProfessionalSearch
-          placeholder="Search projects, electronics..."
-          value={searchQuery}
-          onChange={setSearchQuery}
-          className="flex-1 w-full"
-        />
+        <div className="relative flex-1 w-full">
+          <ProfessionalSearch
+            placeholder="Search projects, electronics..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            showKbdHint
+          />
+        </div>
 
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -514,7 +505,7 @@ export default function Marketplace() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Mechanical Keyboard, CLRS Textbook..."
+                  placeholder="e.g. Mechanical Keyboard, Arduino Uno..."
                   value={productForm.title}
                   onChange={(e) => setProductForm({ ...productForm, title: e.target.value })}
                   className="input-field w-full text-sm rounded-xl h-11"

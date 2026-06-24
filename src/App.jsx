@@ -1,4 +1,4 @@
-import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, Component } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -20,6 +20,7 @@ import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import GlobalChat from './pages/GlobalChat';
+import PostViewer from './pages/PostViewer';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import './index.css';
@@ -66,6 +67,8 @@ function AuthGate() {
   const { addNotification, notifications } = useNotifications();
   const [showSignup, setShowSignup] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -80,6 +83,57 @@ function AuthGate() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStart.x === 0) return;
+    const touch = e.changedTouches[0];
+    const diffX = touch.clientX - touchStart.x;
+    const diffY = touch.clientY - touchStart.y;
+    setTouchStart({ x: 0, y: 0 });
+
+    // Enforce horizontal swipe: X-diff must be at least 70px and at least 1.8x the Y-diff
+    if (Math.abs(diffX) < 70 || Math.abs(diffX) < Math.abs(diffY) * 1.8) {
+      return;
+    }
+
+    // Ignore swipes when typing inside text boxes
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+      return;
+    }
+
+    // Climb parent tags to verify if the gesture occurs inside inner scrolling widgets
+    let target = e.target;
+    while (target && target !== e.currentTarget) {
+      if (
+        target.scrollHeight > target.clientHeight ||
+        target.scrollWidth > target.clientWidth ||
+        target.classList.contains('no-swipe') ||
+        target.classList.contains('overflow-x-auto') ||
+        target.classList.contains('overscroll-y-contain')
+      ) {
+        return;
+      }
+      target = target.parentElement;
+    }
+
+    const swipePages = ['/', '/connect', '/inbox'];
+    const currentIndex = swipePages.indexOf(location.pathname);
+    if (currentIndex === -1) return;
+
+    if (diffX < 0 && currentIndex < swipePages.length - 1) {
+      // Swipe Left -> Next Page (Feed -> Explore -> Messages)
+      navigate(swipePages[currentIndex + 1]);
+    } else if (diffX > 0 && currentIndex > 0) {
+      // Swipe Right -> Previous Page
+      navigate(swipePages[currentIndex - 1]);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -103,8 +157,15 @@ function AuthGate() {
     <div className="h-dvh flex flex-col bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300">
       <Sidebar />
       <main className="lg:ml-[72px] xl:ml-[244px] flex flex-col h-full transition-all duration-300 overflow-hidden">
-        <Header title={meta.title} subtitle={meta.subtitle} />
-        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain [&:has(.messages-fullscreen)]:pb-0">
+        {location.pathname !== '/inbox' && location.pathname !== '/global-chat' && (
+          <Header title={meta.title} subtitle={meta.subtitle} />
+        )}
+        <div 
+          key={location.pathname}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain [&:has(.messages-fullscreen)]:pb-0 animate-fade-in"
+        >
           <Routes>
             <Route path="/" element={<Feed />} />
             <Route path="/connect" element={<Network />} />
@@ -116,6 +177,7 @@ function AuthGate() {
             <Route path="/global-chat" element={<GlobalChat />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />
+            <Route path="/posts/:userId" element={<PostViewer />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -128,10 +190,10 @@ function AuthGate() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <PostLikeProvider>
-          <PostSaveProvider>
-            <AuthProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <PostLikeProvider>
+            <PostSaveProvider>
               <NotificationProvider>
                 <MessageProvider>
                   <ToastProvider>
@@ -143,10 +205,10 @@ function App() {
                   </ToastProvider>
                 </MessageProvider>
               </NotificationProvider>
-            </AuthProvider>
-          </PostSaveProvider>
-        </PostLikeProvider>
-      </ThemeProvider>
+            </PostSaveProvider>
+          </PostLikeProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

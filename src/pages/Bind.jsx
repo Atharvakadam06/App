@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Search, MessageCircle, UserMinus, Link2, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
-import { toggleLink, getLinks, createConversation, getUser } from '../services/data';
+import { toggleLink, getLinks, createConversation, getUser, isUserOnline } from '../services/data';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 
 export default function Bind() {
@@ -15,21 +15,28 @@ export default function Bind() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
+    if (!user?.id) return;
+    const load = async (isFirst = false) => {
+      if (isFirst) setLoading(true);
       try {
-        if (user?.id) {
-          const links = await getLinks(user.id);
-          const linkedIds = Object.keys(links).filter(id => links[id]);
-          const userData = await Promise.all(linkedIds.map(id => getUser(id)));
-          setLinkedUserData(userData.filter(Boolean));
-        }
+        const links = await getLinks(user.id);
+        const linkedIds = Object.keys(links).filter(id => links[id]);
+        const userData = await Promise.all(linkedIds.map(id => getUser(id)));
+        const fetched = userData.filter(Boolean);
+        setLinkedUserData(prev => {
+          const isIdentical = prev.length === fetched.length &&
+            prev.every((u, idx) => u.id === fetched[idx].id && u.name === fetched[idx].name && u.avatar === fetched[idx].avatar && u.lastActive === fetched[idx].lastActive);
+          return isIdentical ? prev : fetched;
+        });
       } catch (e) {
         console.warn('Failed to load binds:', e);
       } finally {
-        setLoading(false);
+        if (isFirst) setLoading(false);
       }
     };
-    load();
+    load(true);
+    const interval = setInterval(() => load(false), 5000);
+    return () => clearInterval(interval);
   }, [user?.id]);
 
   const toggleBind = useCallback(
@@ -135,8 +142,6 @@ export default function Bind() {
           placeholder="Search connections..."
           value={searchQuery}
           onChange={setSearchQuery}
-          className="w-full bg-gray-50 dark:bg-[#0f131f] border border-gray-200/60 dark:border-gray-700/50 rounded-2xl text-[13px]"
-          inputMode="search"
         />
       </div>
 
@@ -145,7 +150,7 @@ export default function Bind() {
           filtered.map((u, i) => (
             <div
               key={u.id}
-              className="group relative rounded-2xl bg-white dark:bg-[#0d111c] border border-gray-100 dark:border-gray-800/60"
+              className="flex items-center gap-3 p-3 bg-white dark:bg-[#0c0f17]/60 rounded-xl border border-slate-100 dark:border-slate-800/60 hover:border-blue-200 dark:hover:border-blue-900/30 hover:bg-slate-50/30 dark:hover:bg-[#0c0f17]/85 hover:shadow-[0_2px_8px_rgba(0,0,0,0.01)] dark:hover:shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-[1px] transition-all duration-300 ease-out group"
               style={{
                 animationName: 'fadeInUp',
                 animationDuration: '0.4s',
@@ -154,69 +159,73 @@ export default function Bind() {
                 animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
               }}
             >
-              <div className="p-3 flex items-center gap-3.5">
-                <button
-                  onClick={() => navigateToProfile(u.id)}
-                  className="relative shrink-0 focus:outline-none"
-                >
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800/70 ring-2 ring-white dark:ring-[#0d111c] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-                    {u.avatar ? (
-                      <img
-                        src={u.avatar}
-                        alt={u.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700/80">
-                        <span className="text-base font-semibold text-gray-600 dark:text-gray-300">
-                          {u.name?.charAt(0)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <span className="absolute bottom-0 right-0 w-[10px] h-[10px] bg-emerald-500 rounded-full ring-[2px] ring-white dark:ring-[#0d111c]" />
-                </button>
-
-                <div
-                  className="flex-1 min-w-0 cursor-pointer"
-                  onClick={() => navigateToProfile(u.id)}
-                >
-                  <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
-                    {u.name}
-                  </p>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                    @{u.username}
-                  </p>
-                  {u.college && (
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5 font-normal">
-                      {u.college}
-                    </p>
+              {/* Avatar with clean border */}
+              <button
+                onClick={() => navigateToProfile(u.id)}
+                className="relative shrink-0 focus:outline-none"
+              >
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800/80 group-hover:border-blue-300 dark:group-hover:border-blue-800/80 shadow-sm transition-colors duration-300 ease-out">
+                  {u.avatar ? (
+                    <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-indigo-50/60 dark:bg-indigo-950/30 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 transition-colors duration-300 ease-out">
+                      <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{u.name?.charAt(0)}</span>
+                    </div>
                   )}
                 </div>
+                {/* Active/online indicator dot */}
+                {isUserOnline(u.lastActive) && (
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0c0f17] shadow-sm" />
+                )}
+              </button>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigateToInbox(u);
-                    }}
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 active:scale-90 transition-all duration-150"
-                    aria-label="Message"
-                  >
-                    <MessageCircle className="w-[17px] h-[17px]" strokeWidth={1.8} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleBind(u.id);
-                    }}
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 active:scale-90 transition-all duration-150"
-                    aria-label="Unbind"
-                  >
-                    <UserMinus className="w-[17px] h-[17px]" strokeWidth={1.8} />
-                  </button>
+              {/* User Info */}
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => navigateToProfile(u.id)}
+              >
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate transition-colors duration-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                  {u.name || `@${u.username}`}
+                </p>
+                {u.name && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">@{u.username}</p>}
+                
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {u.branch && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50/60 dark:bg-blue-950/20 text-[10px] font-medium text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-900/20 group-hover:bg-blue-50/80 dark:group-hover:bg-blue-950/35 transition-all duration-300 ease-out">
+                      {u.branch}
+                    </span>
+                  )}
+                  {u.college && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-50/60 dark:bg-purple-950/20 text-[10px] font-medium text-purple-600 dark:text-purple-400 border border-purple-100/50 dark:border-purple-900/20 group-hover:bg-purple-50/80 dark:group-hover:bg-purple-950/35 transition-all duration-300 ease-out">
+                      {u.college}
+                    </span>
+                  )}
                 </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleBind(u.id);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-transparent text-slate-655 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 dark:hover:text-rose-450 hover:border-rose-200 dark:hover:border-rose-900/30 active:scale-[0.97] transition-all duration-200 ease-in-out text-xs font-semibold"
+                  aria-label="Unbind"
+                >
+                  <UserMinus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Unbind</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateToInbox(u);
+                  }}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-200 dark:hover:border-blue-900/30 active:scale-[0.97] transition-all duration-200 ease-in-out"
+                  aria-label="Message"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           ))

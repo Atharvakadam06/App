@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, X } from 'lucide-react';
 
 export default function ProfessionalSearch({
@@ -7,75 +7,51 @@ export default function ProfessionalSearch({
   onChange,
   onSubmit,
   className = '',
+  showKbdHint = false, // kept for API compat, no longer rendered
 }) {
   const [isFocused, setIsFocused] = useState(false);
-  const [inputValue, setInputValue] = useState(value);
-  const [isMac, setIsMac] = useState(false);
+  const [inputValue, setInputValue] = useState(value || '');
   const inputRef = useRef(null);
 
   useEffect(() => {
     setInputValue(value || '');
   }, [value]);
 
-  useEffect(() => {
-    // Detect OS for shortcut badge
-    if (typeof window !== 'undefined') {
-      const platform = window.navigator.platform?.toUpperCase() || '';
-      setIsMac(platform.indexOf('MAC') >= 0);
-    }
-
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const newValue = e.target.value;
     setInputValue(newValue);
     onChange?.(newValue);
-  };
+  }, [onChange]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setInputValue('');
-    setIsFocused(false);
     onChange?.('');
-    inputRef.current?.blur();
-  };
+    inputRef.current?.focus();
+  }, [onChange]);
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && inputValue.trim()) {
       onSubmit?.(inputValue);
     } else if (e.key === 'Escape') {
       handleClear();
+      inputRef.current?.blur();
     }
-  };
+  }, [inputValue, onSubmit, handleClear]);
 
   return (
-    <div className={`relative w-full transition-all duration-300 ${className}`}>
-      <div 
-        className={`
-          relative flex items-center h-11 px-3.5 rounded-2xl
-          bg-slate-50/50 dark:bg-[#0c101b]/20 hover:bg-slate-100/50 dark:hover:bg-[#0c101b]/40
-          backdrop-blur-md border transition-all duration-300 ease-out
-          ${isFocused 
-            ? 'border-indigo-500/50 dark:border-indigo-400/50 bg-white dark:bg-[#0f1425] shadow-lg shadow-indigo-500/5 dark:shadow-indigo-400/5 ring-4 ring-indigo-500/10 dark:ring-indigo-400/10' 
-            : 'border-slate-200/80 dark:border-slate-800/80'
-          }
-        `}
+    <div className={`relative w-full ${className}`}>
+      <div
+        className={`flex items-center gap-2.5 px-3.5 rounded-xl transition-all duration-200 border ${
+          isFocused
+            ? 'border-slate-400 dark:border-slate-600 bg-white dark:bg-[#0c0f17] shadow-sm'
+            : 'border-slate-200/80 dark:border-slate-800/50 bg-slate-50/50 dark:bg-[#0c0f17]/40 hover:border-slate-300 dark:hover:border-slate-700/60'
+        }`}
+        style={{ height: '42px' }}
       >
-        <Search 
-          className={`
-            w-4 h-4 mr-2.5 shrink-0 transition-all duration-300 ease-out
-            ${isFocused 
-              ? 'scale-110 -rotate-6 text-indigo-500 dark:text-indigo-400' 
-              : 'text-slate-400 dark:text-slate-500'
-            }
-          `} 
+        <Search
+          className={`w-[14px] h-[14px] shrink-0 transition-colors duration-200 ${
+            isFocused ? 'text-slate-600 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'
+          }`}
         />
 
         <input
@@ -84,52 +60,33 @@ export default function ProfessionalSearch({
           value={inputValue}
           onChange={handleChange}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => !inputValue && setIsFocused(false)}
+          onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="
-            flex-1 h-full bg-transparent text-[13.5px] font-medium
-            text-slate-800 dark:text-slate-150
-            placeholder:text-slate-400/90 dark:placeholder:text-slate-500/90
-            focus:outline-none
-            caret-indigo-500 dark:caret-indigo-450
-          "
+          autoComplete="off"
+          className="sb-input flex-1 h-full bg-transparent border-none outline-none text-[13px] font-medium text-slate-800 dark:text-slate-200"
+          style={{ caretColor: '#64748b', outline: 'none' }}
         />
-
-        {/* Action / State area */}
-        <div className="relative flex items-center justify-end min-w-[36px] h-6 shrink-0 ml-1">
-          {/* Keyboard shortcut badge */}
-          <div
-            className={`
-              hidden sm:flex items-center gap-0.5 px-1.5 py-0.5 rounded-md
-              border border-slate-200/80 dark:border-slate-800/80
-              bg-slate-100/80 dark:bg-slate-900/80
-              text-[9px] text-slate-400 dark:text-slate-500 font-sans font-bold
-              transition-all duration-300 ease-out select-none
-              ${(isFocused || inputValue) ? 'opacity-0 scale-75 translate-x-2 pointer-events-none' : 'opacity-100 scale-100'}
-            `}
-          >
-            <span>{isMac ? '⌘' : 'Ctrl'}</span>
-            <span>K</span>
-          </div>
-
-          {/* Clear search button */}
+        {inputValue ? (
           <button
             onClick={handleClear}
-            className={`
-              absolute right-0 p-1 rounded-lg 
-              text-slate-400 hover:text-slate-650 dark:hover:text-slate-350 
-              hover:bg-slate-100 dark:hover:bg-slate-800/60
-              transition-all duration-300 hover:rotate-90 active:scale-75
-              ${inputValue ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'}
-            `}
             type="button"
-            aria-label="Clear search"
+            aria-label="Clear"
+            className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200 shrink-0"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-[11px] h-[11px]" strokeWidth={2.5} />
           </button>
-        </div>
+        ) : null}
       </div>
+
+      <style>{`
+        .sb-input::placeholder {
+          color: rgb(148, 163, 184);
+        }
+        .dark .sb-input::placeholder {
+          color: rgb(71, 85, 105);
+        }
+      `}</style>
     </div>
   );
 }

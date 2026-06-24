@@ -41,6 +41,8 @@ export async function initDatabase() {
         resources INTEGER DEFAULT 0,
         cover_photo TEXT,
         joined_date TEXT,
+        last_active TEXT,
+        settings TEXT DEFAULT '{}',
         created_at TEXT DEFAULT (datetime('now'))
       )
     `);
@@ -77,6 +79,24 @@ export async function initDatabase() {
 
     try {
       await db.execute(`ALTER TABLE posts ADD COLUMN file_name TEXT`);
+    } catch {
+      // Column may already exist
+    }
+
+    try {
+      await db.execute(`ALTER TABLE messages ADD COLUMN read INTEGER DEFAULT 0`);
+    } catch {
+      // Column may already exist
+    }
+
+    try {
+      await db.execute(`ALTER TABLE users ADD COLUMN last_active TEXT`);
+    } catch {
+      // Column may already exist
+    }
+
+    try {
+      await db.execute(`ALTER TABLE users ADD COLUMN settings TEXT DEFAULT '{}'`);
     } catch {
       // Column may already exist
     }
@@ -232,6 +252,7 @@ export async function initDatabase() {
         file_name TEXT,
         file_type TEXT,
         parent_id TEXT,
+        read INTEGER DEFAULT 0,
         timestamp TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       )
@@ -283,6 +304,25 @@ export async function initDatabase() {
     `);
 
     await db.execute(`
+      CREATE TABLE IF NOT EXISTS calls (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        caller_id TEXT NOT NULL,
+        receiver_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT DEFAULT 'ringing',
+        room_name TEXT,
+        offer TEXT,
+        answer TEXT,
+        timestamp TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    try { await db.execute(`ALTER TABLE calls ADD COLUMN offer TEXT`); } catch {}
+    try { await db.execute(`ALTER TABLE calls ADD COLUMN answer TEXT`); } catch {}
+
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS post_categories (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -303,6 +343,23 @@ export async function initDatabase() {
         contact_info TEXT,
         status TEXT DEFAULT 'available',
         created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS typing_status (
+        conversation_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        last_typed_at TEXT NOT NULL,
+        PRIMARY KEY (conversation_id, user_id)
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS user_deleted_messages (
+        user_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        PRIMARY KEY (user_id, message_id)
       )
     `);
 

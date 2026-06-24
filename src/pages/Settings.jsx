@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sun, Moon, Bell, Lock, Eye, Globe, User, Shield, HelpCircle, LogOut, ChevronRight, Check, X, Trash2, Download, Smartphone } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -131,8 +131,27 @@ function ChangePasswordModal({ onClose }) {
 }
 
 function ProfileVisibilityModal({ onClose }) {
-  const [visibility, setVisibility] = useState('public');
+  const { user, updateProfile } = useAuth();
+  const [visibility, setVisibility] = useState(() => {
+    return user?.settings?.visibility || 'public';
+  });
   const { addToast } = useToast();
+
+  const handleSave = async () => {
+    if (user && updateProfile) {
+      try {
+        const updatedSettings = {
+          ...(user.settings || {}),
+          visibility
+        };
+        await updateProfile({ settings: JSON.stringify(updatedSettings) });
+      } catch (e) {
+        console.warn('Failed to save profile visibility setting:', e);
+      }
+    }
+    addToast('Visibility updated!', 'success');
+    onClose();
+  };
 
   return (
     <Modal onClose={onClose}>
@@ -167,7 +186,7 @@ function ProfileVisibilityModal({ onClose }) {
         ))}
       </div>
       <button
-        onClick={() => { addToast('Visibility updated!', 'success'); onClose(); }}
+        onClick={handleSave}
         className="btn-primary w-full mt-5"
       >
         Save Changes
@@ -242,7 +261,32 @@ function ThemeSelector() {
 }
 
 function NotificationSettings() {
-  const [settings, setSettings] = useState({ messages: true, connections: true, resources: false });
+  const { user, updateProfile } = useAuth();
+  const [settings, setSettings] = useState(() => {
+    return user?.settings?.notifications || { messages: true, connections: true, resources: false };
+  });
+
+  useEffect(() => {
+    if (user?.settings?.notifications) {
+      setSettings(user.settings.notifications);
+    }
+  }, [user?.settings?.notifications]);
+
+  const handleToggle = async (key, val) => {
+    const newNotifs = { ...settings, [key]: val };
+    setSettings(newNotifs);
+    if (user && updateProfile) {
+      try {
+        const updatedSettings = {
+          ...(user.settings || {}),
+          notifications: newNotifs
+        };
+        await updateProfile({ settings: JSON.stringify(updatedSettings) });
+      } catch (e) {
+        console.warn('Failed to save notification settings:', e);
+      }
+    }
+  };
 
   return (
     <SettingsSection title="Notifications">
@@ -259,7 +303,7 @@ function NotificationSettings() {
             <p className="font-semibold text-[15px] text-slate-800 dark:text-slate-200">{item.label}</p>
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-medium">{item.desc}</p>
           </div>
-          <Toggle enabled={settings[item.key]} onChange={(v) => setSettings(p => ({ ...p, [item.key]: v }))} />
+          <Toggle enabled={settings[item.key]} onChange={(v) => handleToggle(item.key, v)} />
         </div>
       ))}
     </SettingsSection>

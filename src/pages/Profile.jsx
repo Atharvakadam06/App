@@ -608,7 +608,12 @@ export default function Profile() {
             <div className="grid grid-cols-3 gap-px sm:gap-1">{userPosts.map((post, i) => (
               <button 
                 key={post.id} 
-                onClick={async () => { const comments = await getPostComments(post.id); setSelectedPost({ ...post, comments, index: i }); }} 
+                onClick={() => {
+                  const targetUserId = isOwnProfile ? currentUser?.id : userId;
+                  navigate(`/posts/${targetUserId}`, {
+                    state: { postId: post.id, posts: userPosts, profileUser }
+                  });
+                }}
                 className="post-grid-item aspect-square relative overflow-hidden group bg-gray-200 dark:bg-gray-700 cursor-pointer"
                 style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}
               >

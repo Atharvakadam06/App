@@ -8,7 +8,10 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLayout } from '../context/LayoutContext';
 import { uploadToCloudinary } from '../services/cloudinary';
-import { getGlobalMessages, sendGlobalMessage, editGlobalMessage, deleteGlobalMessageEveryone } from '../services/data';
+import {
+  getGlobalMessages, sendGlobalMessage, editGlobalMessage, deleteGlobalMessageEveryone,
+  deleteMessageForUser, getDeletedMessageIds
+} from '../services/data';
 import { formatTimeAgo } from '../utils/timeUtils';
 
 function EmojiPicker({ onSelect, onClose }) {
@@ -51,6 +54,21 @@ export default function GlobalChat() {
   const [loading, setLoading] = useState(true);
 
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [activeImageView, setActiveImageView] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setActiveImageView(null);
+      }
+    };
+    if (activeImageView) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeImageView]);
 
   // Gesture / Context Menu States
   const [touchStartX, setTouchStartX] = useState(0);
@@ -63,6 +81,8 @@ export default function GlobalChat() {
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const pressTimerRef = useRef(null);
+  const isFirstLoadRef = useRef(true);
+  const prevMessageIdsRef = useRef(new Set());
 
   // Poll for new messages every 3 seconds to keep it live
   useEffect(() => {
@@ -77,20 +97,76 @@ export default function GlobalChat() {
     return () => setMobileNavHidden(false);
   }, [setMobileNavHidden]);
 
+  const scrollToBottom = () => {
+    if (!chatContainerRef.current) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'instant',
+        });
+      }
+    }, 80);
+  };
+
   // Smooth scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (loading) return;
+
+    const lastMsg = messages[messages.length - 1];
+
+    if (isFirstLoadRef.current) {
+      scrollToBottom();
+      isFirstLoadRef.current = false;
+      prevMessageIdsRef.current = new Set(messages.map(m => m.id));
+      return;
+    }
+
+    const container = chatContainerRef.current;
+    if (container && lastMsg) {
+      const isNewMessage = !prevMessageIdsRef.current.has(lastMsg.id);
+      if (isNewMessage) {
+        const sentByMe = lastMsg.senderId === user.id;
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const isScrollNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+        if (sentByMe || isScrollNearBottom) {
+          scrollToBottom();
+        }
+      }
+    }
+
+    prevMessageIdsRef.current = new Set(messages.map(m => m.id));
+  }, [messages, loading, user.id]);
 
   const loadMessages = async (firstTime = false) => {
     if (firstTime) setLoading(true);
     try {
       const list = await getGlobalMessages();
-      // Filter out messages deleted for the current user (Delete for me)
+      // Filter out messages deleted for the current user (Delete for me, synced via DB)
       const deletedKey = `stugrow_deleted_messages_${user.id}`;
-      const deletedIds = JSON.parse(localStorage.getItem(deletedKey)) || [];
-      const visible = list.filter(m => !deletedIds.includes(m.id));
-      setMessages(visible);
+      const localDeleted = JSON.parse(localStorage.getItem(deletedKey)) || [];
+      const dbDeleted = await getDeletedMessageIds(user.id).catch(() => []);
+
+      // Upload any local deletions to DB that are missing in the DB (sync from offline/past deletions)
+      const missingInDb = localDeleted.filter(id => !dbDeleted.includes(id));
+      if (missingInDb.length > 0) {
+        for (const id of missingInDb) {
+          await deleteMessageForUser(user.id, id).catch(() => {});
+        }
+      }
+
+      const combined = Array.from(new Set([...localDeleted, ...dbDeleted, ...missingInDb]));
+
+      // Update local storage so it has the latest synced deletions
+      localStorage.setItem(deletedKey, JSON.stringify(combined));
+
+      const visible = list.filter(m => !combined.includes(m.id));
+      setMessages(prev => {
+        const isIdentical = prev.length === visible.length &&
+          prev.every((msg, idx) => msg.id === visible[idx].id && msg.content === visible[idx].content);
+        return isIdentical ? prev : visible;
+      });
     } catch (e) {
       console.warn('Failed to load global messages:', e);
     } finally {
@@ -225,7 +301,6 @@ export default function GlobalChat() {
     if (isSwipeActive && swipeOffset > 55) {
       setReplyingTo(msg);
       if (window.navigator.vibrate) window.navigator.vibrate(15);
-      addToast(`Reply to ${msg.sender?.name || 'student'}`, 'info');
     }
     setSwipingMessageId(null);
     setSwipeOffset(0);
@@ -291,12 +366,19 @@ export default function GlobalChat() {
     return starred.includes(msgId);
   };
 
-  const handleDeleteMe = () => {
+  const handleDeleteMe = async () => {
     if (!contextMenuMessage) return;
     const deletedKey = `stugrow_deleted_messages_${user.id}`;
     const deleted = JSON.parse(localStorage.getItem(deletedKey)) || [];
-    deleted.push(contextMenuMessage.id);
-    localStorage.setItem(deletedKey, JSON.stringify(deleted));
+    if (!deleted.includes(contextMenuMessage.id)) {
+      deleted.push(contextMenuMessage.id);
+      localStorage.setItem(deletedKey, JSON.stringify(deleted));
+    }
+    try {
+      await deleteMessageForUser(user.id, contextMenuMessage.id);
+    } catch (e) {
+      console.warn('Failed to persist delete-for-me in database:', e);
+    }
     addToast('Message deleted for you', 'info');
     setContextMenuMessage(null);
     loadMessages(false);
@@ -347,6 +429,7 @@ export default function GlobalChat() {
       <div
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-slate-50/40 dark:bg-[#080b14]/50"
+        style={{ scrollBehavior: 'auto' }}
       >
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full space-y-3">
@@ -459,7 +542,22 @@ export default function GlobalChat() {
                     <div className={`relative rounded-2xl transition-all duration-300 ${highlightedMessageId === msg.id ? 'highlight-msg-active' : ''}`}>
                       {msg.file && msg.fileType?.startsWith('image/') ? (
                         <div className="rounded-2xl overflow-hidden shadow-xs border border-slate-200/50 dark:border-slate-800/80">
-                          <img src={msg.file} alt="Shared Image" className="max-w-full max-h-48 sm:max-h-60 rounded-2xl" loading="lazy" />
+                          <img 
+                            src={msg.file} 
+                            alt="Shared Image" 
+                            className="max-w-full max-h-48 sm:max-h-60 rounded-2xl cursor-pointer hover:opacity-95 transition-opacity" 
+                            onClick={() => setActiveImageView(msg.file)}
+                            onLoad={() => {
+                              if (chatContainerRef.current) {
+                                const container = chatContainerRef.current;
+                                const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 350;
+                                if (isNearBottom) {
+                                  scrollToBottom();
+                                }
+                              }
+                            }}
+                            loading="lazy" 
+                          />
                         </div>
                       ) : msg.file ? (
                         <a
@@ -696,6 +794,32 @@ export default function GlobalChat() {
                 Report Message
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Photo Viewer Modal */}
+      {activeImageView && (
+        <div 
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in"
+          onClick={() => setActiveImageView(null)}
+        >
+          <button 
+            onClick={() => setActiveImageView(null)}
+            className="absolute top-4 right-4 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-95 z-[10001] shadow-lg border border-white/10"
+            aria-label="Close image viewer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div 
+            className="relative max-w-full max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-slate-900/40 animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={activeImageView} 
+              alt="View attachment" 
+              className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-2xl" 
+            />
           </div>
         </div>
       )}

@@ -135,8 +135,6 @@ export default function Network() {
           placeholder="Search by username..."
           value={searchQuery}
           onChange={setSearchQuery}
-          className="w-full bg-white dark:bg-[#0e1322] border border-gray-200 dark:border-gray-700"
-          inputMode="search"
         />
       </div>
 
@@ -148,65 +146,74 @@ export default function Network() {
               {displayUsers.map((u, i) => (
                 <div
                   key={u.id}
-                  className="flex items-center gap-3 p-3 bg-white dark:bg-[#0e1322] rounded-xl border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-500/50 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                  className="flex items-center gap-3 p-3 bg-white dark:bg-[#0c0f17]/60 rounded-xl border border-slate-100 dark:border-slate-800/60 hover:border-blue-200 dark:hover:border-blue-900/30 hover:bg-slate-50/30 dark:hover:bg-[#0c0f17]/85 hover:shadow-[0_2px_8px_rgba(0,0,0,0.01)] dark:hover:shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-[1px] transition-all duration-300 ease-out group"
                   style={{ animationDelay: `${Math.min(i * 30, 300)}ms`, animationName: 'fadeInUp', animationDuration: '0.4s', animationFillMode: 'backwards' }}
                 >
-                  {/* Avatar with gradient ring */}
-                  <div className="relative shrink-0">
-                    <div className="p-[2px] rounded-full bg-gradient-to-r from-blue-400 to-blue-600">
-                      <div className="bg-white dark:bg-[#0e1322] rounded-full p-0.5">
-                        {u.avatar ? (
-                          <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover border-2 border-transparent" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-[#2d3748] flex items-center justify-center">
-                            <span className="text-lg font-bold text-white">{u.name?.charAt(0)}</span>
-                          </div>
-                        )}
-                      </div>
+                  {/* Avatar with clean border */}
+                  <button
+                    onClick={() => navigateToProfile(u.id)}
+                    className="relative shrink-0 focus:outline-none"
+                  >
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800/80 group-hover:border-blue-300 dark:group-hover:border-blue-800/80 shadow-sm transition-colors duration-300 ease-out">
+                      {u.avatar ? (
+                        <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-indigo-50/60 dark:bg-indigo-950/30 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 transition-colors duration-300 ease-out">
+                          <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{u.name?.charAt(0)}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  </button>
 
                   {/* User Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{u.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">@{u.username}</p>
-                    {u.branch && (
-                      <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
-                        {u.branch}
-                      </span>
-                    )}
-                    {u.college && (
-                      <span className="inline-block mt-1 ml-1 px-2 py-0.5 text-xs rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400">
-                        {u.college}
-                      </span>
-                    )}
+                  <div
+                    onClick={() => navigateToProfile(u.id)}
+                    className="flex-1 min-w-0 cursor-pointer"
+                  >
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate transition-colors duration-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                      {u.name || `@${u.username}`}
+                    </p>
+                    {u.name && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">@{u.username}</p>}
+                    
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {u.branch && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50/60 dark:bg-blue-950/20 text-[10px] font-medium text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-900/20 group-hover:bg-blue-50/80 dark:group-hover:bg-blue-950/35 transition-all duration-300 ease-out">
+                          {u.branch}
+                        </span>
+                      )}
+                      {u.college && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-50/60 dark:bg-purple-950/20 text-[10px] font-medium text-purple-600 dark:text-purple-400 border border-purple-100/50 dark:border-purple-900/20 group-hover:bg-purple-50/80 dark:group-hover:bg-purple-950/35 transition-all duration-300 ease-out">
+                          {u.college}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2">
-                    {isBindPage && !!linkedUsers[u.id] ? (
+                    {!!linkedUsers[u.id] ? (
                       <button
                         onClick={() => toggleConnect(u.id)}
-                        className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-red-50 hover:text-red-500 transition-all duration-200 text-sm"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-transparent text-slate-605 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 dark:hover:text-rose-450 hover:border-rose-200 dark:hover:border-rose-900/30 active:scale-[0.97] transition-all duration-200 ease-in-out text-xs font-semibold"
                       >
-                        <UserMinus className="w-4 h-4" />
-                        <span>Unbind</span>
+                        <UserMinus className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Unbind</span>
                       </button>
                     ) : (
                       <button
                         onClick={() => toggleConnect(u.id)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-sm"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-xs font-semibold hover:shadow-sm active:scale-[0.97] transition-all duration-200 ease-in-out"
                       >
-                        <UserPlus className="w-4 h-4" />
+                        <UserPlus className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Bind</span>
                       </button>
                     )}
                     <button
                       onClick={() => navigateToInbox(u)}
-                      className="p-2 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:border-blue-200 dark:hover:border-blue-900/30 active:scale-[0.97] transition-all duration-200 ease-in-out"
                       aria-label="Message"
                     >
-                      <MessageCircle className="w-4 h-4" />
+                      <MessageCircle className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -302,42 +309,55 @@ export default function Network() {
               {suggested.map((u, i) => (
                 <div
                   key={u.id}
-                  className="flex items-center gap-3 p-3 bg-white dark:bg-[#0e1322] rounded-xl border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-500/50 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                  className="flex items-center gap-3 p-3 bg-white dark:bg-[#0c0f17]/60 rounded-xl border border-slate-100 dark:border-slate-800/60 hover:border-blue-200 dark:hover:border-blue-900/30 hover:bg-slate-50/30 dark:hover:bg-[#0c0f17]/85 hover:shadow-[0_2px_8px_rgba(0,0,0,0.01)] dark:hover:shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-[1px] transition-all duration-300 ease-out group"
                   style={{ animationDelay: `${Math.min(i * 30, 300)}ms`, animationName: 'fadeInUp', animationDuration: '0.4s', animationFillMode: 'backwards' }}
                 >
-                  {/* Avatar with gradient ring */}
-                  <div className="relative shrink-0">
-                    <div className="p-[2px] rounded-full bg-gradient-to-r from-blue-400 to-blue-600">
-                      <div className="bg-white dark:bg-[#0e1322] rounded-full p-0.5">
-                        {u.avatar ? (
-                          <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover border-2 border-transparent" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-[#2d3748] flex items-center justify-center">
-                            <span className="text-lg font-bold text-white">{u.name?.charAt(0)}</span>
-                          </div>
-                        )}
-                      </div>
+                  {/* Avatar with clean border */}
+                  <button
+                    onClick={() => navigateToProfile(u.id)}
+                    className="relative shrink-0 focus:outline-none"
+                  >
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800/80 group-hover:border-blue-300 dark:group-hover:border-blue-800/80 shadow-sm transition-colors duration-300 ease-out">
+                      {u.avatar ? (
+                        <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-indigo-50/60 dark:bg-indigo-950/30 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 transition-colors duration-300 ease-out">
+                          <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{u.name?.charAt(0)}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  </button>
 
                   {/* User Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{u.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">@{u.username}</p>
-                    {u.reason && (
-                      <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">{u.reason}</p>
-                    )}
-                    {u.college && (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{u.college}</p>
-                    )}
+                  <div
+                    onClick={() => navigateToProfile(u.id)}
+                    className="flex-1 min-w-0 cursor-pointer"
+                  >
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate transition-colors duration-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                      {u.name || `@${u.username}`}
+                    </p>
+                    {u.name && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">@{u.username}</p>}
+                    
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {u.reason && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50/60 dark:bg-emerald-950/20 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-900/20 group-hover:bg-emerald-50/80 dark:group-hover:bg-emerald-950/35 transition-all duration-300 ease-out">
+                          {u.reason}
+                        </span>
+                      )}
+                      {u.college && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-50/60 dark:bg-purple-950/20 text-[10px] font-medium text-purple-600 dark:text-purple-400 border border-purple-100/50 dark:border-purple-900/20 group-hover:bg-purple-50/80 dark:group-hover:bg-purple-950/35 transition-all duration-300 ease-out">
+                          {u.college}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Bind Button */}
                   <button
                     onClick={() => toggleConnect(u.id)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-sm"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-xs font-semibold hover:shadow-sm active:scale-[0.97] transition-all duration-200 ease-in-out shadow-sm"
                   >
-                    <UserPlus className="w-4 h-4" />
+                    <UserPlus className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Bind</span>
                   </button>
                 </div>

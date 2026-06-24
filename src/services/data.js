@@ -3,6 +3,7 @@ import { getCurrentTimestamp } from '../utils/timeUtils';
 
 let dbInitialized = false;
 let dbInitError = null;
+let serverTimeOffset = 0;
 
 export async function initDatabase() {
   if (dbInitialized) return;
@@ -150,52 +151,70 @@ export async function createPost(post) {
 
 export async function getAllPosts() {
   const posts = [];
+  const dbPostsMap = new Map();
 
-  // Always try localStorage first (guaranteed to work)
-  const fallback = loadFallbackPosts();
-  console.log('getAllPosts - localStorage:', fallback.length, fallback.map(p => ({ id: p.id, hasImage: !!p.image, content: p.content?.substring(0, 20) })));
-  for (const p of fallback) {
-    posts.push({
-      id: p.id || p.postId,
-      userId: p.user_id || p.userId,
-      user: p.user || null,
-      content: p.content || '',
-      image: p.image || null,
-      video: p.video || null,
-      category: p.category || 'general',
-      file_url: p.file_url || null,
-      file_name: p.file_name || null,
-      likes: p.likes ?? 0,
-      shares: p.shares ?? 0,
-      tags: p.tags || [],
-      timestamp: p.timestamp || p.created_at,
-      comments: [],
-      liked: false,
-      saved: false,
-    });
-  }
-
-  // Try to augment with Turso data if available
+  // Try to query Turso data first if available
   try {
     await ensureDb();
-    const rows = await query('SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.college as user_college, u.username as user_username FROM posts p LEFT JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC');
-    const tursoIds = new Set(posts.map(p => p.id));
+    const rows = await query(`
+      SELECT 
+        p.*, 
+        u.name as user_name, 
+        u.avatar as user_avatar, 
+        u.college as user_college, 
+        u.username as user_username,
+        (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as real_likes
+      FROM posts p 
+      LEFT JOIN users u ON p.user_id = u.id 
+      ORDER BY p.created_at DESC
+    `);
     for (const row of rows) {
-      if (!tursoIds.has(row.id)) {
+      const likesCount = row.real_likes !== undefined && row.real_likes !== null ? Number(row.real_likes) : (row.likes ?? 0);
+      const p = {
+        id: row.id,
+        userId: row.user_id,
+        user: { id: row.user_id, name: row.user_name, avatar: row.user_avatar, college: row.user_college, username: row.user_username },
+        content: row.content || '',
+        image: row.image,
+        video: row.video,
+        category: row.category || 'general',
+        file_url: row.file_url || null,
+        file_name: row.file_name || null,
+        likes: likesCount,
+        shares: row.shares ?? 0,
+        tags: JSON.parse(row.tags || '[]'),
+        timestamp: row.timestamp,
+        comments: [],
+        liked: false,
+        saved: false,
+      };
+      posts.push(p);
+      dbPostsMap.set(row.id, p);
+    }
+  } catch (e) {
+    console.warn('Turso read failed for posts, falling back to localStorage only:', e);
+  }
+
+  // Load fallback posts from localStorage for offline support / newly created posts not yet synced
+  try {
+    const fallback = loadFallbackPosts();
+    for (const p of fallback) {
+      const id = p.id || p.postId;
+      if (!dbPostsMap.has(id)) {
         posts.push({
-          id: row.id,
-          userId: row.user_id,
-          user: { id: row.user_id, name: row.user_name, avatar: row.user_avatar, college: row.user_college, username: row.user_username },
-          content: row.content || '',
-          image: row.image,
-          video: row.video,
-          category: row.category || 'general',
-          file_url: row.file_url || null,
-          file_name: row.file_name || null,
-          likes: row.likes ?? 0,
-          shares: row.shares ?? 0,
-          tags: JSON.parse(row.tags || '[]'),
-          timestamp: row.timestamp,
+          id: id,
+          userId: p.user_id || p.userId,
+          user: p.user || null,
+          content: p.content || '',
+          image: p.image || null,
+          video: p.video || null,
+          category: p.category || 'general',
+          file_url: p.file_url || null,
+          file_name: p.file_name || null,
+          likes: p.likes ?? 0,
+          shares: p.shares ?? 0,
+          tags: p.tags || [],
+          timestamp: p.timestamp || p.created_at,
           comments: [],
           liked: false,
           saved: false,
@@ -203,8 +222,15 @@ export async function getAllPosts() {
       }
     }
   } catch (e) {
-    console.warn('Turso read failed, using localStorage only:', e);
+    console.warn('Failed to load fallback posts from localStorage:', e);
   }
+
+  // Sort all posts chronologically by timestamp (newest first)
+  posts.sort((a, b) => {
+    const timeA = new Date(a.timestamp).getTime() || 0;
+    const timeB = new Date(b.timestamp).getTime() || 0;
+    return timeB - timeA;
+  });
 
   return posts;
 }
@@ -442,55 +468,72 @@ export async function createPaper(paper) {
 
 export async function getAllPapers() {
   const papers = [];
+  const dbPapersMap = new Map();
 
-  const fallback = loadFallbackPapers();
-  console.log('getAllPapers - localStorage:', fallback.length);
-  for (const p of fallback) {
-    papers.push({
-      id: p.id,
-      title: p.title,
-      subject: p.subject,
-      semester: p.semester,
-      year: p.year,
-      college: p.college,
-      uploadedBy: { id: p.uploadedBy, name: '', avatar: '' },
-      downloads: p.downloads,
-      rating: p.rating,
-      fileSize: p.fileSize,
-      fileName: p.fileName,
-      fileType: p.fileType,
-      fileUrl: p.fileUrl,
-      tags: p.tags || [],
-    });
-  }
-
+  // Try to query Turso data first if available
   try {
     await ensureDb();
     const rows = await query('SELECT p.*, u.name as uploader_name, u.avatar as uploader_avatar, u.college as uploader_college FROM papers p JOIN users u ON p.uploaded_by = u.id ORDER BY p.created_at DESC');
-    const existingIds = new Set(papers.map(p => p.id));
     for (const r of rows) {
-      if (!existingIds.has(r.id)) {
-        papers.push({
-          id: r.id,
-          title: r.title,
-          subject: r.subject,
-          semester: r.semester,
-          year: r.year,
-          college: r.college,
-          uploadedBy: { id: r.uploaded_by, name: r.uploader_name, avatar: r.uploader_avatar },
-          downloads: r.downloads,
-          rating: r.rating,
-          fileSize: r.file_size,
-          fileName: r.file_name,
-          fileType: r.file_type,
-          fileUrl: r.file_url,
-          tags: JSON.parse(r.tags || '[]'),
-        });
-      }
+      const paper = {
+        id: r.id,
+        title: r.title,
+        subject: r.subject,
+        semester: r.semester,
+        year: r.year,
+        college: r.college,
+        uploadedBy: { id: r.uploader_by, name: r.uploader_name, avatar: r.uploader_avatar },
+        downloads: r.downloads,
+        rating: r.rating,
+        fileSize: r.file_size,
+        fileName: r.file_name,
+        fileType: r.file_type,
+        fileUrl: r.file_url,
+        tags: JSON.parse(r.tags || '[]'),
+        createdAt: r.created_at,
+      };
+      papers.push(paper);
+      dbPapersMap.set(r.id, paper);
     }
   } catch (e) {
     console.warn('Turso read failed for papers, using localStorage only:', e);
   }
+
+  // Load fallback papers from localStorage
+  try {
+    const fallback = loadFallbackPapers();
+    for (const p of fallback) {
+      if (!dbPapersMap.has(p.id)) {
+        papers.push({
+          id: p.id,
+          title: p.title,
+          subject: p.subject,
+          semester: p.semester,
+          year: p.year,
+          college: p.college,
+          uploadedBy: { id: p.uploadedBy, name: '', avatar: '' },
+          downloads: p.downloads,
+          rating: p.rating,
+          fileSize: p.fileSize,
+          fileName: p.fileName,
+          fileType: p.fileType,
+          fileUrl: p.fileUrl,
+          tags: p.tags || [],
+          createdAt: p.createdAt || p.created_at,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load fallback papers:', e);
+  }
+
+  // Sort papers by createdAt descending
+  papers.sort((a, b) => {
+    const timeA = new Date(a.createdAt).getTime() || 0;
+    const timeB = new Date(b.createdAt).getTime() || 0;
+    return timeB - timeA;
+  });
+
   return papers;
 }
 
@@ -574,49 +617,66 @@ export async function createBook(book) {
 
 export async function getAllBooks() {
   const books = [];
+  const dbBooksMap = new Map();
 
-  const fallback = loadFallbackBooks();
-  console.log('getAllBooks - localStorage:', fallback.length);
-  for (const b of fallback) {
-    books.push({
-      id: b.id,
-      title: b.title,
-      author: b.author,
-      subject: b.subject,
-      price: b.price,
-      uploadedBy: { id: b.uploadedBy, name: '', avatar: '', college: '' },
-      available: b.available === 1,
-      image: b.image,
-      description: b.description,
-      fileUrl: b.fileUrl,
-      fileName: b.fileName,
-    });
-  }
-
+  // Try to query Turso data first if available
   try {
     await ensureDb();
     const rows = await query('SELECT b.*, u.name as uploader_name, u.avatar as uploader_avatar, u.college as uploader_college FROM books b JOIN users u ON b.uploaded_by = u.id ORDER BY b.created_at DESC');
-    const existingIds = new Set(books.map(b => b.id));
     for (const r of rows) {
-      if (!existingIds.has(r.id)) {
-        books.push({
-          id: r.id,
-          title: r.title,
-          author: r.author,
-          subject: r.subject,
-          price: r.price,
-          uploadedBy: { id: r.uploaded_by, name: r.uploader_name, avatar: r.uploader_avatar, college: r.uploader_college },
-          available: r.available === 1,
-          image: r.image,
-          description: r.description,
-          fileUrl: r.file_url,
-          fileName: r.file_name,
-        });
-      }
+      const book = {
+        id: r.id,
+        title: r.title,
+        author: r.author,
+        subject: r.subject,
+        price: r.price,
+        uploadedBy: { id: r.uploader_by, name: r.uploader_name, avatar: r.uploader_avatar, college: r.uploader_college },
+        available: r.available === 1,
+        image: r.image,
+        description: r.description,
+        fileUrl: r.file_url,
+        fileName: r.file_name,
+        createdAt: r.created_at,
+      };
+      books.push(book);
+      dbBooksMap.set(r.id, book);
     }
   } catch (e) {
     console.warn('Turso read failed for books, using localStorage only:', e);
   }
+
+  // Load fallback books from localStorage
+  try {
+    const fallback = loadFallbackBooks();
+    for (const b of fallback) {
+      if (!dbBooksMap.has(b.id)) {
+        books.push({
+          id: b.id,
+          title: b.title,
+          author: b.author,
+          subject: b.subject,
+          price: b.price,
+          uploadedBy: { id: b.uploadedBy, name: '', avatar: '', college: '' },
+          available: b.available === 1,
+          image: b.image,
+          description: b.description,
+          fileUrl: b.fileUrl,
+          fileName: b.fileName,
+          createdAt: b.createdAt || b.created_at,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load fallback books:', e);
+  }
+
+  // Sort books by createdAt descending
+  books.sort((a, b) => {
+    const timeA = new Date(a.createdAt).getTime() || 0;
+    const timeB = new Date(b.createdAt).getTime() || 0;
+    return timeB - timeA;
+  });
+
   return books;
 }
 
@@ -689,50 +749,65 @@ export async function createProduct(product) {
 
 export async function getAllProducts() {
   const products = [];
+  const dbProductsMap = new Map();
 
-  const fallback = loadFallbackProducts();
-  for (const p of fallback) {
-    products.push({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      price: p.price,
-      category: p.category,
-      condition: p.condition,
-      image: p.image,
-      sellerId: p.sellerId,
-      seller: { id: p.sellerId, name: 'Student', avatar: 'https://ui-avatars.com/api/?name=Student&background=334155&color=fff' },
-      contactInfo: p.contactInfo,
-      status: p.status,
-      createdAt: p.createdAt,
-    });
-  }
-
+  // Try to query Turso data first if available
   try {
     await ensureDb();
     const rows = await query('SELECT p.*, u.name as seller_name, u.avatar as seller_avatar, u.college as seller_college, u.username as seller_username FROM products p JOIN users u ON p.seller_id = u.id ORDER BY p.created_at DESC');
-    const existingIds = new Set(products.map(p => p.id));
     for (const r of rows) {
-      if (!existingIds.has(r.id)) {
-        products.push({
-          id: r.id,
-          title: r.title,
-          description: r.description,
-          price: r.price,
-          category: r.category,
-          condition: r.condition,
-          image: r.image,
-          sellerId: r.seller_id,
-          seller: { id: r.seller_id, name: r.seller_name, avatar: r.seller_avatar, college: r.seller_college, username: r.seller_username },
-          contactInfo: r.contact_info,
-          status: r.status,
-          createdAt: r.created_at,
-        });
-      }
+      const product = {
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        price: r.price,
+        category: r.category,
+        condition: r.condition,
+        image: r.image,
+        sellerId: r.seller_id,
+        seller: { id: r.seller_id, name: r.seller_name, avatar: r.seller_avatar, college: r.seller_college, username: r.seller_username },
+        contactInfo: r.contact_info,
+        status: r.status,
+        createdAt: r.created_at,
+      };
+      products.push(product);
+      dbProductsMap.set(r.id, product);
     }
   } catch (e) {
     console.warn('Turso read failed for products, using localStorage fallback:', e);
   }
+
+  // Load fallback products from localStorage
+  try {
+    const fallback = loadFallbackProducts();
+    for (const p of fallback) {
+      if (!dbProductsMap.has(p.id)) {
+        products.push({
+          id: p.id,
+          title: p.title,
+          description: p.description,
+          price: p.price,
+          category: p.category,
+          condition: p.condition,
+          image: p.image,
+          sellerId: p.sellerId,
+          seller: { id: p.sellerId, name: 'Student', avatar: 'https://ui-avatars.com/api/?name=Student&background=334155&color=fff' },
+          contactInfo: p.contactInfo,
+          status: p.status,
+          createdAt: p.createdAt || p.created_at,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load fallback products:', e);
+  }
+
+  // Sort products by createdAt descending
+  products.sort((a, b) => {
+    const timeA = new Date(a.createdAt).getTime() || 0;
+    const timeB = new Date(b.createdAt).getTime() || 0;
+    return timeB - timeA;
+  });
 
   for (const p of products) {
     if (p.seller.name === 'Student') {
@@ -880,21 +955,62 @@ export async function getConversations(userId) {
        CASE WHEN c.user1_id = ? THEN c.unread_user2 ELSE c.unread_user1 END as unread,
        CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END as other_user_id
     FROM conversations c
-    WHERE c.user1_id = ? OR c.user2_id = ?
-    ORDER BY c.created_at DESC`,
+    WHERE c.user1_id = ? OR c.user2_id = ?`,
     [userId, userId, userId, userId]
   );
+  
+  // Get all deleted message IDs for this user
+  const deletedIds = await getDeletedMessageIds(userId).catch(() => []);
+  const deletedSet = new Set(deletedIds);
+
   const convs = [];
   for (const r of rows) {
     const otherUser = await getUser(r.other_user_id);
+    
+    // Find the latest message in this conversation that is NOT deleted for everyone
+    const messages = await query(
+      `SELECT * FROM messages 
+       WHERE conversation_id = ? 
+         AND content != '🚫 This message was deleted'
+       ORDER BY created_at DESC`,
+      [r.id]
+    );
+
+    // Filter out messages deleted for me (using deletedSet)
+    const visibleMessages = messages.filter(m => !deletedSet.has(m.id));
+
+    let lastMsgText = r.last_message;
+    let lastMsgTimestamp = r.timestamp;
+
+    if (visibleMessages.length > 0) {
+      const latest = visibleMessages[0];
+      lastMsgText = latest.file_url 
+        ? (latest.file_type?.startsWith('image/') ? 'Photo' : `File: ${latest.file_name}`)
+        : latest.content;
+      lastMsgTimestamp = latest.timestamp;
+    } else {
+      // If no visible messages left in the thread, set to empty
+      lastMsgText = '';
+    }
+
+    const unreadCount = visibleMessages.filter(m => m.sender_id !== userId && (m.read === 0 || !m.read)).length;
+
     convs.push({
       id: r.id,
       user: otherUser,
-      lastMessage: r.last_message,
-      timestamp: r.timestamp,
-      unread: r.unread,
+      lastMessage: lastMsgText,
+      timestamp: lastMsgTimestamp,
+      unread: unreadCount,
     });
   }
+
+  // Sort conversations by latest active timestamp descending (newest first)
+  convs.sort((a, b) => {
+    const tA = new Date(a.timestamp).getTime() || 0;
+    const tB = new Date(b.timestamp).getTime() || 0;
+    return tB - tA;
+  });
+
   return convs;
 }
 
@@ -910,7 +1026,13 @@ export async function getMessages(conversationId) {
     fileType: r.file_type,
     parentId: r.parent_id,
     timestamp: r.timestamp,
+    read: r.read ?? 0,
   }));
+}
+
+export async function markMessagesAsRead(conversationId, userId) {
+  await ensureDb();
+  await execute('UPDATE messages SET read = 1 WHERE conversation_id = ? AND sender_id != ? AND read = 0', [conversationId, userId]);
 }
 
 export async function sendMessage(conversationId, senderId, content, fileUrl = null, fileName = null, fileType = null, parentId = null) {
@@ -934,6 +1056,48 @@ export async function deleteMessageEveryone(messageId) {
 export async function editMessage(messageId, newContent) {
   await ensureDb();
   await execute('UPDATE messages SET content = ? WHERE id = ?', [newContent, messageId]);
+}
+
+export async function updateUserLastActive(userId, timestamp = undefined) {
+  if (!userId) return;
+  await ensureDb();
+  if (timestamp === null) {
+    await execute('UPDATE users SET last_active = NULL WHERE id = ?', [userId]);
+  } else if (timestamp === undefined) {
+    await execute("UPDATE users SET last_active = strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') WHERE id = ?", [userId]);
+  } else {
+    await execute('UPDATE users SET last_active = ? WHERE id = ?', [timestamp, userId]);
+  }
+}
+
+export async function setTypingStatus(conversationId, userId, isTyping) {
+  await ensureDb();
+  if (isTyping) {
+    const now = new Date().toISOString();
+    await execute(
+      `INSERT INTO typing_status (conversation_id, user_id, last_typed_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(conversation_id, user_id) DO UPDATE SET last_typed_at = ?`,
+      [conversationId, userId, now, now]
+    );
+  } else {
+    await execute(
+      `DELETE FROM typing_status WHERE conversation_id = ? AND user_id = ?`,
+      [conversationId, userId]
+    );
+  }
+}
+
+export async function getTypingStatus(conversationId, otherUserId) {
+  await ensureDb();
+  const row = await queryOne(
+    `SELECT * FROM typing_status WHERE conversation_id = ? AND user_id = ?`,
+    [conversationId, otherUserId]
+  );
+  if (!row) return false;
+  const lastTyped = new Date(row.last_typed_at).getTime() || 0;
+  const now = Date.now();
+  return (now - lastTyped) < 4000;
 }
 
 
@@ -1219,6 +1383,14 @@ export async function editGlobalMessage(messageId, newContent) {
 
 
 function formatUser(row) {
+  let settings = { theme: 'light', notifications: { messages: true, connections: true, resources: false }, visibility: 'public' };
+  try {
+    if (row.settings) {
+      settings = { ...settings, ...JSON.parse(row.settings) };
+    }
+  } catch (e) {
+    console.warn('Failed to parse user settings:', e);
+  }
   return {
     id: row.id,
     name: row.name,
@@ -1234,5 +1406,115 @@ function formatUser(row) {
     connections: row.connections,
     resources: row.resources,
     joinedDate: row.joined_date,
+    lastActive: row.last_active || null,
+    settings,
   };
+}
+
+// ---- Calls ----
+export async function createCall(conversationId, callerId, receiverId, type) {
+  await ensureDb();
+  const id = 'call_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const roomName = 'stugrow-' + id;
+  const timestamp = getCurrentTimestamp();
+  await execute(
+    `INSERT INTO calls (id, conversation_id, caller_id, receiver_id, type, status, room_name, timestamp)
+     VALUES (?, ?, ?, ?, ?, 'ringing', ?, ?)`,
+    [id, conversationId, callerId, receiverId, type, roomName, timestamp]
+  );
+  return { id, roomName };
+}
+
+export async function getActiveCall(conversationId) {
+  await ensureDb();
+  const row = await queryOne(
+    `SELECT * FROM calls WHERE conversation_id = ? AND status NOT IN ('ended', 'rejected', 'missed')
+     ORDER BY created_at DESC LIMIT 1`,
+    [conversationId]
+  );
+  return row || null;
+}
+
+export async function getIncomingCall(userId) {
+  await ensureDb();
+  const row = await queryOne(
+    `SELECT * FROM calls WHERE receiver_id = ? AND status = 'ringing'
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+  return row || null;
+}
+
+export async function updateCallStatus(callId, status) {
+  await ensureDb();
+  await execute(`UPDATE calls SET status = ? WHERE id = ?`, [status, callId]);
+}
+
+export async function setCallOffer(callId, sdpJson) {
+  await ensureDb();
+  await execute(`UPDATE calls SET offer = ? WHERE id = ?`, [sdpJson, callId]);
+}
+
+export async function setCallAnswer(callId, sdpJson) {
+  await ensureDb();
+  await execute(`UPDATE calls SET answer = ?, status = 'accepted' WHERE id = ?`, [sdpJson, callId]);
+}
+
+export async function getCallById(callId) {
+  await ensureDb();
+  const row = await queryOne(`SELECT * FROM calls WHERE id = ?`, [callId]);
+  return row || null;
+}
+
+export async function deleteMessageForUser(userId, messageId) {
+  if (!userId || !messageId) return;
+  try {
+    await ensureDb();
+    await execute(
+      'INSERT INTO user_deleted_messages (user_id, message_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
+      [userId, messageId]
+    );
+  } catch (e) {
+    console.warn('Failed to delete message for user in Turso:', e);
+  }
+}
+
+export async function getDeletedMessageIds(userId) {
+  if (!userId) return [];
+  try {
+    await ensureDb();
+    const rows = await query('SELECT message_id FROM user_deleted_messages WHERE user_id = ?', [userId]);
+    return rows.map(r => r.message_id);
+  } catch (e) {
+    console.warn('Failed to fetch deleted message IDs from Turso:', e);
+    return [];
+  }
+}
+
+export async function syncServerTime() {
+  try {
+    const start = Date.now();
+    const row = await queryOne("SELECT strftime('%Y-%m-%dT%H:%M:%S.000Z', 'now') as db_now");
+    const end = Date.now();
+    if (row && row.db_now) {
+      const clientMean = (start + end) / 2;
+      const dbTime = new Date(row.db_now).getTime();
+      serverTimeOffset = dbTime - clientMean;
+      console.log('Synced server time. Offset (db - client) ms:', serverTimeOffset);
+    }
+  } catch (e) {
+    console.warn('Failed to sync server time:', e);
+  }
+}
+
+export function isUserOnline(lastActive) {
+  if (!lastActive) return false;
+  const lastActiveTime = new Date(lastActive).getTime();
+  if (isNaN(lastActiveTime)) return false;
+
+  const adjustedNow = Date.now() + serverTimeOffset;
+  const diff = adjustedNow - lastActiveTime;
+
+  // Heartbeat is 4 seconds. Threshold is 15 seconds to allow for network jitter.
+  return diff < 15000;
 }
