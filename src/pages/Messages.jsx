@@ -1276,9 +1276,12 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
     pressTimerRef.current = setTimeout(() => {
       longPressedRef.current = true;
       if (element) {
-        const bubbleElement = (element && typeof element.closest === 'function')
-          ? element.closest('.message-bubble') || element
+        const rowElement = (element && typeof element.closest === 'function')
+          ? element.closest('[id^="msg-"]') || element
           : element;
+        const bubbleElement = rowElement && typeof rowElement.querySelector === 'function'
+          ? rowElement.querySelector('.message-bubble') || rowElement
+          : rowElement;
         const rect = bubbleElement.getBoundingClientRect();
         const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
         setMenuPosition({
@@ -1318,9 +1321,12 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
     e.preventDefault();
     if (selectedMessageIds.length > 0) return;
     const clickedElement = e.target;
-    const bubbleElement = (clickedElement && typeof clickedElement.closest === 'function')
-      ? clickedElement.closest('.message-bubble') || e.currentTarget.querySelector('.message-bubble') || e.currentTarget
-      : e.currentTarget.querySelector('.message-bubble') || e.currentTarget;
+    const rowElement = (clickedElement && typeof clickedElement.closest === 'function')
+      ? clickedElement.closest('[id^="msg-"]') || e.currentTarget
+      : e.currentTarget;
+    const bubbleElement = rowElement && typeof rowElement.querySelector === 'function'
+      ? rowElement.querySelector('.message-bubble') || rowElement
+      : rowElement;
     const rect = bubbleElement.getBoundingClientRect();
     const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
     setMenuPosition({
@@ -1598,6 +1604,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                 const parentMsg = message.parentId ? messages.find(m => m.id === message.parentId) : null;
                 const showAvatar = !isMine && (i === 0 || messages[i - 1]?.senderId !== message.senderId);
                 const isThisSwiping = swipingMessageId === message.id;
+                const isMenuOpen = contextMenuMessage?.id === message.id;
 
                 return (
                   <div
@@ -1620,6 +1627,8 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                       }
                     }}
                     className={`flex items-center animate-fade-in group relative select-none no-swipe px-2 sm:px-4 py-1.5 rounded-2xl transition-all duration-200 cursor-pointer ${
+                      isMenuOpen ? 'z-40 relative' : ''
+                    } ${
                       selectedMessageIds.includes(message.id)
                         ? 'bg-indigo-50/40 dark:bg-indigo-950/10'
                         : 'hover:bg-slate-50/20 dark:hover:bg-white/[0.005]'
@@ -1647,12 +1656,12 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                     onMouseLeave={handlePressEnd}
                   >
                     {/* Checkbox for Multi-Select */}
-                    {selectedMessageIds.length > 0 && (
+                    {selectedMessageIds.length > 0 && !contextMenuMessage && (
                       <div className="shrink-0 mr-3 flex items-center justify-center select-none cursor-pointer">
                         <div className={`w-[18px] h-[18px] rounded-full border flex items-center justify-center transition-all duration-200 ${
                           selectedMessageIds.includes(message.id)
                             ? 'bg-indigo-500 border-indigo-500 text-white scale-110 shadow-xs'
-                            : 'border-slate-350 dark:border-slate-650 bg-transparent'
+                            : 'border-slate-350 dark:border-slate-655 bg-transparent'
                         }`}>
                           {selectedMessageIds.includes(message.id) && (
                             <Check className="w-2.5 h-2.5 stroke-[3] text-white" />
@@ -1723,7 +1732,15 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                               e.stopPropagation();
                               handleMessageReact(message, '❤️');
                             }}
-                            className={`message-bubble relative rounded-2xl transition-all duration-355 ${highlightedMessageId === message.id ? 'highlight-msg-active' : ''} ${selectedMessageIds.includes(message.id) ? 'scale-[1.01]' : ''}`}
+                            className={`message-bubble relative rounded-2xl transition-all duration-355 ${
+                              highlightedMessageId === message.id ? 'highlight-msg-active' : ''
+                            } ${
+                              isMenuOpen
+                                ? 'z-50 scale-[1.02] shadow-lg ring-1 ring-black/5 dark:ring-white/10'
+                                : selectedMessageIds.includes(message.id)
+                                ? 'scale-[1.01]'
+                                : ''
+                            }`}
                           >
                             {message.file && message.fileType?.startsWith('image/') ? (
                               <div className="rounded-2xl overflow-hidden shadow-xs border border-gray-200/60 dark:border-gray-700/40">
@@ -1855,7 +1872,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       </div>
 
       {/* Input / Reply / Edit Editor Bar OR Multi-Select Toolbar */}
-      {selectedMessageIds.length > 0 ? (
+      {selectedMessageIds.length > 0 && !contextMenuMessage ? (
         <div id="select-actions-toolbar" className="shrink-0 px-3 py-3 border-t border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-[#0a0d14] flex items-center justify-between animate-slide-up">
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">
@@ -1964,7 +1981,8 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       {contextMenuMessage && menuPosition && (
         <>
           <div
-            className="fixed inset-0 z-45 bg-slate-950/[0.01] dark:bg-black/[0.02]"
+            className="fixed inset-0 z-45 bg-slate-900/20 dark:bg-black/45 backdrop-blur-[2.5px] animate-fade-in"
+            style={{ animationDuration: '200ms' }}
             onClick={(e) => {
               e.stopPropagation();
               setContextMenuMessage(null);

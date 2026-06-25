@@ -473,9 +473,12 @@ export default function GlobalChat() {
     pressTimerRef.current = setTimeout(() => {
       longPressedRef.current = true;
       if (element) {
-        const bubbleElement = (element && typeof element.closest === 'function')
-          ? element.closest('.message-bubble') || element
+        const rowElement = (element && typeof element.closest === 'function')
+          ? element.closest('[id^="msg-"]') || element
           : element;
+        const bubbleElement = rowElement && typeof rowElement.querySelector === 'function'
+          ? rowElement.querySelector('.message-bubble') || rowElement
+          : rowElement;
         const rect = bubbleElement.getBoundingClientRect();
         const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
         setMenuPosition({
@@ -515,9 +518,12 @@ export default function GlobalChat() {
     e.preventDefault();
     if (selectedMessageIds.length > 0) return;
     const clickedElement = e.target;
-    const bubbleElement = (clickedElement && typeof clickedElement.closest === 'function')
-      ? clickedElement.closest('.message-bubble') || e.currentTarget.querySelector('.message-bubble') || e.currentTarget
-      : e.currentTarget.querySelector('.message-bubble') || e.currentTarget;
+    const rowElement = (clickedElement && typeof clickedElement.closest === 'function')
+      ? clickedElement.closest('[id^="msg-"]') || e.currentTarget
+      : e.currentTarget;
+    const bubbleElement = rowElement && typeof rowElement.querySelector === 'function'
+      ? rowElement.querySelector('.message-bubble') || rowElement
+      : rowElement;
     const rect = bubbleElement.getBoundingClientRect();
     const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
     setMenuPosition({
@@ -651,6 +657,7 @@ export default function GlobalChat() {
             // Format nice grouped bubbles
             const showSenderHeader = !isMine && (i === 0 || messages[i - 1]?.senderId !== msg.senderId);
             const isThisSwiping = swipingMessageId === msg.id;
+            const isMenuOpen = contextMenuMessage?.id === msg.id;
 
             return (
               <div
@@ -673,6 +680,8 @@ export default function GlobalChat() {
                   }
                 }}
                 className={`flex items-center animate-fade-in group relative select-none px-2 sm:px-4 py-1.5 rounded-2xl transition-all duration-200 cursor-pointer ${
+                  isMenuOpen ? 'z-40 relative' : ''
+                } ${
                   selectedMessageIds.includes(msg.id)
                     ? 'bg-indigo-50/40 dark:bg-indigo-950/10'
                     : 'hover:bg-slate-50/20 dark:hover:bg-white/[0.005]'
@@ -700,7 +709,7 @@ export default function GlobalChat() {
                 onMouseLeave={handlePressEnd}
               >
                 {/* Checkbox for Multi-Select */}
-                {selectedMessageIds.length > 0 && (
+                {selectedMessageIds.length > 0 && !contextMenuMessage && (
                   <div className="shrink-0 mr-3 flex items-center justify-center select-none cursor-pointer">
                     <div className={`w-[18px] h-[18px] rounded-full border flex items-center justify-center transition-all duration-200 ${
                       selectedMessageIds.includes(msg.id)
@@ -796,7 +805,15 @@ export default function GlobalChat() {
                           e.stopPropagation();
                           handleMessageReact(msg, '❤️');
                         }}
-                        className={`message-bubble relative rounded-2xl transition-all duration-355 ${highlightedMessageId === msg.id ? 'highlight-msg-active' : ''} ${selectedMessageIds.includes(msg.id) ? 'scale-[1.01]' : ''}`}
+                        className={`message-bubble relative rounded-2xl transition-all duration-355 ${
+                          highlightedMessageId === msg.id ? 'highlight-msg-active' : ''
+                        } ${
+                          isMenuOpen
+                            ? 'z-50 scale-[1.02] shadow-lg ring-1 ring-black/5 dark:ring-white/10'
+                            : selectedMessageIds.includes(msg.id)
+                            ? 'scale-[1.01]'
+                            : ''
+                        }`}
                       >
                         {msg.file && msg.fileType?.startsWith('image/') ? (
                           <div className="rounded-2xl overflow-hidden shadow-xs border border-slate-200/50 dark:border-slate-800/80">
@@ -911,7 +928,7 @@ export default function GlobalChat() {
       </div>
 
       {/* Input / Reply / Edit Editor Wrapper OR Multi-Select Toolbar */}
-      {selectedMessageIds.length > 0 ? (
+      {selectedMessageIds.length > 0 && !contextMenuMessage ? (
         <div id="select-actions-toolbar" className="shrink-0 px-3 py-3 border-t border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-[#080b14] flex items-center justify-between animate-slide-up">
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">
@@ -1036,7 +1053,8 @@ export default function GlobalChat() {
       {contextMenuMessage && menuPosition && (
         <>
           <div
-            className="fixed inset-0 z-45 bg-slate-950/[0.01] dark:bg-black/[0.02]"
+            className="fixed inset-0 z-45 bg-slate-900/20 dark:bg-black/45 backdrop-blur-[2.5px] animate-fade-in"
+            style={{ animationDuration: '200ms' }}
             onClick={(e) => {
               e.stopPropagation();
               setContextMenuMessage(null);
