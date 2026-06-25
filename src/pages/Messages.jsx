@@ -812,6 +812,36 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
     };
   }, [contextMenuMessage, selectedMessageIds]);
 
+  // Keep contextMenuMessage and menuPosition in sync with selectedMessageIds when exactly 1 is selected
+  useEffect(() => {
+    if (selectedMessageIds.length === 1) {
+      const singleId = selectedMessageIds[0];
+      const msg = messages.find(m => m.id === singleId);
+      if (msg) {
+        if (contextMenuMessage?.id !== msg.id) {
+          const element = document.getElementById(`msg-${singleId}`);
+          if (element) {
+            const bubbleElement = element.querySelector('.message-bubble') || element;
+            const rect = bubbleElement.getBoundingClientRect();
+            const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
+            setMenuPosition({
+              top: rect.top - containerRect.top,
+              left: rect.left - containerRect.left,
+              width: rect.width,
+              height: rect.height,
+              isMine: msg.senderId === user?.id
+            });
+            setContextMenuMessage(msg);
+          }
+        }
+      }
+    } else {
+      if (contextMenuMessage) {
+        setContextMenuMessage(null);
+      }
+    }
+  }, [selectedMessageIds, messages, user?.id, contextMenuMessage]);
+
   // Details popstate interceptor to close details on back button instead of leaving the chat
   useEffect(() => {
     if (!showDetails) return;
@@ -1656,7 +1686,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                     onMouseLeave={handlePressEnd}
                   >
                     {/* Checkbox for Multi-Select */}
-                    {selectedMessageIds.length > 0 && !contextMenuMessage && (
+                    {selectedMessageIds.length > 0 && (
                       <div className="shrink-0 mr-3 flex items-center justify-center select-none cursor-pointer">
                         <div className={`w-[18px] h-[18px] rounded-full border flex items-center justify-center transition-all duration-200 ${
                           selectedMessageIds.includes(message.id)
@@ -1874,7 +1904,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       </div>
 
       {/* Input / Reply / Edit Editor Bar OR Multi-Select Toolbar */}
-      {selectedMessageIds.length > 0 && !contextMenuMessage ? (
+      {selectedMessageIds.length > 0 ? (
         <div id="select-actions-toolbar" className="shrink-0 px-3 py-3 border-t border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-[#0a0d14] flex items-center justify-between animate-slide-up">
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">
