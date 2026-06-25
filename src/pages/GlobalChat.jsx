@@ -828,6 +828,7 @@ export default function GlobalChat() {
                                     return;
                                   }
                                   if (selectedMessageIds.length > 0) {
+                                    e.preventDefault();
                                     e.stopPropagation();
                                     toggleMessageSelection(msg.id);
                                     if (contextMenuMessage) setContextMenuMessage(null);
@@ -859,6 +860,7 @@ export default function GlobalChat() {
                               }
                               if (selectedMessageIds.length > 0) {
                                 e.preventDefault();
+                                e.stopPropagation();
                                 toggleMessageSelection(msg.id);
                                   if (contextMenuMessage) setContextMenuMessage(null);
                               }

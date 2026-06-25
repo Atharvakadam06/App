@@ -1756,6 +1756,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                                     }
                                     if (selectedMessageIds.length > 0) {
                                       e.preventDefault();
+                                      e.stopPropagation();
                                       toggleMessageSelection(message.id);
                                       if (contextMenuMessage) setContextMenuMessage(null);
                                     } else {
@@ -1786,6 +1787,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                                   }
                                   if (selectedMessageIds.length > 0) {
                                     e.preventDefault();
+                                    e.stopPropagation();
                                     toggleMessageSelection(message.id);
                                     if (contextMenuMessage) setContextMenuMessage(null);
                                   }
