@@ -1197,17 +1197,13 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
 
   const getMenuStyles = () => {
     if (!menuPosition) return {};
-    const { top, left, width, height, isMine } = menuPosition;
+    const { top, left, width, height } = menuPosition;
     const menuWidth = 220;
     const menuHeight = 250; // Estimated height for clamping
     const gap = 6;
     
-    let targetLeft = 0;
-    if (isMine) {
-      targetLeft = (left + width) - menuWidth;
-    } else {
-      targetLeft = left;
-    }
+    // Center horizontally relative to the selected message bubble
+    let targetLeft = left + (width / 2) - (menuWidth / 2);
     
     let targetTop = top + height + gap;
     
