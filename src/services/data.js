@@ -1017,7 +1017,7 @@ export async function getConversations(userId) {
 export async function getMessages(conversationId) {
   await ensureDb();
   const rows = await query('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC', [conversationId]);
-  return rows.map(r => ({
+  const messages = rows.map(r => ({
     id: r.id,
     senderId: r.sender_id,
     content: r.content,
@@ -1028,6 +1028,16 @@ export async function getMessages(conversationId) {
     timestamp: r.timestamp,
     read: r.read ?? 0,
   }));
+
+  if (messages.length > 0) {
+    const ids = messages.map(m => m.id);
+    const reactionsMap = await getReactionsForMessages(ids);
+    for (const m of messages) {
+      m.reactions = reactionsMap[m.id] || [];
+    }
+  }
+
+  return messages;
 }
 
 export async function markMessagesAsRead(conversationId, userId) {
@@ -1214,8 +1224,10 @@ export async function clearAllData() {
   await execute('DELETE FROM products');
   await execute('DELETE FROM tips');
   await execute('DELETE FROM posts');
+  await execute('DELETE FROM message_reactions');
   try { localStorage.removeItem(FALLBACK_POSTS_KEY); } catch { /* ignore */ }
   try { localStorage.removeItem(FALLBACK_PRODUCTS_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem('stugrow_reactions_fallback'); } catch { /* ignore */ }
 }
 
 // ---- Blocked Users ----
@@ -1316,6 +1328,14 @@ export async function getGlobalMessages() {
     }
   } catch (e) {
     console.warn('Turso read failed for global messages, using localStorage fallback:', e);
+  }
+
+  if (messages.length > 0) {
+    const ids = messages.map(m => m.id);
+    const reactionsMap = await getReactionsForMessages(ids);
+    for (const m of messages) {
+      m.reactions = reactionsMap[m.id] || [];
+    }
   }
 
   return messages;
@@ -1517,4 +1537,109 @@ export function isUserOnline(lastActive) {
 
   // Heartbeat is 4 seconds. Threshold is 15 seconds to allow for network jitter.
   return diff < 15000;
+}
+
+// ---- Message Reactions ----
+export async function toggleMessageReaction(messageId, userId, reaction) {
+  const fallbackReactionsKey = 'stugrow_reactions_fallback';
+  let localReactions = [];
+  try {
+    localReactions = JSON.parse(localStorage.getItem(fallbackReactionsKey)) || [];
+  } catch (e) {
+    console.warn('Failed to parse fallback reactions:', e);
+  }
+
+  const existingLocalIdx = localReactions.findIndex(r => r.messageId === messageId && r.userId === userId);
+  let localToggledOff = false;
+  if (existingLocalIdx > -1) {
+    if (localReactions[existingLocalIdx].reaction === reaction) {
+      localReactions.splice(existingLocalIdx, 1);
+      localToggledOff = true;
+    } else {
+      localReactions[existingLocalIdx].reaction = reaction;
+    }
+  } else {
+    localReactions.push({ messageId, userId, reaction });
+  }
+
+  try {
+    localStorage.setItem(fallbackReactionsKey, JSON.stringify(localReactions));
+  } catch (e) {
+    console.warn('Failed to save fallback reactions:', e);
+  }
+
+  // Sync to remote database
+  try {
+    await ensureDb();
+    const existing = await queryOne('SELECT * FROM message_reactions WHERE message_id = ? AND user_id = ?', [messageId, userId]);
+    if (existing) {
+      if (existing.reaction === reaction) {
+        await execute('DELETE FROM message_reactions WHERE message_id = ? AND user_id = ?', [messageId, userId]);
+      } else {
+        await execute('UPDATE message_reactions SET reaction = ? WHERE message_id = ? AND user_id = ?', [reaction, messageId, userId]);
+      }
+    } else {
+      await execute('INSERT INTO message_reactions (message_id, user_id, reaction) VALUES (?, ?, ?)', [messageId, userId, reaction]);
+    }
+  } catch (e) {
+    console.warn('Turso toggle reaction failed:', e);
+  }
+
+  return localToggledOff ? null : reaction;
+}
+
+export async function getReactionsForMessages(messageIds) {
+  if (!messageIds || messageIds.length === 0) return {};
+  
+  const fallbackReactionsKey = 'stugrow_reactions_fallback';
+  let localReactions = [];
+  try {
+    localReactions = JSON.parse(localStorage.getItem(fallbackReactionsKey)) || [];
+  } catch (e) {
+    // ignore
+  }
+
+  const map = {};
+  for (const r of localReactions) {
+    if (messageIds.includes(r.messageId)) {
+      if (!map[r.messageId]) map[r.messageId] = [];
+      map[r.messageId].push({ userId: r.userId, reaction: r.reaction });
+    }
+  }
+
+  try {
+    await ensureDb();
+    const placeholders = messageIds.map(() => '?').join(',');
+    const rows = await query(`SELECT * FROM message_reactions WHERE message_id IN (${placeholders})`, messageIds);
+    
+    const dbMap = {};
+    for (const r of rows) {
+      if (!dbMap[r.message_id]) dbMap[r.message_id] = {};
+      dbMap[r.message_id][r.user_id] = r.reaction;
+    }
+
+    for (const msgId of messageIds) {
+      const finalReactions = [];
+      const userReactionMap = dbMap[msgId] || {};
+      
+      for (const [uId, react] of Object.entries(userReactionMap)) {
+        finalReactions.push({ userId: uId, reaction: react });
+      }
+
+      const localForMsg = localReactions.filter(r => r.messageId === msgId);
+      for (const lr of localForMsg) {
+        if (!userReactionMap[lr.userId]) {
+          finalReactions.push({ userId: lr.userId, reaction: lr.reaction });
+        }
+      }
+
+      if (finalReactions.length > 0) {
+        map[msgId] = finalReactions;
+      }
+    }
+  } catch (e) {
+    console.warn('Turso fetch reactions failed, using localStorage fallback:', e);
+  }
+
+  return map;
 }

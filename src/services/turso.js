@@ -363,6 +363,15 @@ export async function initDatabase() {
       )
     `);
 
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS message_reactions (
+        message_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        reaction TEXT NOT NULL,
+        PRIMARY KEY (message_id, user_id)
+      )
+    `);
+
     dbInitialized = true;
     console.log('Turso database initialized');
   } catch (e) {
