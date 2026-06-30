@@ -1,15 +1,3 @@
-const colors = [
-  '#4f46e5', // indigo
-  '#0891b2', // cyan
-  '#0d9488', // teal
-  '#059669', // emerald
-  '#ca8a04', // yellow/amber
-  '#db2777', // pink
-  '#e11d48', // rose
-  '#2563eb', // blue
-  '#7c3aed', // violet
-];
-
 export const getInitialsSvgDataUrl = (name) => {
   const cleanName = name || '?';
   const initials = cleanName
@@ -20,13 +8,8 @@ export const getInitialsSvgDataUrl = (name) => {
     .slice(0, 2)
     .toUpperCase();
     
-  // Hash name to pick a stable color
-  let hash = 0;
-  for (let i = 0; i < cleanName.length; i++) {
-    hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const colorIndex = Math.abs(hash) % colors.length;
-  const bgColor = colors[colorIndex];
+  // Premium subtle slate-grey background
+  const bgColor = '#64748b'; 
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
     <rect width="100" height="100" fill="${bgColor}"/>
