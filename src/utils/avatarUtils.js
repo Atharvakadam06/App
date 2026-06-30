@@ -8,8 +8,8 @@ export const getInitialsSvgDataUrl = (name) => {
     .slice(0, 2)
     .toUpperCase();
     
-  // Premium subtle slate-grey background
-  const bgColor = '#64748b'; 
+  // Standard app subtle slate-grey background (matching ui-avatars default color)
+  const bgColor = '#334155'; 
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
     <rect width="100" height="100" fill="${bgColor}"/>
