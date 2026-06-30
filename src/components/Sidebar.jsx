@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
 import { useMessages } from '../context/MessageContext';
 import MobileMoreMenu from './MobileMoreMenu';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 const mainNavItems = [
   { path: '/', icon: Home, label: 'Home' },
@@ -135,7 +136,7 @@ export default function Sidebar() {
                 : 'border-slate-200 dark:border-slate-700'
             }`}>
               {user?.avatar ? (
-                <img src={user.avatar} alt={user?.name} className="w-full h-full object-cover" />
+                <img src={user.avatar} alt={user?.name} className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, user?.name)} />
               ) : (
                 <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                   <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user?.name?.charAt(0)}</span>
@@ -236,7 +237,7 @@ export default function Sidebar() {
                     : 'border-transparent'
                 }`}>
                   {user?.avatar ? (
-                    <img src={user.avatar} alt={user?.name} className="w-full h-full object-cover" />
+                    <img src={user.avatar} alt={user?.name} className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, user?.name)} />
                   ) : (
                     <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                       <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user?.name?.charAt(0)}</span>

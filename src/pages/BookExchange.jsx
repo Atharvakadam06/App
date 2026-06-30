@@ -9,6 +9,7 @@ import { createBook, getAllBooks, deleteBook, createConversation } from '../serv
 import CustomSelect from '../components/CustomSelect';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 import { matchSearch } from '../utils/searchUtils';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 function BookCard({ book, requested, onRequest, onBuy, onDelete, currentUserId }) {
   const isOwner = book.uploadedBy?.id === currentUserId;
@@ -36,7 +37,7 @@ function BookCard({ book, requested, onRequest, onBuy, onDelete, currentUserId }
         {book.description && <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-3 sm:mb-4">{book.description}</p>}
         {book.uploadedBy && (
           <div className="flex items-center gap-2 mb-3 sm:mb-4">
-            <img src={book.uploadedBy.avatar} alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full" />
+            <img src={book.uploadedBy.avatar} alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover" onError={(e) => handleAvatarError(e, book.uploadedBy.name)} />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{book.uploadedBy.name}</p>
               {book.uploadedBy.college && <p className="text-[10px] text-slate-500 dark:text-slate-400">{book.uploadedBy.college}</p>}

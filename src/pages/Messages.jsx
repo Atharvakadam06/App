@@ -22,6 +22,7 @@ import { formatTimeAgo } from '../utils/timeUtils';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 import { matchSearch } from '../utils/searchUtils';
 import CallScreen, { IncomingCallOverlay } from '../components/CallScreen';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 function EmojiPicker({ onSelect, onClose }) {
   const emojis = ['😀','😂','❤️','👍','👋','🎉','🔥','💯','😊','🤔','👏','🙏','💪','✨','🚀','📚','🎓','💡','⭐','🌟','😍','🥳','😎','🤝'];
@@ -180,7 +181,7 @@ function ConversationList({ conversations, selectedId, onSelect, searchQuery, se
               style={shouldAnimate ? { animationName: i === 0 ? 'none' : 'fadeInUp', animationDuration: '0.3s', animationFillMode: 'backwards', animationDelay: `${Math.min(i * 20, 200)}ms`, animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' } : {}}
             >
               <div className="relative shrink-0">
-                <img src={conv.user?.avatar} alt={conv.user?.name} className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-white dark:ring-[#0a0d14] shadow-sm" />
+                <img src={conv.user?.avatar} alt="" className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-white dark:ring-[#0a0d14] shadow-sm" onError={(e) => handleAvatarError(e, conv.user?.name)} />
                 {isUserOnline(conv.user?.lastActive) && (
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-[#0a0d14]" />
                 )}
@@ -217,7 +218,7 @@ function NewChatModal({ users, currentUser, onClose, onStart }) {
         <div className="flex-1 overflow-y-auto space-y-0.5">
           {filtered.length === 0 ? <p className="text-[13px] text-gray-400 text-center py-8">No students found</p> : filtered.map(u => (
             <button key={u.id} onClick={() => onStart(u)} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-[#0f131f]/60 transition-all active:scale-[0.98]">
-              <img src={u.avatar} alt={u.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-800" />
+              <img src={u.avatar} alt="" className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-800" onError={(e) => handleAvatarError(e, u.name)} />
               <div className="text-left"><p className="text-[13px] font-semibold text-gray-900 dark:text-white">{u.name}</p><p className="text-[11px] text-gray-500 dark:text-gray-400">@{u.username}</p></div>
             </button>
           ))}
@@ -394,7 +395,7 @@ function ChatDetails({ recipientUser, messages, conversation, onBack, onSearch }
         {/* User Card */}
         <div className="flex flex-col items-center text-center space-y-2">
           <div className="relative group cursor-pointer" onClick={handleProfileClick}>
-            <img src={recipientUser.avatar} alt={recipientUser.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover ring-4 ring-slate-100 dark:ring-white/[0.06] hover:scale-105 transition-transform duration-300 shadow-md" />
+            <img src={recipientUser.avatar} alt="" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover ring-4 ring-slate-100 dark:ring-white/[0.06] hover:scale-105 transition-transform duration-300 shadow-md" onError={(e) => handleAvatarError(e, recipientUser.name)} />
             {isUserOnline(recipientUser.lastActive) && (
               <span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 rounded-full ring-4 ring-white dark:ring-[#080b14]" />
             )}
@@ -1528,7 +1529,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
           className="flex-1 flex items-center gap-2.5 sm:gap-3 min-w-0 cursor-pointer select-none active:opacity-75 transition-all py-1 rounded-xl"
         >
           <div className="relative shrink-0">
-            <img src={recipientUser?.avatar} alt={recipientUser?.name} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-800 shadow-sm" />
+            <img src={recipientUser?.avatar} alt="" className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-800 shadow-sm" onError={(e) => handleAvatarError(e, recipientUser?.name)} />
             {isUserOnline(recipientUser?.lastActive) && (
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-[#0a0d14]" />
             )}

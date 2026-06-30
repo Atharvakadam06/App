@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { X, Image, Camera, Paperclip } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { uploadToCloudinary } from '../services/cloudinary';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 export default function CreatePost({ onPost, user }) {
   const [content, setContent] = useState('');
@@ -100,7 +101,7 @@ export default function CreatePost({ onPost, user }) {
     <>
       <div className="profile-post-card">
         <div className="flex gap-3">
-          <img src={user?.avatar} alt={user?.name} className="profile-post-avatar" />
+          <img src={user?.avatar} alt="" className="profile-post-avatar" onError={(e) => handleAvatarError(e, user?.name)} />
           <div className="flex-1 flex flex-col">
             <textarea
               value={content}

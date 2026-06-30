@@ -12,6 +12,7 @@ import { formatTimeAgo, getCurrentTimestamp } from '../utils/timeUtils';
 import { branches, semesters } from '../data/mockData';
 import CustomSelect from '../components/CustomSelect';
 import CreatePost from '../components/CreatePost';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 const branchGradients = {
   'Computer Science': 'profile-cover-container',
@@ -82,7 +83,7 @@ function ProfileHeader({ user, onEdit, isOwnProfile = true, onMessage, bindsCoun
           <div className="flex justify-center sm:justify-start -mt-2">
             <div className="profile-avatar">
               {user?.avatar ? (
-                <img src={user.avatar} alt={user?.name} className="w-full h-full rounded-full object-cover" />
+                <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" onError={(e) => handleAvatarError(e, user?.name)} />
               ) : (
                 <div className="w-full h-full rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold profile-avatar-initials">
                   {userInitials}
@@ -1159,11 +1160,11 @@ case 'books':
       case 'saved':
         if (!isOwnProfile) return null;
         return savedPosts.length === 0 ? (<EmptyTab icon={Bookmark} title="No saved items yet" description="Save posts to access them later" />) : (
-          <div className="space-y-4">{savedPosts.map(post => (<div key={post.id} className="card p-4 sm:p-6"><div className="flex items-center gap-2 mb-3"><img src={post.user?.avatar} alt="" className="w-8 h-8 rounded-full" /><div><p className="text-sm font-medium text-slate-900 dark:text-white">{post.user?.name}</p><p className="text-xs text-slate-500 dark:text-slate-400">{formatTimeAgo(post.timestamp)}</p></div></div>{post.image && <img src={post.image} alt="" className="w-full h-48 object-cover rounded-xl mb-3" />}<p className="text-sm text-slate-700 dark:text-slate-300">{post.content}</p></div>))}</div>
+          <div className="space-y-4">{savedPosts.map(post => (<div key={post.id} className="card p-4 sm:p-6"><div className="flex items-center gap-2 mb-3"><img src={post.user?.avatar} alt="" className="w-8 h-8 rounded-full object-cover" onError={(e) => handleAvatarError(e, post.user?.name)} /><div><p className="text-sm font-medium text-slate-900 dark:text-white">{post.user?.name}</p><p className="text-xs text-slate-500 dark:text-slate-400">{formatTimeAgo(post.timestamp)}</p></div></div>{post.image && <img src={post.image} alt="" className="w-full h-48 object-cover rounded-xl mb-3" />}<p className="text-sm text-slate-700 dark:text-slate-300">{post.content}</p></div>))}</div>
         );
       case 'connections':
         return linkedUsersProfile.length === 0 ? (<EmptyTab icon={Users} title="No connections yet" description="Connect with students to see them here" />) : (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 sm:gap-6">{linkedUsersProfile.map(u => (<div key={u.id} className="text-center p-2"><button onClick={() => navigate(`/profile/${u.id}`)} className="block group"><img src={u.avatar} alt={u.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto mb-2 border-2 border-gray-100 dark:border-gray-700 group-hover:border-blue-400 group-hover:scale-105 transition-all duration-200" /><p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">{u.name}</p><p className="text-xs text-gray-500">@{u.username}</p></button></div>))}</div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 sm:gap-6">{linkedUsersProfile.map(u => (<div key={u.id} className="text-center p-2"><button onClick={() => navigate(`/profile/${u.id}`)} className="block group"><img src={u.avatar} alt="" className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto mb-2 border-2 border-gray-100 dark:border-gray-700 group-hover:border-blue-400 group-hover:scale-105 transition-all duration-200" onError={(e) => handleAvatarError(e, u.name)} /><p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">{u.name}</p><p className="text-xs text-gray-500">@{u.username}</p></button></div>))}</div>
         );
       default: return null;
     }

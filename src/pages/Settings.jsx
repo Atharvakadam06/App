@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { clearAllData, exportUserData, deleteUser } from '../services/data';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 function SettingsSection({ title, icon, children }) {
   return (
@@ -404,7 +405,7 @@ export default function Settings() {
         <div className="flex items-center gap-3 mb-5 bg-white dark:bg-[#0e1322] rounded-2xl border border-slate-100 dark:border-[#151a28] p-4 shadow-sm">
           <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-slate-100 dark:border-slate-700 shrink-0">
             {user.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+              <img src={user.avatar} alt="" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, user.name)} />
             ) : (
               <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                 <span className="font-bold text-slate-600 dark:text-slate-300">{user.name?.charAt(0)}</span>

@@ -6,6 +6,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { toggleLink, getLinks, createConversation } from '../services/data';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 import { matchSearch } from '../utils/searchUtils';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 export default function Network() {
   const { user, users, refreshUsers } = useAuth();
@@ -156,7 +157,7 @@ export default function Network() {
                   >
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800/80 group-hover:border-blue-300 dark:group-hover:border-blue-800/80 shadow-sm transition-colors duration-300 ease-out">
                       {u.avatar ? (
-                        <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                        <img src={u.avatar} alt="" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, u.name)} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-indigo-50/60 dark:bg-indigo-950/30 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 transition-colors duration-300 ease-out">
                           <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{u.name?.charAt(0)}</span>
@@ -245,9 +246,10 @@ export default function Network() {
                     {u.avatar ? (
                       <img
                         src={u.avatar}
-                        alt={u.name}
+                        alt=""
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
+                        onError={(e) => handleAvatarError(e, u.name)}
                       />
                     ) : (
                       <div className="w-full h-full rounded-full bg-[#2d3748] flex items-center justify-center">
@@ -319,7 +321,7 @@ export default function Network() {
                   >
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800/80 group-hover:border-blue-300 dark:group-hover:border-blue-800/80 shadow-sm transition-colors duration-300 ease-out">
                       {u.avatar ? (
-                        <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                        <img src={u.avatar} alt="" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, u.name)} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-indigo-50/60 dark:bg-indigo-950/30 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 transition-colors duration-300 ease-out">
                           <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{u.name?.charAt(0)}</span>

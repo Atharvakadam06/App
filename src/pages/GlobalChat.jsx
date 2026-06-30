@@ -13,6 +13,7 @@ import {
   deleteMessageForUser, getDeletedMessageIds, toggleMessageReaction
 } from '../services/data';
 import { formatTimeAgo } from '../utils/timeUtils';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 function EmojiPicker({ onSelect, onClose }) {
   const emojis = ['😀','😂','❤️','👍','👋','🎉','🔥','💯','😊','🤔','👏','🙏','💪','✨','🚀','📚','🎓','💡','⭐','🌟','😍','🥳','😎','🤝'];
@@ -777,7 +778,7 @@ export default function GlobalChat() {
                     {!isMine && (
                       <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-slate-200 dark:border-slate-800 shadow-xs mt-1">
                         {msg.sender?.avatar ? (
-                          <img src={msg.sender.avatar} alt="" className="w-full h-full object-cover" />
+                          <img src={msg.sender.avatar} alt="" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, msg.sender?.name)} />
                         ) : (
                           <div className="w-full h-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-500">
                             {msg.sender?.name?.charAt(0) || 'U'}

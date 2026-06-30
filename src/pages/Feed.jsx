@@ -17,6 +17,7 @@ import { matchSearch } from '../utils/searchUtils';
 import { usePostSave } from '../context/PostSaveContext';
 import { formatTimeAgo } from '../utils/timeUtils';
 import ProfessionalSearch from '../components/ProfessionalSearch';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 /* ─── Category filter pill data ─── */
 const categories = [
@@ -230,7 +231,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
           {/* Clean avatar — no ring */}
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 shrink-0 bg-slate-100 dark:bg-slate-800">
             {post.user?.avatar ? (
-              <img src={post.user.avatar} alt={post.user?.name} className="w-full h-full object-cover" />
+              <img src={post.user.avatar} alt="" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, post.user?.name)} />
             ) : (
               <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                 <span className="text-slate-600 dark:text-slate-300 text-sm font-bold">{post.user?.name?.charAt(0)}</span>
@@ -543,7 +544,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
                   <div key={c.id} className="animate-fade-in space-y-2.5">
                     {/* Top Level Comment */}
                     <div className="flex gap-2.5">
-                      <img src={c.avatar} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" />
+                      <img src={c.avatar} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" onError={(e) => handleAvatarError(e, c.name)} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-1">
                           <p className="text-[13px] text-slate-800 dark:text-slate-200 leading-snug">
@@ -583,7 +584,7 @@ function PostCard({ post, onLike, onSave, onDelete, onComment, onDeleteComment, 
                           <div className="space-y-3 border-l border-slate-100 dark:border-white/[0.05] pl-3.5 ml-2 mt-2.5 animate-fade-in">
                             {replies.map((reply) => (
                               <div key={reply.id} className="flex gap-2.5 animate-fade-in">
-                                <img src={reply.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" />
+                                <img src={reply.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-100 dark:border-white/10 mt-0.5" onError={(e) => handleAvatarError(e, reply.name)} />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start justify-between gap-1">
                                     <p className="text-[12.5px] text-slate-800 dark:text-slate-200 leading-snug">
