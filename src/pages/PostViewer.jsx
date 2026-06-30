@@ -14,6 +14,7 @@ import {
   addComment, getPostComments, getUser
 } from '../services/data';
 import { formatTimeAgo } from '../utils/timeUtils';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 /* ══════════════════════════════════════════════
    COMMENT BOTTOM SHEET
@@ -101,7 +102,7 @@ function CommentSheet({ post, currentUser, onClose, onAddComment }) {
             topComments.map(c => (
               <div key={c.id} className="flex gap-3 items-start">
                 {c.avatar ? (
-                  <img src={c.avatar} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  <img src={c.avatar} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} onError={(e) => handleAvatarError(e, c.name)} />
                 ) : (
                   <div style={{
                     width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
@@ -128,7 +129,7 @@ function CommentSheet({ post, currentUser, onClose, onAddComment }) {
           style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
         >
           {currentUser?.avatar ? (
-            <img src={currentUser.avatar} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+            <img src={currentUser.avatar} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} onError={(e) => handleAvatarError(e, currentUser?.name)} />
           ) : (
             <div style={{
               width: 32, height: 32, borderRadius: '50%', flexShrink: 0,

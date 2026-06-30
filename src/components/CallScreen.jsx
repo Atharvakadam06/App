@@ -15,6 +15,7 @@ import {
   Volume2, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { updateCallStatus, setCallOffer, setCallAnswer, getCallById } from '../services/data';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 // ─── Free ICE servers ─────────────────────────────────────────────────────────
 const ICE = [
@@ -186,7 +187,7 @@ export function IncomingCallOverlay({ call, callerUser, onAccept, onDecline }) {
       </p>
       <div style={{ position: 'relative', width: 100, height: 100, marginBottom: 22, zIndex: 1 }}>
         <Rings color={accent} />
-        <img src={callerUser?.avatar} alt="" style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, position: 'relative', zIndex: 1 }} />
+        <img src={callerUser?.avatar} alt="" style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, position: 'relative', zIndex: 1 }} onError={(e) => handleAvatarError(e, callerUser?.name)} />
       </div>
       <h1 style={{ color: '#f1f5f9', fontSize: 25, fontWeight: 800, margin: 0, letterSpacing: '-.02em', position: 'relative', zIndex: 1 }}>{callerUser?.name}</h1>
       <p style={{ color: 'rgba(255,255,255,.32)', fontSize: 13, margin: '5px 0 0', fontWeight: 500, position: 'relative', zIndex: 1 }}>{callerUser?.college || 'StuGrow Student'}</p>
@@ -211,7 +212,7 @@ function CallingScreen({ call, otherUser, onCancel }) {
       <p style={{ color: accent, fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 34, position: 'relative', zIndex: 1 }}>{call?.type === 'video' ? '📹 Video Call' : '📞 Audio Call'}</p>
       <div style={{ position: 'relative', width: 108, height: 108, marginBottom: 22, zIndex: 1 }}>
         <Rings color={accent} />
-        <img src={otherUser?.avatar} alt="" style={{ width: 108, height: 108, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, position: 'relative', zIndex: 1 }} />
+        <img src={otherUser?.avatar} alt="" style={{ width: 108, height: 108, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, position: 'relative', zIndex: 1 }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
       </div>
       <h1 style={{ color: '#f1f5f9', fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: '-.02em', position: 'relative', zIndex: 1 }}>{otherUser?.name}</h1>
       <div style={{ display: 'flex', gap: 6, marginTop: 22, position: 'relative', zIndex: 1 }}>
@@ -229,7 +230,7 @@ function CallingScreen({ call, otherUser, onCancel }) {
 function ConnectingScreen({ otherUser }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9998, background: '#020617', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-      <img src={otherUser?.avatar} alt="" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(99,102,241,.35)', marginBottom: 6 }} />
+      <img src={otherUser?.avatar} alt="" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(99,102,241,.35)', marginBottom: 6 }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
       <div style={{ width: 34, height: 34, borderRadius: '50%', border: '3px solid rgba(255,255,255,.07)', borderTopColor: '#6366f1', animation: 'sgSpin2 .8s linear infinite' }} />
       <p style={{ color: 'rgba(255,255,255,.32)', fontSize: 13, fontWeight: 600 }}>Connecting…</p>
     </div>
@@ -307,7 +308,7 @@ function AudioCallScreen({ otherUser, localStream, remoteStream, onHangUp }) {
       <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${otherUser?.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(40px) brightness(.12) saturate(.7)', zIndex: 0 }} />
       {/* Content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-        <img src={otherUser?.avatar} alt="" style={{ width: 112, height: 112, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,.2)', boxShadow: '0 16px 60px rgba(0,0,0,.5)', marginBottom: 20 }} />
+        <img src={otherUser?.avatar} alt="" style={{ width: 112, height: 112, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,.2)', boxShadow: '0 16px 60px rgba(0,0,0,.5)', marginBottom: 20 }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
         <h1 style={{ color: '#f1f5f9', fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-.02em' }}>{otherUser?.name}</h1>
         <p style={{ color: '#4ade80', fontSize: 13, margin: '8px 0 0', fontWeight: 700, animation: 'sgPls2 2s ease infinite' }}>● <Timer from={startRef.current} /></p>
       </div>
@@ -355,7 +356,7 @@ function VideoCallScreen({ currentUser, otherUser, localStream, remoteStream, on
       {/* Fallback when no remote video yet */}
       {!remoteStream && (
         <div style={{ position: 'absolute', inset: 0, background: '#0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-          <img src={otherUser?.avatar} alt="" style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(99,102,241,.4)' }} />
+          <img src={otherUser?.avatar} alt="" style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(99,102,241,.4)' }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
           <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid rgba(255,255,255,.08)', borderTopColor: '#6366f1', animation: 'sgSpin2 .8s linear infinite' }} />
           <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 12, fontWeight: 600 }}>Connecting video…</p>
         </div>
@@ -369,7 +370,7 @@ function VideoCallScreen({ currentUser, otherUser, localStream, remoteStream, on
       {/* Top bar */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, padding: '14px 18px', background: 'linear-gradient(to bottom,rgba(0,0,0,.75),transparent)', opacity: ctrlsVisible ? 1 : 0, transition: 'opacity .3s ease', display: 'flex', alignItems: 'center', justifyContent: 'space-between', pointerEvents: ctrlsVisible ? 'auto' : 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <img src={otherUser?.avatar} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,.2)' }} />
+          <img src={otherUser?.avatar} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,.2)' }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
           <div>
             <p style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 13, margin: 0 }}>{otherUser?.name}</p>
             <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 11, margin: 0 }}>🎥 <Timer from={startRef.current} /></p>

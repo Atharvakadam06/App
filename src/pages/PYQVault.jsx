@@ -9,6 +9,7 @@ import { createPaper, getAllPapers, incrementPaperDownloads, deletePaper } from 
 import CustomSelect from '../components/CustomSelect';
 import ProfessionalSearch from '../components/ProfessionalSearch';
 import { matchSearch } from '../utils/searchUtils';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 function PaperCard({ paper, onDownload, downloaded, onDelete, onView, currentUserId }) {
   const isOwner = paper.uploadedBy?.id === currentUserId;
@@ -29,7 +30,7 @@ function PaperCard({ paper, onDownload, downloaded, onDelete, onView, currentUse
           </div>
           {paper.uploadedBy && (
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <img src={paper.uploadedBy.avatar} alt="" className="w-5 h-5 rounded-full" />
+              <img src={paper.uploadedBy.avatar} alt="" className="w-5 h-5 rounded-full object-cover" onError={(e) => handleAvatarError(e, paper.uploadedBy.name)} />
               <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{paper.uploadedBy.name}{paper.college ? ` · ${paper.college}` : ''}</span>
             </div>
           )}

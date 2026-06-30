@@ -706,7 +706,7 @@ export default function Profile() {
                     {/* Header */}
                     <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <img src={profileUser?.avatar} alt="" className="w-9 h-9 rounded-full ring-2 ring-offset-2 ring-blue-500/20 dark:ring-offset-[#0c1018]" />
+                        <img src={profileUser?.avatar} alt="" className="w-9 h-9 rounded-full ring-2 ring-offset-2 ring-blue-500/20 dark:ring-offset-[#0c1018]" onError={(e) => handleAvatarError(e, profileUser?.name)} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">{profileUser?.name}</p>
@@ -729,7 +729,7 @@ export default function Profile() {
                       {/* Caption (only show if it is not text-only post rendering main content in left panel) */}
                       {selectedPost.image || selectedPost.file_url ? (
                         <div className="flex gap-3 items-start pb-4 border-b border-slate-100/60 dark:border-slate-800/50">
-                          <img src={profileUser?.avatar} alt="" className="w-8 h-8 rounded-full shrink-0" />
+                          <img src={profileUser?.avatar} alt="" className="w-8 h-8 rounded-full shrink-0" onError={(e) => handleAvatarError(e, profileUser?.name)} />
                           <div>
                             <p className="text-sm text-slate-900 dark:text-slate-100">
                               <span className="font-semibold mr-1.5 text-slate-900 dark:text-white">{profileUser?.name}</span>
@@ -749,7 +749,7 @@ export default function Profile() {
                               <div key={c.id} className="space-y-2.5 animate-fade-in">
                                 {/* Top Level Comment */}
                                 <div className="flex gap-3 items-start group">
-                                  <img src={c.avatar} alt="" className="w-8 h-8 rounded-full shrink-0 object-cover" />
+                                  <img src={c.avatar} alt="" className="w-8 h-8 rounded-full shrink-0 object-cover" onError={(e) => handleAvatarError(e, c.name)} />
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm text-slate-800 dark:text-slate-200">
                                       <span className="font-semibold text-slate-900 dark:text-white mr-1.5">{c.name}</span>
@@ -782,7 +782,7 @@ export default function Profile() {
                                       <div className="space-y-3 border-l border-slate-100 dark:border-white/[0.05] pl-3.5 ml-2 mt-2.5 animate-fade-in">
                                         {replies.map((reply) => (
                                           <div key={reply.id} className="flex gap-2.5 items-start animate-fade-in">
-                                            <img src={reply.avatar} alt="" className="w-6.5 h-6.5 rounded-full shrink-0 object-cover border border-slate-100 dark:border-white/10" />
+                                            <img src={reply.avatar} alt="" className="w-6.5 h-6.5 rounded-full shrink-0 object-cover border border-slate-100 dark:border-white/10" onError={(e) => handleAvatarError(e, reply.name)} />
                                             <div className="flex-1 min-w-0">
                                               <p className="text-[13px] text-slate-800 dark:text-slate-200 font-normal">
                                                 <span className="font-semibold text-slate-900 dark:text-white mr-1.5">{reply.name}</span>
@@ -888,7 +888,7 @@ export default function Profile() {
                           </div>
                         )}
                         <div className="flex gap-2.5 items-center">
-                          <img src={currentUser?.avatar} alt="" className="w-7 h-7 rounded-full shrink-0 object-cover" />
+                          <img src={currentUser?.avatar} alt="" className="w-7 h-7 rounded-full shrink-0 object-cover" onError={(e) => handleAvatarError(e, currentUser?.name)} />
                           <div className="flex-1 flex items-center bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 rounded-full px-3.5 py-1.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500/35 transition-all">
                             <input 
                               id="comment-input-field"

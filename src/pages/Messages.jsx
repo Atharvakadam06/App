@@ -81,7 +81,7 @@ function StarredMessagesModal({ currentUser, onClose, onJump }) {
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     {msg.otherUser?.avatar ? (
-                      <img src={msg.otherUser.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                      <img src={msg.otherUser.avatar} alt="" className="w-5 h-5 rounded-full object-cover" onError={(e) => handleAvatarError(e, msg.otherUser?.name)} />
                     ) : (
                       <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-500">
                         {msg.otherUser?.name?.[0]}
@@ -1723,7 +1723,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                       >
                         {!isMine && (
                           <div className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full overflow-hidden shadow-xs mt-1">
-                            {showAvatar ? <img src={conversation.user?.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full" />}
+                            {showAvatar ? <img src={conversation.user?.avatar} alt="" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, conversation.user?.name)} /> : <div className="w-full h-full" />}
                           </div>
                         )}
 
@@ -1882,7 +1882,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                 <div className="flex items-end gap-1.5 max-w-[85%] sm:max-w-[70%]">
                   <div className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full overflow-hidden shadow-xs mt-1">
                     {recipientUser?.avatar ? (
-                      <img src={recipientUser.avatar} alt="" className="w-full h-full object-cover" />
+                      <img src={recipientUser.avatar} alt="" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, recipientUser?.name)} />
                     ) : (
                       <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-500">
                         {recipientUser?.name?.[0]}

@@ -29,6 +29,7 @@ import {
 } from '../services/data';
 import { matchSearch } from '../utils/searchUtils';
 import ProfessionalSearch from '../components/ProfessionalSearch';
+import { handleAvatarError } from '../utils/avatarUtils';
 
 export default function Marketplace() {
   const { user } = useAuth();
@@ -440,8 +441,9 @@ export default function Marketplace() {
                     <div className="flex items-center gap-2 min-w-0">
                       <img
                         src={prod.seller?.avatar || 'https://ui-avatars.com/api/?name=Student'}
-                        alt={prod.seller?.name || 'Seller'}
+                        alt=""
                         className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-800"
+                        onError={(e) => handleAvatarError(e, prod.seller?.name || 'Student')}
                       />
                       <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate">
                         {isOwner ? 'Me' : prod.seller?.name}
@@ -679,6 +681,7 @@ export default function Marketplace() {
                       src={selectedProduct.seller?.avatar || 'https://ui-avatars.com/api/?name=Student'}
                       alt=""
                       className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-slate-800 shadow-sm"
+                      onError={(e) => handleAvatarError(e, selectedProduct.seller?.name || 'Student')}
                     />
                     <div>
                       <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200">
