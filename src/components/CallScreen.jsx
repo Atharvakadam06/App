@@ -1,13 +1,7 @@
 /**
- * CallScreen.jsx — Bulletproof WhatsApp-style P2P WebRTC calling
- *
- * Fixes over previous version:
- * 1. Race condition: receiver WAITS (polls) for offer to appear in DB instead
- *    of failing immediately if offer not found yet
- * 2. Permission errors show a retry screen instead of killing the call
- * 3. All mutable state in a single ref object (no stale closure bugs)
- * 4. Proper connection state monitoring (auto-detects drops)
- * 5. Caller ICE gathering happens in parallel with caller_ringing display
+ * CallScreen.jsx — Professional P2P WebRTC calling UI
+ * Redesigned: subtle dark palette, smooth animations, spring buttons,
+ * phone-style ringtone, clean minimal layout
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -17,66 +11,117 @@ import {
 import { updateCallStatus, setCallOffer, setCallAnswer, getCallById } from '../services/data';
 import { handleAvatarError } from '../utils/avatarUtils';
 
-// ─── Free ICE servers ─────────────────────────────────────────────────────────
+// ─── ICE servers ──────────────────────────────────────────────────────────────
 const ICE = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
   {
-    urls: [
-      'turn:openrelay.metered.ca:80',
-      'turn:openrelay.metered.ca:443',
-      'turns:openrelay.metered.ca:443',
-    ],
+    urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443'],
     username: 'openrelayproject',
     credential: 'openrelayproject',
   },
 ];
 
-// ─── Utils ────────────────────────────────────────────────────────────────────
+// ─── CSS injection ────────────────────────────────────────────────────────────
 function injectCSS() {
-  if (document.getElementById('sg-call-css2')) return;
+  if (document.getElementById('sg-call-css3')) return;
   const s = document.createElement('style');
-  s.id = 'sg-call-css2';
+  s.id = 'sg-call-css3';
   s.textContent = `
-    @keyframes sgRing2 { 0%{transform:scale(1);opacity:.65} 100%{transform:scale(2.3);opacity:0} }
-    @keyframes sgUp2   { from{opacity:0;transform:translateY(48px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes sgIn2   { from{opacity:0} to{opacity:1} }
-    @keyframes sgDot2  { 0%,80%,100%{opacity:.2;transform:scale(.65)} 40%{opacity:1;transform:scale(1)} }
-    @keyframes sgSpin2 { to{transform:rotate(360deg)} }
-    @keyframes sgPls2  { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @keyframes sgFadeIn   { from{opacity:0} to{opacity:1} }
+    @keyframes sgSlideUp  { from{opacity:0;transform:translateY(32px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes sgPulse    { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(2.2);opacity:0} }
+    @keyframes sgDot      { 0%,80%,100%{opacity:.2;transform:scale(.7)} 40%{opacity:1;transform:scale(1)} }
+    @keyframes sgSpin     { to{transform:rotate(360deg)} }
+    @keyframes sgBreath   { 0%,100%{opacity:.7} 50%{opacity:1} }
+    @keyframes sgRipple   {
+      0%   { transform:translate(-50%,-50%) scale(0); opacity:.5; }
+      100% { transform:translate(-50%,-50%) scale(2.8); opacity:0; }
+    }
+    @keyframes sgBtnPress {
+      0%   { transform:scale(1); }
+      40%  { transform:scale(.88); }
+      100% { transform:scale(1); }
+    }
   `;
   document.head.appendChild(s);
 }
 
-function startRing() {
+// ─── Ringtone: classic phone double-ring pattern via Web Audio ────────────────
+function startRingtone() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.connect(g); g.connect(ctx.destination);
-    osc.type = 'sine';
-    let on = true;
-    function tick() {
-      if (!on) return;
-      [[520, 0], [440, .55]].forEach(([f, d]) => {
-        osc.frequency.setValueAtTime(f, ctx.currentTime + d);
-        g.gain.setValueAtTime(.22, ctx.currentTime + d);
-        g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + d + .38);
+    let active = true;
+
+    function ring() {
+      if (!active) return;
+      // Classic phone double-ring: two short bursts, then pause
+      const now = ctx.currentTime;
+      const bursts = [[0, 0.4], [0.5, 0.9]]; // [start, end] offsets in seconds
+
+      bursts.forEach(([s, e]) => {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.connect(gain); osc2.connect(gain); gain.connect(ctx.destination);
+
+        // Classic DTMF-like dual tone: 440Hz + 480Hz (standard phone ring)
+        osc1.type = 'sine'; osc1.frequency.value = 440;
+        osc2.type = 'sine'; osc2.frequency.value = 480;
+
+        gain.gain.setValueAtTime(0, now + s);
+        gain.gain.linearRampToValueAtTime(0.18, now + s + 0.02);
+        gain.gain.setValueAtTime(0.18, now + e - 0.04);
+        gain.gain.linearRampToValueAtTime(0, now + e);
+
+        osc1.start(now + s); osc1.stop(now + e + 0.05);
+        osc2.start(now + s); osc2.stop(now + e + 0.05);
       });
-      if (on) setTimeout(tick, 2100);
+
+      // Repeat every 3.2s (2 bursts = 0.9s + 2.3s silence)
+      if (active) setTimeout(ring, 3200);
     }
-    osc.start(); tick();
+
+    ring();
+
     return () => {
-      on = false;
-      g.gain.setValueAtTime(.001, ctx.currentTime);
-      try { osc.stop(ctx.currentTime + .05); } catch {}
-      setTimeout(() => { try { ctx.close(); } catch {} }, 300);
+      active = false;
+      setTimeout(() => { try { ctx.close(); } catch {} }, 400);
     };
   } catch { return () => {}; }
 }
 
-// Wait for ICE gathering to finish (max ms)
+// ─── Calling tone: single repeating beep for caller ─────────────────────────
+function startCallingTone() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let active = true;
+
+    function beep() {
+      if (!active) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = 425; // UK dial tone frequency
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.02);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime + 0.35);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.45);
+      if (active) setTimeout(beep, 1800);
+    }
+
+    beep();
+    return () => {
+      active = false;
+      setTimeout(() => { try { ctx.close(); } catch {} }, 400);
+    };
+  } catch { return () => {}; }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function waitIce(pc, ms = 6000) {
   return new Promise(r => {
     if (pc.iceGatheringState === 'complete') { r(); return; }
@@ -86,7 +131,6 @@ function waitIce(pc, ms = 6000) {
   });
 }
 
-// Receiver waits for caller's offer to appear in DB (fixes race condition)
 async function waitForOffer(callId, timeoutMs = 25000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
@@ -98,184 +142,450 @@ async function waitForOffer(callId, timeoutMs = 25000) {
     } catch {}
     await new Promise(r => setTimeout(r, 2000));
   }
-  return null; // timed out
+  return null;
 }
 
-// Get user media with smart fallback:
-// — Video calls: try audio+video, fall back to audio-only if camera unavailable
-// — Audio calls: audio only
-async function getMedia(callType) {
-  const isVideo = callType === 'video';
-
-  if (!isVideo) {
-    // Audio call — only request mic
-    return navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  }
-
-  // Video call — try with camera first
-  try {
-    return await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-  } catch (camErr) {
-    // Camera unavailable (in use, not found, hardware error) → fall back to audio only
-    const cameraFallbackErrors = [
-      'NotFoundError', 'DevicesNotFoundError',
-      'NotReadableError', 'TrackStartError',
-      'OverconstrainedError', 'ConstraintNotSatisfiedError',
-      'AbortError',
-    ];
-    if (cameraFallbackErrors.includes(camErr.name)) {
-      console.warn('[Call] Camera unavailable (' + camErr.name + '), falling back to audio-only');
-      return navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    }
-    throw camErr; // permission error — rethrow for caller to handle
-  }
-}
-
-// ─── Small UI atoms ───────────────────────────────────────────────────────────
+// ─── Timer ────────────────────────────────────────────────────────────────────
 function Timer({ from }) {
   const [s, set] = useState(0);
-  useEffect(() => { const t = setInterval(() => set(Math.floor((Date.now() - from) / 1000)), 1000); return () => clearInterval(t); }, [from]);
-  return <>{String(Math.floor(s / 60)).padStart(2, '0')}:{String(s % 60).padStart(2, '0')}</>;
+  useEffect(() => {
+    const t = setInterval(() => set(Math.floor((Date.now() - from) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [from]);
+  const m = Math.floor(s / 60);
+  return <>{String(m).padStart(2, '0')}:{String(s % 60).padStart(2, '0')}</>;
 }
 
-function Rings({ color = '#4ade80', n = 3 }) {
-  return <>{[...Array(n)].map((_, i) => (
-    <span key={i} style={{ position: 'absolute', inset: -10, borderRadius: '50%', border: `2px solid ${color}`, animation: `sgRing2 2.2s ease-out ${i * .7}s infinite` }} />
-  ))}</>;
-}
-
-function Btn({ icon, label, bg, shadow, onClick, size = 58, dimmed }) {
-  const [h, sh] = useState(false);
+// ─── Avatar with initials fallback ───────────────────────────────────────────
+function CallAvatar({ src, name, size = 96 }) {
+  if (src) {
+    return (
+      <img
+        src={src} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+        onError={e => handleAvatarError(e, name)}
+      />
+    );
+  }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-      <button onClick={onClick} onMouseEnter={() => sh(true)} onMouseLeave={() => sh(false)}
-        style={{
-          width: size, height: size, borderRadius: '50%', border: 'none',
-          background: bg || (dimmed ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.12)'),
-          boxShadow: shadow || 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transform: h ? 'scale(1.1)' : 'scale(1)',
-          transition: 'transform .15s, background .15s',
-          backdropFilter: 'blur(6px)',
-        }}>
-        {icon}
-      </button>
-      {label && <span style={{ color: 'rgba(255,255,255,.4)', fontSize: 11, fontWeight: 600 }}>{label}</span>}
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: 'rgba(255,255,255,0.07)',
+      border: '1px solid rgba(255,255,255,0.12)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.38, fontWeight: 700,
+      color: 'rgba(255,255,255,0.7)',
+      letterSpacing: '-0.02em',
+    }}>
+      {name?.charAt(0)?.toUpperCase() || '?'}
     </div>
   );
 }
 
-// ─── Screen: INCOMING (receiver sees ringing) ─────────────────────────────────
+// ─── Ripple pulse rings ───────────────────────────────────────────────────────
+function PulseRings({ n = 3, color = 'rgba(255,255,255,0.12)' }) {
+  return (
+    <>
+      {[...Array(n)].map((_, i) => (
+        <span key={i} style={{
+          position: 'absolute', inset: 0, borderRadius: '50%',
+          border: `1.5px solid ${color}`,
+          animation: `sgPulse 2.4s ease-out ${i * 0.75}s infinite`,
+          pointerEvents: 'none',
+        }} />
+      ))}
+    </>
+  );
+}
+
+// ─── Call button (Decline / Accept) ──────────────────────────────────────────
+function CallBtn({ icon, label, bg, onClick, size = 64 }) {
+  const [pressed, setPressed] = useState(false);
+  const [ripple, setRipple] = useState(false);
+
+  const handle = (e) => {
+    e.stopPropagation();
+    setPressed(true);
+    setRipple(true);
+    setTimeout(() => setPressed(false), 300);
+    setTimeout(() => setRipple(false), 600);
+    onClick?.();
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+      <div style={{ position: 'relative' }}>
+        {ripple && (
+          <span style={{
+            position: 'absolute', top: '50%', left: '50%',
+            width: size, height: size, borderRadius: '50%',
+            background: bg.includes('red') || bg.includes('dc26') ? 'rgba(220,38,38,0.4)' : 'rgba(255,255,255,0.18)',
+            animation: 'sgRipple 0.55s ease-out forwards',
+            pointerEvents: 'none', zIndex: 0,
+          }} />
+        )}
+        <button
+          onClick={handle}
+          style={{
+            position: 'relative', zIndex: 1,
+            width: size, height: size, borderRadius: '50%',
+            background: bg,
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transform: pressed ? 'scale(0.88)' : 'scale(1)',
+            transition: 'transform 0.2s cubic-bezier(0.34,1.56,0.64,1)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+          }}
+        >
+          {icon}
+        </button>
+      </div>
+      {label && (
+        <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, fontWeight: 500, letterSpacing: '0.01em' }}>
+          {label}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Control button (Mute / Speaker / Cam) ───────────────────────────────────
+function CtrlBtn({ icon, label, active, onClick }) {
+  const [pressed, setPressed] = useState(false);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      <button
+        onClick={() => { setPressed(true); setTimeout(() => setPressed(false), 200); onClick?.(); }}
+        style={{
+          width: 52, height: 52, borderRadius: '50%',
+          background: active ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transform: pressed ? 'scale(0.88)' : 'scale(1)',
+          transition: 'transform 0.2s cubic-bezier(0.34,1.56,0.64,1), background 0.2s',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        {icon}
+      </button>
+      {label && (
+        <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 11, fontWeight: 500 }}>{label}</span>
+      )}
+    </div>
+  );
+}
+
+// ─── Shared background for all screens ───────────────────────────────────────
+function CallBg({ avatarSrc }) {
+  return (
+    <>
+      {/* Ambient blurred avatar */}
+      {avatarSrc && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${avatarSrc})`,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          filter: 'blur(60px) brightness(0.08) saturate(0.6)',
+          transform: 'scale(1.1)',
+          zIndex: 0,
+        }} />
+      )}
+      {/* Dark overlay */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 0,
+        background: 'linear-gradient(170deg, rgba(10,13,26,0.97) 0%, rgba(5,8,18,0.99) 100%)',
+      }} />
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   SCREEN: INCOMING CALL
+═══════════════════════════════════════════════════════ */
 export function IncomingCallOverlay({ call, callerUser, onAccept, onDecline }) {
-  const [left, setLeft] = useState(30);
-  const stopRef = useRef(() => {});
+  const [timeLeft, setTimeLeft] = useState(30);
+  const stopRing = useRef(() => {});
+
   useEffect(() => {
     injectCSS();
-    stopRef.current = startRing();
-    const t = setInterval(() => setLeft(l => { if (l <= 1) { onDecline('missed'); return 0; } return l - 1; }), 1000);
-    return () => { clearInterval(t); stopRef.current(); };
+    stopRing.current = startRingtone();
+    const t = setInterval(() => {
+      setTimeLeft(l => {
+        if (l <= 1) { onDecline('missed'); return 0; }
+        return l - 1;
+      });
+    }, 1000);
+    return () => { clearInterval(t); stopRing.current(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isVideo = call?.type === 'video';
-  const accent = isVideo ? '#818cf8' : '#4ade80';
+  const progress = (timeLeft / 30) * 100;
+
+  const accept = () => { stopRing.current(); onAccept(); };
+  const decline = () => { stopRing.current(); onDecline('rejected'); };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'linear-gradient(180deg,#0f172a,#020617)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'sgUp2 .35s cubic-bezier(.16,1,.3,1)' }}>
-      <div style={{ position: 'absolute', width: 380, height: 380, borderRadius: '50%', background: isVideo ? 'rgba(99,102,241,.1)' : 'rgba(34,197,94,.09)', filter: 'blur(80px)', top: '10%', left: '50%', transform: 'translateX(-50%)' }} />
-      <p style={{ color: accent, fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 36, position: 'relative', zIndex: 1 }}>
-        {isVideo ? '📹 Incoming Video Call' : '📞 Incoming Audio Call'}
-      </p>
-      <div style={{ position: 'relative', width: 100, height: 100, marginBottom: 22, zIndex: 1 }}>
-        <Rings color={accent} />
-        <img src={callerUser?.avatar} alt="" style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, position: 'relative', zIndex: 1 }} onError={(e) => handleAvatarError(e, callerUser?.name)} />
-      </div>
-      <h1 style={{ color: '#f1f5f9', fontSize: 25, fontWeight: 800, margin: 0, letterSpacing: '-.02em', position: 'relative', zIndex: 1 }}>{callerUser?.name}</h1>
-      <p style={{ color: 'rgba(255,255,255,.32)', fontSize: 13, margin: '5px 0 0', fontWeight: 500, position: 'relative', zIndex: 1 }}>{callerUser?.college || 'StuGrow Student'}</p>
-      <div style={{ width: 220, height: 3, background: 'rgba(255,255,255,.07)', borderRadius: 99, margin: '28px 0 6px', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-        <div style={{ height: '100%', width: `${(left / 30) * 100}%`, background: `linear-gradient(90deg,${accent},${accent}88)`, borderRadius: 99, transition: 'width 1s linear' }} />
-      </div>
-      <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 11, marginBottom: 44, position: 'relative', zIndex: 1 }}>Auto-declining in {left}s</p>
-      <div style={{ display: 'flex', gap: 56, position: 'relative', zIndex: 1 }}>
-        <Btn icon={<PhoneOff style={{ width: 26, height: 26, color: '#fff' }} />} label="Decline" bg="linear-gradient(135deg,#dc2626,#ef4444)" shadow="0 8px 28px rgba(220,38,38,.5)" size={68} onClick={() => { stopRef.current(); onDecline('rejected'); }} />
-        <Btn icon={isVideo ? <Video style={{ width: 26, height: 26, color: '#fff' }} /> : <Phone style={{ width: 26, height: 26, color: '#fff' }} />} label="Accept" bg={isVideo ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'linear-gradient(135deg,#16a34a,#22c55e)'} shadow={isVideo ? '0 8px 28px rgba(99,102,241,.5)' : '0 8px 28px rgba(34,197,94,.5)'} size={68} onClick={() => { stopRef.current(); onAccept(); }} />
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      animation: 'sgSlideUp 0.38s cubic-bezier(0.16,1,0.3,1)',
+      overflow: 'hidden',
+    }}>
+      <CallBg avatarSrc={callerUser?.avatar} />
+
+      {/* Content */}
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', padding: '0 32px' }}>
+
+        {/* Call type label */}
+        <p style={{
+          color: 'rgba(255,255,255,0.35)', fontSize: 11.5, fontWeight: 600,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          marginBottom: 40, margin: '0 0 40px',
+        }}>
+          {isVideo ? 'Incoming Video Call' : 'Incoming Call'}
+        </p>
+
+        {/* Avatar with pulse rings */}
+        <div style={{ position: 'relative', width: 104, height: 104, marginBottom: 24 }}>
+          <PulseRings n={3} color="rgba(255,255,255,0.1)" />
+          <div style={{
+            position: 'relative', zIndex: 1,
+            width: 104, height: 104, borderRadius: '50%',
+            overflow: 'hidden',
+            boxShadow: '0 0 0 2px rgba(255,255,255,0.12), 0 16px 48px rgba(0,0,0,0.5)',
+          }}>
+            <CallAvatar src={callerUser?.avatar} name={callerUser?.name} size={104} />
+          </div>
+        </div>
+
+        {/* Name */}
+        <h1 style={{
+          color: '#ffffff', fontSize: 26, fontWeight: 700,
+          margin: '0 0 6px', letterSpacing: '-0.025em',
+          textAlign: 'center',
+        }}>
+          {callerUser?.name}
+        </h1>
+
+        {/* Sub info */}
+        <p style={{
+          color: 'rgba(255,255,255,0.35)', fontSize: 13.5,
+          margin: '0 0 36px', fontWeight: 400,
+        }}>
+          {callerUser?.college || 'StuGrow'}
+        </p>
+
+        {/* Auto-decline progress */}
+        <div style={{ width: 200, marginBottom: 8 }}>
+          <div style={{
+            height: 2, background: 'rgba(255,255,255,0.07)',
+            borderRadius: 99, overflow: 'hidden',
+          }}>
+            <div style={{
+              height: '100%', width: `${progress}%`,
+              background: 'rgba(255,255,255,0.3)',
+              borderRadius: 99, transition: 'width 1s linear',
+            }} />
+          </div>
+        </div>
+        <p style={{
+          color: 'rgba(255,255,255,0.18)', fontSize: 11,
+          margin: '0 0 52px', fontWeight: 500,
+          letterSpacing: '0.03em',
+        }}>
+          Auto-decline in {timeLeft}s
+        </p>
+
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: 60, alignItems: 'flex-start' }}>
+          <CallBtn
+            icon={<PhoneOff size={24} color="#fff" />}
+            label="Decline"
+            bg="rgba(220,38,38,0.85)"
+            size={68}
+            onClick={decline}
+          />
+          <CallBtn
+            icon={isVideo
+              ? <Video size={24} color="#fff" />
+              : <Phone size={24} color="#fff" />
+            }
+            label="Accept"
+            bg="rgba(34,197,94,0.85)"
+            size={68}
+            onClick={accept}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Screen: CALLING (caller waiting) ────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════
+   SCREEN: CALLING (caller waiting for pick up)
+═══════════════════════════════════════════════════════ */
 function CallingScreen({ call, otherUser, onCancel }) {
-  const accent = call?.type === 'video' ? '#818cf8' : '#4ade80';
+  const stopTone = useRef(() => {});
+
+  useEffect(() => {
+    injectCSS();
+    stopTone.current = startCallingTone();
+    return () => stopTone.current();
+  }, []);
+
+  const cancel = () => { stopTone.current(); onCancel(); };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'radial-gradient(ellipse at 50% 30%,#1e293b,#020617)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'sgIn2 .3s ease' }}>
-      <div style={{ position: 'absolute', width: 360, height: 360, borderRadius: '50%', background: call?.type === 'video' ? 'rgba(99,102,241,.1)' : 'rgba(34,197,94,.08)', filter: 'blur(80px)', top: '10%', left: '50%', transform: 'translateX(-50%)' }} />
-      <p style={{ color: accent, fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 34, position: 'relative', zIndex: 1 }}>{call?.type === 'video' ? '📹 Video Call' : '📞 Audio Call'}</p>
-      <div style={{ position: 'relative', width: 108, height: 108, marginBottom: 22, zIndex: 1 }}>
-        <Rings color={accent} />
-        <img src={otherUser?.avatar} alt="" style={{ width: 108, height: 108, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accent}`, position: 'relative', zIndex: 1 }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
-      </div>
-      <h1 style={{ color: '#f1f5f9', fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: '-.02em', position: 'relative', zIndex: 1 }}>{otherUser?.name}</h1>
-      <div style={{ display: 'flex', gap: 6, marginTop: 22, position: 'relative', zIndex: 1 }}>
-        {[0, 1, 2].map(i => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: accent, display: 'inline-block', animation: `sgDot2 1.4s ease-in-out ${i * .18}s infinite` }} />)}
-      </div>
-      <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14, fontWeight: 600, margin: '10px 0 0', position: 'relative', zIndex: 1 }}>Calling…</p>
-      <div style={{ position: 'absolute', bottom: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-        <Btn icon={<PhoneOff style={{ width: 28, height: 28, color: '#fff' }} />} label="Cancel" bg="linear-gradient(135deg,#dc2626,#ef4444)" shadow="0 8px 32px rgba(220,38,38,.55)" size={70} onClick={onCancel} />
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9998,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      animation: 'sgFadeIn 0.3s ease', overflow: 'hidden',
+    }}>
+      <CallBg avatarSrc={otherUser?.avatar} />
+
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', padding: '0 32px' }}>
+
+        <p style={{
+          color: 'rgba(255,255,255,0.3)', fontSize: 11.5, fontWeight: 600,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          margin: '0 0 44px',
+        }}>
+          {call?.type === 'video' ? 'Video Call' : 'Audio Call'}
+        </p>
+
+        {/* Avatar */}
+        <div style={{ position: 'relative', width: 104, height: 104, marginBottom: 24 }}>
+          <PulseRings n={2} color="rgba(255,255,255,0.08)" />
+          <div style={{
+            position: 'relative', zIndex: 1,
+            width: 104, height: 104, borderRadius: '50%', overflow: 'hidden',
+            boxShadow: '0 0 0 2px rgba(255,255,255,0.1), 0 16px 48px rgba(0,0,0,0.5)',
+          }}>
+            <CallAvatar src={otherUser?.avatar} name={otherUser?.name} size={104} />
+          </div>
+        </div>
+
+        <h1 style={{ color: '#fff', fontSize: 26, fontWeight: 700, margin: '0 0 16px', letterSpacing: '-0.025em' }}>
+          {otherUser?.name}
+        </h1>
+
+        {/* Animated dots */}
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 60 }}>
+          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: 500, marginRight: 6 }}>Calling</span>
+          {[0, 1, 2].map(i => (
+            <span key={i} style={{
+              width: 5, height: 5, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.45)',
+              display: 'inline-block',
+              animation: `sgDot 1.5s ease-in-out ${i * 0.2}s infinite`,
+            }} />
+          ))}
+        </div>
+
+        <CallBtn
+          icon={<PhoneOff size={26} color="#fff" />}
+          label="Cancel"
+          bg="rgba(220,38,38,0.85)"
+          size={68}
+          onClick={cancel}
+        />
       </div>
     </div>
   );
 }
 
-// ─── Screen: CONNECTING (receiver accepted, WebRTC negotiating) ───────────────
+/* ═══════════════════════════════════════════════════════
+   SCREEN: CONNECTING
+═══════════════════════════════════════════════════════ */
 function ConnectingScreen({ otherUser }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9998, background: '#020617', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-      <img src={otherUser?.avatar} alt="" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(99,102,241,.35)', marginBottom: 6 }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
-      <div style={{ width: 34, height: 34, borderRadius: '50%', border: '3px solid rgba(255,255,255,.07)', borderTopColor: '#6366f1', animation: 'sgSpin2 .8s linear infinite' }} />
-      <p style={{ color: 'rgba(255,255,255,.32)', fontSize: 13, fontWeight: 600 }}>Connecting…</p>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9998,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      gap: 16, overflow: 'hidden',
+      animation: 'sgFadeIn 0.25s ease',
+    }}>
+      <CallBg avatarSrc={otherUser?.avatar} />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 0 2px rgba(255,255,255,0.1)' }}>
+          <CallAvatar src={otherUser?.avatar} name={otherUser?.name} size={80} />
+        </div>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%',
+          border: '2.5px solid rgba(255,255,255,0.08)',
+          borderTopColor: 'rgba(255,255,255,0.6)',
+          animation: 'sgSpin 0.75s linear infinite',
+        }} />
+        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: 500, letterSpacing: '0.03em' }}>Connecting…</p>
+      </div>
     </div>
   );
 }
 
-// ─── Screen: PERMISSION ERROR ─────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════
+   SCREEN: PERMISSION ERROR
+═══════════════════════════════════════════════════════ */
 function PermScreen({ errType, errDetail, onRetry, onCancel }) {
   const isDenied = errType === 'denied';
   const isNoDevice = errType === 'no_device';
   const isNoOffer = errType === 'no_offer';
+
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9998, background: '#020617', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }}>
-      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(239,68,68,.15)', border: '1px solid rgba(239,68,68,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <AlertCircle style={{ width: 28, height: 28, color: '#f87171' }} />
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9998,
+      background: '#080b14',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: 32, gap: 16, animation: 'sgFadeIn 0.25s ease',
+    }}>
+      <div style={{
+        width: 60, height: 60, borderRadius: '50%',
+        background: 'rgba(239,68,68,0.1)',
+        border: '1px solid rgba(239,68,68,0.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <AlertCircle size={26} style={{ color: 'rgba(239,68,68,0.8)' }} />
       </div>
-      <h2 style={{ color: '#f1f5f9', fontSize: 18, fontWeight: 800, margin: 0, textAlign: 'center' }}>
-        {isNoDevice ? 'No Microphone Found'
-          : isNoOffer ? 'Connection Timed Out'
-          : 'Microphone Access Required'}
+      <h2 style={{ color: '#fff', fontSize: 17, fontWeight: 700, margin: 0, textAlign: 'center', letterSpacing: '-0.01em' }}>
+        {isNoDevice ? 'No Microphone Found' : isNoOffer ? 'Connection Timed Out' : 'Microphone Access Required'}
       </h2>
-      <p style={{ color: 'rgba(255,255,255,.38)', fontSize: 13, lineHeight: 1.65, textAlign: 'center', maxWidth: 310, margin: 0 }}>
-        {isNoDevice
-          ? 'No microphone was detected on this device. Connect one and tap Retry.'
-          : isNoOffer
-          ? "The other person's connection took too long. Please try calling again."
-          : 'Your browser blocked microphone access. To fix it:'}
+      <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 13, lineHeight: 1.65, textAlign: 'center', maxWidth: 300, margin: 0 }}>
+        {isNoDevice ? 'No microphone was detected. Connect one and tap Retry.'
+          : isNoOffer ? 'The connection took too long. Please try calling again.'
+          : 'Your browser blocked microphone access. Click the lock icon in the address bar to allow it.'}
       </p>
-      {isDenied && (
-        <ol style={{ color: 'rgba(255,255,255,.45)', fontSize: 12, lineHeight: 1.8, textAlign: 'left', maxWidth: 290, margin: 0, paddingLeft: 20 }}>
-          <li>Click the <b style={{ color: '#94a3b8' }}>🔒 lock icon</b> in the browser address bar</li>
-          <li>Set <b style={{ color: '#94a3b8' }}>Microphone</b> → <b style={{ color: '#4ade80' }}>Allow</b></li>
-          <li>Reload the page and tap <b style={{ color: '#94a3b8' }}>Retry</b></li>
-        </ol>
-      )}
       {errDetail && (
-        <p style={{ color: 'rgba(255,255,255,.18)', fontSize: 10, fontFamily: 'monospace', background: 'rgba(255,255,255,.04)', padding: '6px 12px', borderRadius: 8, margin: 0 }}>
+        <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10, fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)', padding: '5px 10px', borderRadius: 6, margin: 0 }}>
           {errDetail}
         </p>
       )}
-      <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-        <button onClick={onCancel} style={{ padding: '10px 20px', borderRadius: 12, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.5)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>End Call</button>
+      <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+        <button
+          onClick={onCancel}
+          style={{
+            padding: '10px 22px', borderRadius: 10,
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'transparent',
+            color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          End Call
+        </button>
         {!isNoOffer && (
-          <button onClick={onRetry} style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#4f46e5,#6366f1)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <RefreshCw style={{ width: 14, height: 14 }} /> Retry
+          <button
+            onClick={onRetry}
+            style={{
+              padding: '10px 22px', borderRadius: 10, border: 'none',
+              background: 'rgba(255,255,255,0.1)',
+              color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            <RefreshCw size={13} /> Retry
           </button>
         )}
       </div>
@@ -283,7 +593,9 @@ function PermScreen({ errType, errDetail, onRetry, onCancel }) {
   );
 }
 
-// ─── Screen: ACTIVE AUDIO CALL ────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════
+   SCREEN: ACTIVE AUDIO CALL
+═══════════════════════════════════════════════════════ */
 function AudioCallScreen({ otherUser, localStream, remoteStream, onHangUp }) {
   const [muted, setMuted] = useState(false);
   const audioRef = useRef(null);
@@ -302,28 +614,85 @@ function AudioCallScreen({ otherUser, localStream, remoteStream, onHangUp }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'linear-gradient(180deg,#0f172a,#020617)', display: 'flex', flexDirection: 'column', alignItems: 'center', animation: 'sgIn2 .3s ease' }}>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9998,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'space-between',
+      animation: 'sgFadeIn 0.3s ease', overflow: 'hidden',
+    }}>
       <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
-      {/* Blurred bg */}
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${otherUser?.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(40px) brightness(.12) saturate(.7)', zIndex: 0 }} />
-      {/* Content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-        <img src={otherUser?.avatar} alt="" style={{ width: 112, height: 112, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,.2)', boxShadow: '0 16px 60px rgba(0,0,0,.5)', marginBottom: 20 }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
-        <h1 style={{ color: '#f1f5f9', fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-.02em' }}>{otherUser?.name}</h1>
-        <p style={{ color: '#4ade80', fontSize: 13, margin: '8px 0 0', fontWeight: 700, animation: 'sgPls2 2s ease infinite' }}>● <Timer from={startRef.current} /></p>
+      <CallBg avatarSrc={otherUser?.avatar} />
+
+      {/* Top spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Center content */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}>
+        {/* Avatar */}
+        <div style={{
+          width: 112, height: 112, borderRadius: '50%', overflow: 'hidden', marginBottom: 22,
+          boxShadow: '0 0 0 2.5px rgba(255,255,255,0.1), 0 20px 60px rgba(0,0,0,0.6)',
+        }}>
+          <CallAvatar src={otherUser?.avatar} name={otherUser?.name} size={112} />
+        </div>
+
+        <h1 style={{ color: '#fff', fontSize: 27, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.025em' }}>
+          {otherUser?.name}
+        </h1>
+
+        {/* Live timer */}
+        <p style={{
+          color: 'rgba(255,255,255,0.45)', fontSize: 13.5, fontWeight: 500,
+          margin: 0, animation: 'sgBreath 2.5s ease infinite',
+          letterSpacing: '0.04em',
+        }}>
+          <Timer from={startRef.current} />
+        </p>
       </div>
-      {/* Controls */}
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, paddingBottom: 56, paddingTop: 16 }}>
-        <Btn icon={muted ? <MicOff style={{ width: 22, height: 22, color: '#fff' }} /> : <Mic style={{ width: 22, height: 22, color: '#fff' }} />} label={muted ? 'Unmute' : 'Mute'} dimmed={muted} onClick={toggleMute} />
-        <Btn icon={<PhoneOff style={{ width: 28, height: 28, color: '#fff' }} />} bg="linear-gradient(135deg,#dc2626,#b91c1c)" shadow="0 8px 32px rgba(220,38,38,.6)" size={72} onClick={onHangUp} />
-        <Btn icon={<Volume2 style={{ width: 22, height: 22, color: '#fff' }} />} label="Speaker" />
+
+      {/* Bottom controls */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        width: '100%', padding: '32px 0 48px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28,
+      }}>
+        {/* Secondary controls */}
+        <div style={{ display: 'flex', gap: 40, alignItems: 'center' }}>
+          <CtrlBtn
+            icon={muted
+              ? <MicOff size={20} color="rgba(255,255,255,0.7)" />
+              : <Mic size={20} color="rgba(255,255,255,0.7)" />
+            }
+            label={muted ? 'Unmute' : 'Mute'}
+            active={muted}
+            onClick={toggleMute}
+          />
+          <CtrlBtn
+            icon={<Volume2 size={20} color="rgba(255,255,255,0.7)" />}
+            label="Speaker"
+            onClick={() => {}}
+          />
+        </div>
+
+        {/* End call */}
+        <CallBtn
+          icon={<PhoneOff size={26} color="#fff" />}
+          bg="rgba(220,38,38,0.85)"
+          size={68}
+          onClick={onHangUp}
+        />
       </div>
     </div>
   );
 }
 
-// ─── Screen: ACTIVE VIDEO CALL ────────────────────────────────────────────────
-function VideoCallScreen({ currentUser, otherUser, localStream, remoteStream, onHangUp }) {
+/* ═══════════════════════════════════════════════════════
+   SCREEN: ACTIVE VIDEO CALL
+═══════════════════════════════════════════════════════ */
+function VideoCallScreen({ otherUser, localStream, remoteStream, onHangUp }) {
   const [muted, setMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
   const [ctrlsVisible, setCtrlsVisible] = useState(true);
@@ -345,66 +714,110 @@ function VideoCallScreen({ currentUser, otherUser, localStream, remoteStream, on
     return () => clearTimeout(hideRef.current);
   }, []);
 
-  const tap = () => { setCtrlsVisible(true); clearTimeout(hideRef.current); hideRef.current = setTimeout(() => setCtrlsVisible(false), 4000); };
+  const tap = () => {
+    setCtrlsVisible(true);
+    clearTimeout(hideRef.current);
+    hideRef.current = setTimeout(() => setCtrlsVisible(false), 4000);
+  };
+
   const toggleMute = () => { localStream?.getAudioTracks().forEach(t => { t.enabled = muted; }); setMuted(m => !m); };
   const toggleCam = () => { localStream?.getVideoTracks().forEach(t => { t.enabled = camOff; }); setCamOff(c => !c); };
 
   return (
-    <div onClick={tap} style={{ position: 'fixed', inset: 0, zIndex: 9998, background: '#000', display: 'flex', flexDirection: 'column', animation: 'sgIn2 .3s ease' }}>
+    <div onClick={tap} style={{ position: 'fixed', inset: 0, zIndex: 9998, background: '#000', animation: 'sgFadeIn 0.3s ease' }}>
       {/* Remote video */}
       <video ref={remoteRef} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-      {/* Fallback when no remote video yet */}
+
+      {/* No remote video fallback */}
       {!remoteStream && (
-        <div style={{ position: 'absolute', inset: 0, background: '#0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-          <img src={otherUser?.avatar} alt="" style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(99,102,241,.4)' }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
-          <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid rgba(255,255,255,.08)', borderTopColor: '#6366f1', animation: 'sgSpin2 .8s linear infinite' }} />
-          <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 12, fontWeight: 600 }}>Connecting video…</p>
+        <div style={{
+          position: 'absolute', inset: 0, background: '#080b14',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14,
+        }}>
+          <div style={{ width: 84, height: 84, borderRadius: '50%', overflow: 'hidden', boxShadow: '0 0 0 2px rgba(255,255,255,0.1)' }}>
+            <CallAvatar src={otherUser?.avatar} name={otherUser?.name} size={84} />
+          </div>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.07)', borderTopColor: 'rgba(255,255,255,0.5)', animation: 'sgSpin 0.75s linear infinite' }} />
+          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12.5, fontWeight: 500 }}>Connecting video…</p>
         </div>
       )}
+
       {/* Local PiP */}
-      <div style={{ position: 'absolute', bottom: 100, right: 14, zIndex: 10, width: 96, height: 136, borderRadius: 14, overflow: 'hidden', border: '2px solid rgba(255,255,255,.2)', boxShadow: '0 8px 24px rgba(0,0,0,.5)' }}>
+      <div style={{
+        position: 'absolute', bottom: 96, right: 14, zIndex: 10,
+        width: 88, height: 126, borderRadius: 12, overflow: 'hidden',
+        border: '1.5px solid rgba(255,255,255,0.18)',
+        boxShadow: '0 8px 28px rgba(0,0,0,0.6)',
+      }}>
         {camOff
-          ? <div style={{ width: '100%', height: '100%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><VideoOff style={{ width: 22, height: 22, color: 'rgba(255,255,255,.35)' }} /></div>
-          : <video ref={localRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />}
+          ? <div style={{ width: '100%', height: '100%', background: '#111318', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <VideoOff size={18} style={{ color: 'rgba(255,255,255,0.3)' }} />
+            </div>
+          : <video ref={localRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+        }
       </div>
+
       {/* Top bar */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, padding: '14px 18px', background: 'linear-gradient(to bottom,rgba(0,0,0,.75),transparent)', opacity: ctrlsVisible ? 1 : 0, transition: 'opacity .3s ease', display: 'flex', alignItems: 'center', justifyContent: 'space-between', pointerEvents: ctrlsVisible ? 'auto' : 'none' }}>
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+        padding: '14px 16px',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.72), transparent)',
+        opacity: ctrlsVisible ? 1 : 0,
+        transition: 'opacity 0.3s ease',
+        pointerEvents: ctrlsVisible ? 'auto' : 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <img src={otherUser?.avatar} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,.2)' }} onError={(e) => handleAvatarError(e, otherUser?.name)} />
+          <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+            <CallAvatar src={otherUser?.avatar} name={otherUser?.name} size={32} />
+          </div>
           <div>
-            <p style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 13, margin: 0 }}>{otherUser?.name}</p>
-            <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 11, margin: 0 }}>🎥 <Timer from={startRef.current} /></p>
+            <p style={{ color: '#fff', fontWeight: 700, fontSize: 13.5, margin: 0 }}>{otherUser?.name}</p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, margin: 0, letterSpacing: '0.04em' }}>
+              <Timer from={startRef.current} />
+            </p>
           </div>
         </div>
-        <div style={{ background: 'rgba(34,197,94,.18)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 999, padding: '3px 10px', color: '#86efac', fontSize: 9, fontWeight: 800 }}>● LIVE</div>
+        <div style={{
+          background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.25)',
+          borderRadius: 999, padding: '3px 10px',
+          color: 'rgba(134,239,172,0.85)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
+        }}>
+          ● LIVE
+        </div>
       </div>
+
       {/* Bottom controls */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, padding: '12px 24px 38px', background: 'linear-gradient(to top,rgba(0,0,0,.85),transparent)', opacity: ctrlsVisible ? 1 : 0, transition: 'opacity .3s ease', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 22, pointerEvents: ctrlsVisible ? 'auto' : 'none' }}>
-        <Btn icon={muted ? <MicOff style={{ width: 20, height: 20, color: '#fff' }} /> : <Mic style={{ width: 20, height: 20, color: '#fff' }} />} label={muted ? 'Unmute' : 'Mute'} dimmed={muted} onClick={toggleMute} size={50} />
-        <Btn icon={<PhoneOff style={{ width: 26, height: 26, color: '#fff' }} />} bg="linear-gradient(135deg,#dc2626,#b91c1c)" shadow="0 8px 28px rgba(220,38,38,.6)" size={68} onClick={onHangUp} />
-        <Btn icon={camOff ? <VideoOff style={{ width: 20, height: 20, color: '#fff' }} /> : <Video style={{ width: 20, height: 20, color: '#fff' }} />} label={camOff ? 'Cam On' : 'Cam Off'} dimmed={camOff} onClick={toggleCam} size={50} />
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10,
+        padding: '16px 0 40px',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)',
+        opacity: ctrlsVisible ? 1 : 0,
+        transition: 'opacity 0.3s ease',
+        pointerEvents: ctrlsVisible ? 'auto' : 'none',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24,
+      }}>
+        <CtrlBtn icon={muted ? <MicOff size={20} color="rgba(255,255,255,0.7)" /> : <Mic size={20} color="rgba(255,255,255,0.7)" />} label={muted ? 'Unmute' : 'Mute'} active={muted} onClick={toggleMute} />
+        <CallBtn icon={<PhoneOff size={26} color="#fff" />} bg="rgba(220,38,38,0.85)" size={66} onClick={onHangUp} />
+        <CtrlBtn icon={camOff ? <VideoOff size={20} color="rgba(255,255,255,0.7)" /> : <Video size={20} color="rgba(255,255,255,0.7)" />} label={camOff ? 'Cam On' : 'Cam Off'} active={camOff} onClick={toggleCam} />
       </div>
     </div>
   );
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// MAIN ORCHESTRATOR
-// ════════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
+   MAIN ORCHESTRATOR
+═══════════════════════════════════════════════════════ */
 export default function CallScreen({ call, currentUser, otherUser, role, onAccept, onDecline, onHangUp }) {
-  // phase: 'incoming' | 'caller_waiting' | 'connecting' | 'active_audio' | 'active_video' | 'perm_error'
   const [phase, setPhase] = useState(role === 'caller' ? 'caller_waiting' : 'incoming');
   const [permErrType, setPermErrType] = useState(null);
   const [permErrDetail, setPermErrDetail] = useState(null);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-
-  // Single ref for all mutable WebRTC state — eliminates stale closure bugs
   const r = useRef({ pc: null, localStream: null, poll: null, dead: false });
 
   useEffect(() => { injectCSS(); }, []);
 
-  // ── Cleanup everything ────────────────────────────────────────────────────
   const cleanup = useCallback((newStatus) => {
     if (r.current.dead) return;
     r.current.dead = true;
@@ -416,230 +829,108 @@ export default function CallScreen({ call, currentUser, otherUser, role, onAccep
     if (newStatus) updateCallStatus(call.id, newStatus).catch(() => {});
   }, [call.id]);
 
-  const hangUp = useCallback(() => {
-    cleanup('ended');
-    onHangUp();
-  }, [cleanup, onHangUp]);
+  const hangUp = useCallback(() => { cleanup('ended'); onHangUp(); }, [cleanup, onHangUp]);
 
-  // ── Classify media errors ────────────────────────────────────────────────
-  const handleMediaError = useCallback((e, context) => {
+  const handleMediaError = useCallback((e) => {
     const detail = `${e.name}: ${e.message}`;
-    console.error(`[Call] ${context} media error →`, detail);
-    if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-      setPermErrType('no_device');
-    } else {
-      setPermErrType('denied');
-    }
+    if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') setPermErrType('no_device');
+    else setPermErrType('denied');
     setPermErrDetail(detail);
     setPhase('perm_error');
   }, []);
 
-  // ── Get user media (robust fallback) ──────────────────────────────────────
   const getMedia = async (type) => {
     try {
       return await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
     } catch (e) {
       if (type === 'video') {
-        try {
-          return await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        } catch (e2) { throw e; }
+        try { return await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); } catch {}
       }
       throw e;
     }
   };
 
-  // ── CALLER: set up WebRTC (runs once on mount) ────────────────────────────
+  // Caller setup
   useEffect(() => {
     if (role !== 'caller') return;
     r.current.dead = false;
-
     (async () => {
       try {
-        // 1. Get media
         const stream = await getMedia(call.type);
         if (r.current.dead) { stream.getTracks().forEach(t => t.stop()); return; }
-        r.current.localStream = stream;
-        setLocalStream(stream);
-
-        // 2. Create peer connection + add tracks
+        r.current.localStream = stream; setLocalStream(stream);
         const pc = new RTCPeerConnection({ iceServers: ICE });
         r.current.pc = pc;
         stream.getTracks().forEach(t => pc.addTrack(t, stream));
         pc.ontrack = e => { if (e.streams?.[0]) setRemoteStream(e.streams[0]); };
-        pc.onconnectionstatechange = () => {
-          if (['failed', 'closed'].includes(pc.connectionState) && !r.current.dead) { hangUp(); }
-        };
-
-        // 3. Create offer → wait for ICE → store in DB
+        pc.onconnectionstatechange = () => { if (['failed','closed'].includes(pc.connectionState) && !r.current.dead) hangUp(); };
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         await waitIce(pc);
         if (r.current.dead) return;
         await setCallOffer(call.id, JSON.stringify(pc.localDescription));
-
-        // 4. Poll for answer from receiver
         r.current.poll = setInterval(async () => {
           if (r.current.dead) return;
           try {
             const data = await getCallById(call.id);
-            if (!data || ['rejected', 'ended', 'missed'].includes(data.status)) {
-              clearInterval(r.current.poll);
-              if (!r.current.dead) { cleanup(null); onHangUp(); }
-              return;
-            }
+            if (!data || ['rejected','ended','missed'].includes(data.status)) { clearInterval(r.current.poll); if (!r.current.dead) { cleanup(null); onHangUp(); } return; }
             if (data.answer && pc.signalingState === 'have-local-offer') {
               clearInterval(r.current.poll);
               await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.answer)));
               setPhase(call.type === 'video' ? 'active_video' : 'active_audio');
             }
-          } catch (e) { console.warn('Caller poll err:', e); }
+          } catch (e) { console.warn('Poll err:', e); }
         }, 2000);
-
-      } catch (e) {
-        if (['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(e.name)) {
-          setPermErrType('denied'); setPhase('perm_error');
-        } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-          setPermErrType('no_device'); setPhase('perm_error');
-        } else {
-          console.error('Caller setup error:', e);
-          cleanup('ended'); onHangUp();
-        }
-      }
+      } catch (e) { handleMediaError(e); }
     })();
-
     return () => { cleanup(null); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
-  // ── RECEIVER: accept call ─────────────────────────────────────────────────
   const handleAccept = useCallback(async () => {
-    setPhase('connecting');
-    onAccept();
-    r.current.dead = false;
-
+    setPhase('connecting'); onAccept(); r.current.dead = false;
     try {
-      // 1. Get media
       const stream = await getMedia(call.type);
       if (r.current.dead) { stream.getTracks().forEach(t => t.stop()); return; }
-      r.current.localStream = stream;
-      setLocalStream(stream);
-
-      // 2. Wait for offer (caller may still be gathering ICE — this fixes the race condition)
+      r.current.localStream = stream; setLocalStream(stream);
       const callData = await waitForOffer(call.id, 25000);
-      if (!callData) {
-        setPermErrType('no_offer'); setPhase('perm_error'); return;
-      }
+      if (!callData) { setPermErrType('no_offer'); setPhase('perm_error'); return; }
       if (r.current.dead) return;
-
-      // 3. Create peer connection
       const pc = new RTCPeerConnection({ iceServers: ICE });
       r.current.pc = pc;
       stream.getTracks().forEach(t => pc.addTrack(t, stream));
       pc.ontrack = e => { if (e.streams?.[0]) setRemoteStream(e.streams[0]); };
-      pc.onconnectionstatechange = () => {
-        if (['failed', 'closed'].includes(pc.connectionState) && !r.current.dead) { hangUp(); }
-      };
-
-      // 4. Set caller's offer → create answer → wait for ICE → store answer
+      pc.onconnectionstatechange = () => { if (['failed','closed'].includes(pc.connectionState) && !r.current.dead) hangUp(); };
       await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(callData.offer)));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await waitIce(pc);
       if (r.current.dead) return;
       await setCallAnswer(call.id, JSON.stringify(pc.localDescription));
-
       setPhase(call.type === 'video' ? 'active_video' : 'active_audio');
-
-      // 5. Poll only for remote hang-up
       r.current.poll = setInterval(async () => {
         if (r.current.dead) return;
         try {
           const live = await getCallById(call.id);
-          if (!live || ['ended', 'rejected', 'missed'].includes(live.status)) {
-            clearInterval(r.current.poll);
-            if (!r.current.dead) { cleanup(null); onHangUp(); }
-          }
+          if (!live || ['ended','rejected','missed'].includes(live.status)) { clearInterval(r.current.poll); if (!r.current.dead) { cleanup(null); onHangUp(); } }
         } catch {}
       }, 3000);
+    } catch (e) { handleMediaError(e); }
+  }, [call.id, call.type, hangUp, onAccept, cleanup, onHangUp, handleMediaError]);
 
-    } catch (e) {
-      if (['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(e.name)) {
-        setPermErrType('denied'); setPhase('perm_error');
-      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-        setPermErrType('no_device'); setPhase('perm_error');
-      } else {
-        console.error('Receiver setup error:', e);
-        cleanup('ended'); onHangUp();
-      }
-    }
-  }, [call.id, call.type, hangUp, onAccept, cleanup, onHangUp]);
-
-  // ── Retry after permission error ──────────────────────────────────────────
   const handleRetry = useCallback(() => {
-    r.current.dead = false;
-    setPermErrType(null);
-    setPermErrDetail(null);
-    if (role === 'caller') {
-      setPhase('caller_waiting');
-      r.current.dead = false;
-      (async () => {
-        try {
-          const stream = await getMedia(call.type);
-          if (r.current.dead) { stream.getTracks().forEach(t => t.stop()); return; }
-          r.current.localStream = stream; setLocalStream(stream);
-          const pc = new RTCPeerConnection({ iceServers: ICE });
-          r.current.pc = pc;
-          stream.getTracks().forEach(t => pc.addTrack(t, stream));
-          pc.ontrack = e => { if (e.streams?.[0]) setRemoteStream(e.streams[0]); };
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          await waitIce(pc);
-          if (r.current.dead) return;
-          await setCallOffer(call.id, JSON.stringify(pc.localDescription));
-          r.current.poll = setInterval(async () => {
-            if (r.current.dead) return;
-            const data = await getCallById(call.id);
-            if (!data || ['rejected','ended','missed'].includes(data.status)) { clearInterval(r.current.poll); cleanup(null); onHangUp(); return; }
-            if (data.answer && pc.signalingState === 'have-local-offer') {
-              clearInterval(r.current.poll);
-              await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.answer)));
-              setPhase(call.type === 'video' ? 'active_video' : 'active_audio');
-            }
-          }, 2000);
-        } catch (e) { handleMediaError(e, 'Caller retry'); }
-      })();
-    } else {
-      handleAccept();
-    }
-  }, [role, call.id, call.type, cleanup, onHangUp, handleAccept, handleMediaError]);
+    r.current.dead = false; setPermErrType(null); setPermErrDetail(null);
+    if (role === 'caller') { setPhase('caller_waiting'); r.current.dead = false; }
+    else handleAccept();
+  }, [role, handleAccept]);
 
   if (!call) return null;
 
-  // ─── Render based on phase ────────────────────────────────────────────────
-  if (phase === 'incoming') {
-    return <IncomingCallOverlay call={call} callerUser={otherUser} onAccept={handleAccept}
-      onDecline={async (r2) => { cleanup(null); await updateCallStatus(call.id, r2).catch(() => {}); onDecline(r2); }} />;
-  }
-
-  if (phase === 'caller_waiting') {
-    return <CallingScreen call={call} otherUser={otherUser} onCancel={hangUp} />;
-  }
-
-  if (phase === 'connecting') {
-    return <ConnectingScreen otherUser={otherUser} />;
-  }
-
-  if (phase === 'perm_error') {
-    return <PermScreen errType={permErrType} errDetail={permErrDetail} onRetry={handleRetry} onCancel={hangUp} />;
-  }
-
-  if (phase === 'active_audio') {
-    return <AudioCallScreen otherUser={otherUser} localStream={localStream} remoteStream={remoteStream} onHangUp={hangUp} />;
-  }
-
-  if (phase === 'active_video') {
-    return <VideoCallScreen currentUser={currentUser} otherUser={otherUser} localStream={localStream} remoteStream={remoteStream} onHangUp={hangUp} />;
-  }
-
+  if (phase === 'incoming') return <IncomingCallOverlay call={call} callerUser={otherUser} onAccept={handleAccept} onDecline={async r2 => { cleanup(null); await updateCallStatus(call.id, r2).catch(() => {}); onDecline(r2); }} />;
+  if (phase === 'caller_waiting') return <CallingScreen call={call} otherUser={otherUser} onCancel={hangUp} />;
+  if (phase === 'connecting') return <ConnectingScreen otherUser={otherUser} />;
+  if (phase === 'perm_error') return <PermScreen errType={permErrType} errDetail={permErrDetail} onRetry={handleRetry} onCancel={hangUp} />;
+  if (phase === 'active_audio') return <AudioCallScreen otherUser={otherUser} localStream={localStream} remoteStream={remoteStream} onHangUp={hangUp} />;
+  if (phase === 'active_video') return <VideoCallScreen currentUser={currentUser} otherUser={otherUser} localStream={localStream} remoteStream={remoteStream} onHangUp={hangUp} />;
   return null;
 }
