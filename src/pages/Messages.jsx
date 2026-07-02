@@ -824,9 +824,10 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
           if (element) {
             const bubbleElement = element.querySelector('.message-bubble') || element;
             const rect = bubbleElement.getBoundingClientRect();
+            const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
             setMenuPosition({
-              screenTop: rect.top,
-              screenLeft: rect.left,
+              top: rect.top - containerRect.top,
+              left: rect.left - containerRect.left,
               width: rect.width,
               height: rect.height,
               isMine: msg.senderId === user?.id
@@ -835,11 +836,10 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
           }
         }
       }
-    } else {
-      if (contextMenuMessage) {
-        setContextMenuMessage(null);
-      }
+    } else if (selectedMessageIds.length === 0) {
+      if (contextMenuMessage) setContextMenuMessage(null);
     }
+    // When 2+ selected, keep contextMenuMessage as-is (don't close popup)
   }, [selectedMessageIds, messages, user?.id, contextMenuMessage]);
 
   // Details popstate interceptor to close details on back button instead of leaving the chat
@@ -1225,30 +1225,31 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
     });
   };
 
-  // Instagram-style: fixed to viewport, anchors near the message bubble
+  // Positions the context menu relative to the chatView container (absolute positioning)
   const getMenuStyles = () => {
     if (!menuPosition) return {};
-    const { screenTop, screenLeft, width, height, isMine } = menuPosition;
+    const { top, left, width, height } = menuPosition;
     const menuWidth = 230;
     const emojiBarH = 56;
-    const menuBodyH = 290;
-    const totalH = emojiBarH + 8 + menuBodyH;
+    const menuBodyH = 300;
+    const totalH = emojiBarH + 10 + menuBodyH;
     const gap = 8;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
 
-    // Horizontal: center on bubble, clamp to screen
-    let left = screenLeft + width / 2 - menuWidth / 2;
-    left = Math.max(12, Math.min(vw - menuWidth - 12, left));
+    const containerW = chatViewRef.current ? chatViewRef.current.clientWidth : window.innerWidth;
+    const containerH = chatViewRef.current ? chatViewRef.current.clientHeight : window.innerHeight;
 
-    // Vertical: prefer below bubble; flip above if near bottom
-    let top = screenTop + height + gap;
-    if (top + totalH > vh - 16) {
-      top = screenTop - totalH - gap;
+    // Center horizontally on bubble, clamp to container
+    let targetLeft = left + width / 2 - menuWidth / 2;
+    targetLeft = Math.max(8, Math.min(containerW - menuWidth - 8, targetLeft));
+
+    // Prefer below bubble; flip above if near bottom
+    let targetTop = top + height + gap;
+    if (targetTop + totalH > containerH - 16) {
+      targetTop = top - totalH - gap;
     }
-    top = Math.max(60, Math.min(vh - totalH - 12, top));
+    targetTop = Math.max(60, Math.min(containerH - totalH - 8, targetTop));
 
-    return { position: 'fixed', left: `${left}px`, top: `${top}px`, width: `${menuWidth}px`, zIndex: 9990 };
+    return { position: 'absolute', left: `${targetLeft}px`, top: `${targetTop}px`, width: `${menuWidth}px`, zIndex: 9990 };
   };
 
   const handleCopySelected = async () => {
@@ -1307,10 +1308,10 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
           ? rowElement.querySelector('.message-bubble') || rowElement
           : rowElement;
         const rect = bubbleElement.getBoundingClientRect();
-        // Store screen-absolute coordinates for fixed positioning
+        const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
         setMenuPosition({
-          screenTop: rect.top,
-          screenLeft: rect.left,
+          top: rect.top - containerRect.top,
+          left: rect.left - containerRect.left,
           width: rect.width,
           height: rect.height,
           isMine: msg.senderId === user?.id
@@ -1352,9 +1353,10 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       ? rowElement.querySelector('.message-bubble') || rowElement
       : rowElement;
     const rect = bubbleElement.getBoundingClientRect();
+    const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
     setMenuPosition({
-      screenTop: rect.top,
-      screenLeft: rect.left,
+      top: rect.top - containerRect.top,
+      left: rect.left - containerRect.left,
       width: rect.width,
       height: rect.height,
       isMine: msg.senderId === user?.id
@@ -1642,11 +1644,10 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                       if (selectedMessageIds.length > 0) {
                         e.stopPropagation();
                         toggleMessageSelection(message.id);
-                        if (contextMenuMessage) setContextMenuMessage(null);
+                        // Don't close context menu — let it stay while multi-selecting
                       } else if (contextMenuMessage) {
                         e.stopPropagation();
                         setSelectedMessageIds([contextMenuMessage.id, message.id]);
-                        setContextMenuMessage(null);
                       }
                     }}
                     className={`flex items-center animate-fade-in group relative select-none no-swipe px-2 sm:px-4 py-1.5 rounded-2xl transition-all duration-200 cursor-pointer ${
@@ -1905,8 +1906,8 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input / Reply / Edit Editor Bar OR Multi-Select Toolbar */}
-      {selectedMessageIds.length > 0 ? (
+      {/* Input / Reply / Edit Editor Bar OR Multi-Select Toolbar (only when 2+ selected, not when popup is open) */}
+      {selectedMessageIds.length > 1 ? (
         <div id="select-actions-toolbar" className="shrink-0 px-3 py-3 border-t border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-[#0a0d14] flex items-center justify-between animate-slide-up">
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">
