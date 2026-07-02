@@ -824,10 +824,9 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
           if (element) {
             const bubbleElement = element.querySelector('.message-bubble') || element;
             const rect = bubbleElement.getBoundingClientRect();
-            const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
             setMenuPosition({
-              top: rect.top - containerRect.top,
-              left: rect.left - containerRect.left,
+              screenTop: rect.top,
+              screenLeft: rect.left,
               width: rect.width,
               height: rect.height,
               isMine: msg.senderId === user?.id
@@ -1226,36 +1225,30 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
     });
   };
 
+  // Instagram-style: fixed to viewport, anchors near the message bubble
   const getMenuStyles = () => {
     if (!menuPosition) return {};
-    const { top, left, width, height } = menuPosition;
-    const menuWidth = 220;
-    const menuHeight = 250; // Estimated height for clamping
-    const gap = 6;
-    
-    // Center horizontally relative to the selected message bubble
-    let targetLeft = left + (width / 2) - (menuWidth / 2);
-    
-    let targetTop = top + height + gap;
-    
-    // Get container dimensions
-    const containerWidth = chatViewRef.current ? chatViewRef.current.clientWidth : window.innerWidth;
-    const containerHeight = chatViewRef.current ? chatViewRef.current.clientHeight : window.innerHeight;
-    
-    if (targetTop + menuHeight > containerHeight - 16) {
-      targetTop = top - menuHeight - gap;
+    const { screenTop, screenLeft, width, height, isMine } = menuPosition;
+    const menuWidth = 230;
+    const emojiBarH = 56;
+    const menuBodyH = 290;
+    const totalH = emojiBarH + 8 + menuBodyH;
+    const gap = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Horizontal: center on bubble, clamp to screen
+    let left = screenLeft + width / 2 - menuWidth / 2;
+    left = Math.max(12, Math.min(vw - menuWidth - 12, left));
+
+    // Vertical: prefer below bubble; flip above if near bottom
+    let top = screenTop + height + gap;
+    if (top + totalH > vh - 16) {
+      top = screenTop - totalH - gap;
     }
-    
-    // Clamp to container boundaries
-    targetLeft = Math.max(16, Math.min(containerWidth - menuWidth - 16, targetLeft));
-    targetTop = Math.max(70, Math.min(containerHeight - menuHeight - 16, targetTop));
-    
-    return {
-      position: 'absolute',
-      left: `${targetLeft}px`,
-      top: `${targetTop}px`,
-      width: `${menuWidth}px`,
-    };
+    top = Math.max(60, Math.min(vh - totalH - 12, top));
+
+    return { position: 'fixed', left: `${left}px`, top: `${top}px`, width: `${menuWidth}px`, zIndex: 9990 };
   };
 
   const handleCopySelected = async () => {
@@ -1314,10 +1307,10 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
           ? rowElement.querySelector('.message-bubble') || rowElement
           : rowElement;
         const rect = bubbleElement.getBoundingClientRect();
-        const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
+        // Store screen-absolute coordinates for fixed positioning
         setMenuPosition({
-          top: rect.top - containerRect.top,
-          left: rect.left - containerRect.left,
+          screenTop: rect.top,
+          screenLeft: rect.left,
           width: rect.width,
           height: rect.height,
           isMine: msg.senderId === user?.id
@@ -1359,10 +1352,9 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       ? rowElement.querySelector('.message-bubble') || rowElement
       : rowElement;
     const rect = bubbleElement.getBoundingClientRect();
-    const containerRect = chatViewRef.current ? chatViewRef.current.getBoundingClientRect() : { top: 0, left: 0 };
     setMenuPosition({
-      top: rect.top - containerRect.top,
-      left: rect.left - containerRect.left,
+      screenTop: rect.top,
+      screenLeft: rect.left,
       width: rect.width,
       height: rect.height,
       isMine: msg.senderId === user?.id
@@ -1762,12 +1754,21 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                               if (message.content === '🚫 This message was deleted') return;
                               e.stopPropagation();
                               handleMessageReact(message, '❤️');
+                              // Show floating heart at tap position
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const heartId = `heart-float-${message.id}-${Date.now()}`;
+                              const el = document.createElement('div');
+                              el.id = heartId;
+                              el.textContent = '❤️';
+                              el.style.cssText = `position:fixed;left:${e.clientX - 16}px;top:${e.clientY - 16}px;font-size:32px;z-index:9999;pointer-events:none;animation:igHeartFloat 0.75s cubic-bezier(0.34,1.56,0.64,1) forwards;`;
+                              document.body.appendChild(el);
+                              setTimeout(() => el.remove(), 800);
                             }}
                             className={`message-bubble relative rounded-2xl transition-all duration-355 ${
                               highlightedMessageId === message.id ? 'highlight-msg-active' : ''
                             } ${
                               isMenuOpen
-                                ? 'z-50 scale-[1.02] shadow-lg ring-1 ring-black/5 dark:ring-white/10'
+                                ? 'z-[9985] scale-[1.02] shadow-lg ring-1 ring-black/5 dark:ring-white/10'
                                 : selectedMessageIds.includes(message.id)
                                 ? 'scale-[1.01]'
                                 : ''
@@ -2010,26 +2011,38 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
         </div>
       )}
 
-      {/* Glassmorphic Option Context Menu */}
+      {/* ── Instagram-style Message Context Menu ── */}
       {contextMenuMessage && menuPosition && (
         <>
+          {/* Tap-to-dismiss backdrop — NO blur */}
           <div
-            className="fixed inset-0 z-45 bg-slate-900/20 dark:bg-black/45 backdrop-blur-[2.5px] animate-fade-in"
-            style={{ animationDuration: '200ms' }}
+            className="fixed inset-0 z-[9980]"
+            style={{ background: 'rgba(0,0,0,0.18)' }}
             onClick={(e) => {
               e.stopPropagation();
               setContextMenuMessage(null);
               setSelectedMessageIds([]);
             }}
           />
+
+          {/* Floating panel anchored near the bubble */}
           <div
             id="context-menu-container"
-            style={getMenuStyles()}
-            className="fixed z-50 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#0c1018]/95 shadow-xl p-1.5 space-y-0.5 animate-scale-in animate-duration-150"
+            style={{
+              ...getMenuStyles(),
+              animation: 'igMenuPop 0.22s cubic-bezier(0.34,1.56,0.64,1) both',
+            }}
           >
-            {/* Reaction Bar */}
-            <div className="flex items-center justify-between gap-1 pb-1.5 mb-1.5 border-b border-slate-100 dark:border-slate-900/50 px-1 pt-0.5">
-              {['❤️', '👍', '😂', '😮', '😢', '🙏'].map(emoji => {
+            {/* ── Emoji reaction row ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(28,28,30,0.95)',
+              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              borderRadius: 22, padding: '6px 8px', marginBottom: 8,
+              boxShadow: '0 4px 24px rgba(0,0,0,0.32)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              {['❤️', '😂', '😮', '😢', '😠', '👍', '➕'].map(emoji => {
                 const userReaction = contextMenuMessage.reactions?.find(r => r.userId === user?.id)?.reaction;
                 const isSelected = userReaction === emoji;
                 return (
@@ -2037,12 +2050,23 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                     key={emoji}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleMessageReact(contextMenuMessage, emoji);
-                      setContextMenuMessage(null);
+                      if (emoji !== '➕') {
+                        handleMessageReact(contextMenuMessage, emoji);
+                        setContextMenuMessage(null);
+                        setSelectedMessageIds([]);
+                      }
                     }}
-                    className={`w-8 h-8 flex items-center justify-center text-base rounded-full hover:bg-slate-100 dark:hover:bg-white/[0.08] active:scale-90 transition-all duration-200 ${
-                      isSelected ? 'bg-indigo-50/80 dark:bg-indigo-950/40 ring-1.5 ring-indigo-500 scale-110' : ''
-                    }`}
+                    style={{
+                      width: 40, height: 40, borderRadius: '50%', border: 'none',
+                      background: isSelected ? 'rgba(255,255,255,0.2)' : 'transparent',
+                      fontSize: 22, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transform: isSelected ? 'scale(1.25)' : 'scale(1)',
+                      transition: 'transform 0.18s cubic-bezier(0.34,1.56,0.64,1)',
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.2)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = isSelected ? 'scale(1.25)' : 'scale(1)'; }}
                   >
                     {emoji}
                   </button>
@@ -2050,84 +2074,106 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
               })}
             </div>
 
-            <button
-              onClick={() => {
-                setReplyingTo(contextMenuMessage);
-                setContextMenuMessage(null);
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-all duration-150 active:scale-98 text-left"
-            >
-              <CornerUpLeft className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-              Reply
-            </button>
+            {/* ── Action menu body ── */}
+            <div style={{
+              background: 'rgba(28,28,30,0.95)',
+              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              borderRadius: 16, overflow: 'hidden',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.32)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              {/* Time stamp */}
+              <div style={{ padding: '10px 16px 6px', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
+                <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: 600, letterSpacing: '0.03em' }}>
+                  {new Date(contextMenuMessage.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                </span>
+              </div>
 
-            <button
-              onClick={handleCopyMessage}
-              disabled={contextMenuMessage.content === '🚫 This message was deleted'}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-all duration-150 active:scale-98 text-left disabled:opacity-40"
-            >
-              <Copy className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-              Copy Text
-            </button>
-
-            <button
-              onClick={() => setContextMenuMessage(null)}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-all duration-150 active:scale-98 text-left"
-            >
-              <Check className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-              Select Multiple
-            </button>
-
-            <button
-              onClick={handleStarToggle}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-all duration-150 active:scale-98 text-left"
-            >
-              <Star className={`w-4 h-4 ${isStarred(contextMenuMessage.id) ? 'text-amber-500 fill-amber-500' : 'text-slate-400 dark:text-slate-500'}`} />
-              {isStarred(contextMenuMessage.id) ? 'Unstar Message' : 'Star Message'}
-            </button>
-
-            {contextMenuMessage.senderId === user?.id && contextMenuMessage.content !== '🚫 This message was deleted' && (
-              <>
+              {[/* Reply */
+                {
+                  icon: <CornerUpLeft size={18} style={{ color: 'rgba(255,255,255,0.7)' }} />,
+                  label: 'Reply',
+                  action: () => { setReplyingTo(contextMenuMessage); setContextMenuMessage(null); setSelectedMessageIds([]); },
+                  red: false, show: true,
+                },
+                {
+                  icon: <Copy size={18} style={{ color: 'rgba(255,255,255,0.7)' }} />,
+                  label: 'Copy',
+                  action: handleCopyMessage,
+                  red: false,
+                  show: contextMenuMessage.content !== '🚫 This message was deleted',
+                },
+                {
+                  icon: <Star size={18} style={{ color: isStarred(contextMenuMessage.id) ? '#f59e0b' : 'rgba(255,255,255,0.7)', fill: isStarred(contextMenuMessage.id) ? '#f59e0b' : 'none' }} />,
+                  label: isStarred(contextMenuMessage.id) ? 'Unstar' : 'Star',
+                  action: handleStarToggle,
+                  red: false, show: true,
+                },
+                {
+                  icon: <Edit3 size={18} style={{ color: 'rgba(255,255,255,0.7)' }} />,
+                  label: 'Edit',
+                  action: () => { setEditingMessage(contextMenuMessage); setNewMessage(contextMenuMessage.content); setContextMenuMessage(null); setSelectedMessageIds([]); },
+                  red: false,
+                  show: contextMenuMessage.senderId === user?.id && contextMenuMessage.content !== '🚫 This message was deleted',
+                },
+                {
+                  icon: <ShieldAlert size={18} style={{ color: '#fb923c' }} />,
+                  label: 'Report',
+                  action: handleReportMessage,
+                  red: false,
+                  show: contextMenuMessage.senderId !== user?.id,
+                },
+                {
+                  icon: <Trash2 size={18} style={{ color: '#f87171' }} />,
+                  label: 'Delete for Everyone',
+                  action: handleDeleteEveryone,
+                  red: true,
+                  show: contextMenuMessage.senderId === user?.id && contextMenuMessage.content !== '🚫 This message was deleted',
+                },
+                {
+                  icon: <Trash2 size={18} style={{ color: '#f87171' }} />,
+                  label: 'Delete for Me',
+                  action: handleDeleteMe,
+                  red: true, show: true,
+                },
+              ].filter(item => item.show).map((item, idx, arr) => (
                 <button
-                  onClick={() => {
-                    setEditingMessage(contextMenuMessage);
-                    setNewMessage(contextMenuMessage.content);
-                    setContextMenuMessage(null);
+                  key={item.label}
+                  onClick={(e) => { e.stopPropagation(); item.action(); }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+                    padding: '13px 16px',
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    textAlign: 'left',
+                    borderBottom: idx < arr.length - 1 ? '0.5px solid rgba(255,255,255,0.06)' : 'none',
+                    transition: 'background 0.12s',
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-all duration-150 active:scale-98 text-left"
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <Edit3 className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                  Edit Message
+                  {item.icon}
+                  <span style={{
+                    fontSize: 15, fontWeight: 500,
+                    color: item.red ? '#f87171' : 'rgba(255,255,255,0.9)',
+                    letterSpacing: '-0.01em',
+                  }}>{item.label}</span>
                 </button>
-
-                <button
-                  onClick={handleDeleteEveryone}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all duration-150 active:scale-98 text-left"
-                >
-                  <Trash2 className="w-4 h-4 text-rose-500" />
-                  Delete for Everyone
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={handleDeleteMe}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all duration-150 active:scale-98 text-left"
-            >
-              <Trash2 className="w-4 h-4 text-rose-500" />
-              Delete for Me
-            </button>
-
-            {contextMenuMessage.senderId !== user?.id && (
-              <button
-                onClick={handleReportMessage}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-all duration-150 active:scale-98 text-left"
-              >
-                <ShieldAlert className="w-4 h-4 text-amber-550" />
-                Report Message
-              </button>
-            )}
+              ))}
+            </div>
           </div>
+
+          {/* CSS for popup animation + heart float */}
+          <style>{`
+            @keyframes igMenuPop {
+              from { opacity:0; transform: scale(0.88) translateY(6px); }
+              to   { opacity:1; transform: scale(1)   translateY(0); }
+            }
+            @keyframes igHeartFloat {
+              0%   { opacity:1; transform: scale(0.6); }
+              50%  { opacity:1; transform: scale(1.4); }
+              100% { opacity:0; transform: scale(1.1) translateY(-28px); }
+            }
+          `}</style>
         </>
       )}
 
