@@ -15,8 +15,20 @@ import { handleAvatarError } from '../utils/avatarUtils';
 const ICE = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
+  { urls: 'stun:global.stun.twilio.com:3478' },
+  { urls: 'stun:stun.services.mozilla.com' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
   {
-    urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443'],
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:5349',
+      'turns:openrelay.metered.ca:443',
+      'turns:openrelay.metered.ca:5349'
+    ],
     username: 'openrelayproject',
     credential: 'openrelayproject',
   },
@@ -915,7 +927,15 @@ export default function CallScreen({ call, currentUser, otherUser, role, onAccep
         const pc = new RTCPeerConnection({ iceServers: ICE });
         r.current.pc = pc;
         stream.getTracks().forEach(t => pc.addTrack(t, stream));
-        pc.ontrack = e => { if (e.streams?.[0]) setRemoteStream(e.streams[0]); };
+        pc.ontrack = e => {
+          if (e.streams?.[0]) {
+            setRemoteStream(e.streams[0]);
+          } else if (e.track) {
+            const ms = new MediaStream();
+            ms.addTrack(e.track);
+            setRemoteStream(ms);
+          }
+        };
         pc.onconnectionstatechange = () => {
           if (r.current.dead) return;
           if (pc.connectionState === 'closed') {
@@ -963,7 +983,15 @@ export default function CallScreen({ call, currentUser, otherUser, role, onAccep
       const pc = new RTCPeerConnection({ iceServers: ICE });
       r.current.pc = pc;
       stream.getTracks().forEach(t => pc.addTrack(t, stream));
-      pc.ontrack = e => { if (e.streams?.[0]) setRemoteStream(e.streams[0]); };
+      pc.ontrack = e => {
+        if (e.streams?.[0]) {
+          setRemoteStream(e.streams[0]);
+        } else if (e.track) {
+          const ms = new MediaStream();
+          ms.addTrack(e.track);
+          setRemoteStream(ms);
+        }
+      };
       pc.onconnectionstatechange = () => {
         if (r.current.dead) return;
         if (pc.connectionState === 'closed') {
