@@ -161,7 +161,7 @@ function startCallingTone() {
 }
 
 // ─── WebRTC helpers ───────────────────────────────────────────────────────────
-function waitIce(pc, ms = 6000) {
+function waitIce(pc, ms = 1200) {
   return new Promise(r => {
     if (pc.iceGatheringState === 'complete') { r(); return; }
     const h = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', h); r(); } };
@@ -588,13 +588,24 @@ function AudioCallScreen({ otherUser, localStream, remoteStream, onHangUp }) {
   const audioRef = useRef(null);
   const startRef = useRef(Date.now());
 
-  useEffect(() => {
-    injectCSS();
+  const handlePlayAudio = useCallback(() => {
     if (audioRef.current && remoteStream) {
       audioRef.current.srcObject = remoteStream;
-      audioRef.current.play().catch(() => {});
+      audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
     }
   }, [remoteStream]);
+
+  useEffect(() => {
+    injectCSS();
+    handlePlayAudio();
+    // iOS Safari / Chrome Autoplay policy bypass
+    document.addEventListener('click', handlePlayAudio);
+    document.addEventListener('touchstart', handlePlayAudio);
+    return () => {
+      document.removeEventListener('click', handlePlayAudio);
+      document.removeEventListener('touchstart', handlePlayAudio);
+    };
+  }, [remoteStream, handlePlayAudio]);
 
   const toggleMute = () => {
     localStream?.getAudioTracks().forEach(t => { t.enabled = muted; });
@@ -634,7 +645,13 @@ function AudioCallScreen({ otherUser, localStream, remoteStream, onHangUp }) {
         </p>
       }
     >
-      <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
+      <audio
+        ref={audioRef}
+        autoPlay
+        playsInline
+        controls={false}
+        style={{ position: 'absolute', top: 0, left: 0, width: '1px', height: '1px', opacity: 0.01, pointerEvents: 'none', zIndex: -1 }}
+      />
       <div className="sc-ctrl-bar">
         <PillBtn icon={<MoreHorizontal size={20} color="rgba(255,255,255,0.75)" />} label="More" onClick={() => {}} />
         <PillBtn icon={<Video size={20} color="rgba(255,255,255,0.75)" />} label="Camera" onClick={() => {}} />
@@ -675,9 +692,22 @@ function VideoCallScreen({ otherUser, localStream, remoteStream, onHangUp }) {
 
   useEffect(() => { injectCSS(); }, []);
 
-  useEffect(() => {
-    if (remoteRef.current && remoteStream) { remoteRef.current.srcObject = remoteStream; remoteRef.current.play().catch(() => {}); }
+  const handlePlayVideo = useCallback(() => {
+    if (remoteRef.current && remoteStream) {
+      remoteRef.current.srcObject = remoteStream;
+      remoteRef.current.play().catch(() => {});
+    }
   }, [remoteStream]);
+
+  useEffect(() => {
+    handlePlayVideo();
+    document.addEventListener('click', handlePlayVideo);
+    document.addEventListener('touchstart', handlePlayVideo);
+    return () => {
+      document.removeEventListener('click', handlePlayVideo);
+      document.removeEventListener('touchstart', handlePlayVideo);
+    };
+  }, [remoteStream, handlePlayVideo]);
 
   useEffect(() => {
     if (localRef.current && localStream) { localRef.current.srcObject = localStream; localRef.current.play().catch(() => {}); }
@@ -886,7 +916,18 @@ export default function CallScreen({ call, currentUser, otherUser, role, onAccep
         r.current.pc = pc;
         stream.getTracks().forEach(t => pc.addTrack(t, stream));
         pc.ontrack = e => { if (e.streams?.[0]) setRemoteStream(e.streams[0]); };
-        pc.onconnectionstatechange = () => { if (['failed','closed'].includes(pc.connectionState) && !r.current.dead) hangUp(); };
+        pc.onconnectionstatechange = () => {
+          if (r.current.dead) return;
+          if (pc.connectionState === 'closed') {
+            hangUp();
+          } else if (pc.connectionState === 'failed') {
+            setTimeout(() => {
+              if (pc && pc.connectionState === 'failed' && !r.current.dead) {
+                hangUp();
+              }
+            }, 4000);
+          }
+        };
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         await waitIce(pc);
@@ -923,7 +964,18 @@ export default function CallScreen({ call, currentUser, otherUser, role, onAccep
       r.current.pc = pc;
       stream.getTracks().forEach(t => pc.addTrack(t, stream));
       pc.ontrack = e => { if (e.streams?.[0]) setRemoteStream(e.streams[0]); };
-      pc.onconnectionstatechange = () => { if (['failed','closed'].includes(pc.connectionState) && !r.current.dead) hangUp(); };
+      pc.onconnectionstatechange = () => {
+        if (r.current.dead) return;
+        if (pc.connectionState === 'closed') {
+          hangUp();
+        } else if (pc.connectionState === 'failed') {
+          setTimeout(() => {
+            if (pc && pc.connectionState === 'failed' && !r.current.dead) {
+              hangUp();
+            }
+          }, 4000);
+        }
+      };
       await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(callData.offer)));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
