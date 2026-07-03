@@ -320,7 +320,7 @@ export function IncomingCallOverlay({ call, callerUser, onAccept, onDecline }) {
 
   return (
     <div className="sc-bg-pattern" style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
+      position: 'fixed', inset: 0, zIndex: 10000,
       display: 'flex', flexDirection: 'column',
       animation: 'scSlideUp 0.38s cubic-bezier(0.16,1,0.3,1)',
       overflow: 'hidden',
@@ -417,7 +417,7 @@ export function IncomingCallOverlay({ call, callerUser, onAccept, onDecline }) {
 function CallLayout({ otherUser, topLabel, statusNode, children, topRight, topLeft, pulsing = false }) {
   return (
     <div className="sc-bg-pattern" style={{
-      position: 'fixed', inset: 0, zIndex: 9998,
+      position: 'fixed', inset: 0, zIndex: 10000,
       display: 'flex', flexDirection: 'column',
       animation: 'scFadeIn 0.3s ease',
       overflow: 'hidden',
@@ -657,7 +657,7 @@ function VideoCallScreen({ otherUser, localStream, remoteStream, onHangUp }) {
   const toggleCam  = () => { localStream?.getVideoTracks().forEach(t => { t.enabled = camOff; }); setCamOff(c => !c); };
 
   return (
-    <div onClick={tap} style={{ position: 'fixed', inset: 0, zIndex: 9998, background: '#000', animation: 'scFadeIn 0.3s ease' }}>
+    <div onClick={tap} style={{ position: 'fixed', inset: 0, zIndex: 10000, background: '#000', animation: 'scFadeIn 0.3s ease' }}>
       {/* Remote video */}
       <video ref={remoteRef} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
 
@@ -754,7 +754,7 @@ function PermScreen({ errType, errDetail, onRetry, onCancel }) {
   useEffect(() => { injectCSS(); }, []);
   return (
     <div className="sc-bg-pattern" style={{
-      position: 'fixed', inset: 0, zIndex: 9998,
+      position: 'fixed', inset: 0, zIndex: 10000,
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: 32, gap: 16, animation: 'scFadeIn 0.25s ease',
     }}>
