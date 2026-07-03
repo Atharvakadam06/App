@@ -838,8 +838,10 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       }
     } else if (selectedMessageIds.length === 0) {
       if (contextMenuMessage) setContextMenuMessage(null);
+    } else {
+      // 2+ selected → close popup, enter pure multi-select mode
+      if (contextMenuMessage) setContextMenuMessage(null);
     }
-    // When 2+ selected, keep contextMenuMessage as-is (don't close popup)
   }, [selectedMessageIds, messages, user?.id, contextMenuMessage]);
 
   // Details popstate interceptor to close details on back button instead of leaving the chat
@@ -1906,7 +1908,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input / Reply / Edit Editor Bar OR Multi-Select Toolbar (only when 2+ selected, not when popup is open) */}
+      {/* Multi-Select Toolbar (2+ messages) OR Input Bar (0 or 1 selected with popup) */}
       {selectedMessageIds.length > 1 ? (
         <div id="select-actions-toolbar" className="shrink-0 px-3 py-3 border-t border-slate-200/60 dark:border-white/[0.04] bg-white dark:bg-[#0a0d14] flex items-center justify-between animate-slide-up">
           <div className="flex items-center gap-2 px-1">
@@ -2015,15 +2017,9 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
       {/* ── Instagram-style Message Context Menu ── */}
       {contextMenuMessage && menuPosition && (
         <>
-          {/* Tap-to-dismiss backdrop — NO blur */}
+          {/* Dim backdrop — pointer-events:none so taps pass through to messages */}
           <div
-            className="fixed inset-0 z-[9980]"
-            style={{ background: 'rgba(0,0,0,0.18)' }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setContextMenuMessage(null);
-              setSelectedMessageIds([]);
-            }}
+            style={{ position: 'absolute', inset: 0, zIndex: 9980, background: 'rgba(0,0,0,0.18)', pointerEvents: 'none' }}
           />
 
           {/* Floating panel anchored near the bubble */}
