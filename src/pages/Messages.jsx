@@ -731,6 +731,13 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
   const [activeCall, setActiveCall] = useState(initialActiveCall || null);
   const [callRole, setCallRole] = useState(initialActiveCall ? (initialActiveCall.caller_id === user.id ? 'caller' : 'receiver') : null); // 'caller' | 'receiver'
 
+  useEffect(() => {
+    if (initialActiveCall) {
+      setActiveCall(initialActiveCall);
+      setCallRole(initialActiveCall.caller_id === user.id ? 'caller' : 'receiver');
+    }
+  }, [initialActiveCall, user.id]);
+
   // Gesture & Context Menu States
   const [touchStartX, setTouchStartX] = useState(0);
   const [touchStartY, setTouchStartY] = useState(0);
@@ -1503,7 +1510,7 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
     <div ref={chatViewRef} className="flex flex-col h-full min-h-0 bg-white dark:bg-[#080b14] relative overflow-hidden">
 
       {/* ── Call Screen Overlay ── */}
-      {activeCall && (
+      {activeCall && (callRole === 'caller' || activeCall.status === 'accepted') && (
         <CallScreen
           call={activeCall}
           currentUser={user}
@@ -2387,8 +2394,12 @@ export default function Messages() {
 
   // Handle call accept redirects instantly
   useEffect(() => {
-    if (location.state?.openConvId && selectedConversation !== location.state.openConvId) {
-      handleSelectConversation(location.state.openConvId);
+    if (location.state?.openConvId) {
+      if (selectedConversation !== location.state.openConvId) {
+        handleSelectConversation(location.state.openConvId);
+      }
+      // Instantly clear state so it doesn't trigger again on subsequent renders/reloads
+      window.history.replaceState({}, document.title);
     }
   }, [location.state?.openConvId, selectedConversation, handleSelectConversation]);
 
