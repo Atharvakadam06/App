@@ -1,5 +1,5 @@
 import { HashRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect, useRef, Component } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
@@ -23,6 +23,8 @@ import GlobalChat from './pages/GlobalChat';
 import PostViewer from './pages/PostViewer';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import { IncomingCallOverlay } from './components/CallScreen';
+import { getIncomingCall, updateCallStatus, getConversations, createConversation } from './services/data';
 import './index.css';
 
 class ErrorBoundary extends Component {
@@ -61,6 +63,72 @@ const pageMeta = {
   '/profile': { title: 'Profile', subtitle: null },
   '/settings': { title: 'Settings', subtitle: null },
 };
+
+// ── Global incoming call detector (works on every page) ──────────────────────
+function GlobalCallManager() {
+  const { user, users } = useAuth();
+  const navigate = useNavigate();
+  const [incoming, setIncoming] = useState(null);
+  const [caller, setCaller] = useState(null);
+  const pollRef = useRef();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const check = async () => {
+      try {
+        const call = await getIncomingCall(user.id);
+        if (call) {
+          setIncoming(prev => {
+            if (prev?.id === call.id) return prev;
+            const c = (users || []).find(u => u.id === call.caller_id);
+            setCaller(c || { name: 'Unknown', avatar: null });
+            return call;
+          });
+        } else {
+          setIncoming(null);
+          setCaller(null);
+        }
+      } catch {}
+    };
+    check();
+    pollRef.current = setInterval(check, 2500);
+    return () => clearInterval(pollRef.current);
+  }, [user?.id, users]);
+
+  if (!incoming || !caller) return null;
+
+  const handleAccept = async () => {
+    try {
+      // Find or create the conversation with the caller, then navigate to inbox
+      const convs = await getConversations(user.id);
+      let conv = convs.find(c => c.user?.id === incoming.caller_id);
+      if (!conv) {
+        const newId = await createConversation(user.id, incoming.caller_id);
+        conv = { id: newId };
+      }
+      setIncoming(null);
+      setCaller(null);
+      navigate('/inbox', { state: { openConvId: conv.id, acceptedCall: incoming } });
+    } catch {
+      setIncoming(null);
+    }
+  };
+
+  const handleDecline = async (reason) => {
+    await updateCallStatus(incoming.id, reason).catch(() => {});
+    setIncoming(null);
+    setCaller(null);
+  };
+
+  return (
+    <IncomingCallOverlay
+      call={incoming}
+      callerUser={caller}
+      onAccept={handleAccept}
+      onDecline={handleDecline}
+    />
+  );
+}
 
 function AuthGate() {
   const { user, isLoading } = useAuth();
@@ -166,6 +234,8 @@ function AuthGate() {
 
   return (
     <div className="h-dvh flex flex-col bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300">
+      {/* Global incoming call overlay — visible from any page */}
+      <GlobalCallManager />
       <Sidebar />
       <main className="lg:ml-[72px] xl:ml-[244px] flex flex-col h-full transition-all duration-300 overflow-hidden">
         {location.pathname !== '/inbox' && location.pathname !== '/global-chat' && (

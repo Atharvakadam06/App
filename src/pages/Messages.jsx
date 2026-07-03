@@ -2315,10 +2315,6 @@ export default function Messages() {
     }
   }, [user?.id, selectedConversation]);
 
-  // ── Global incoming call detection (works from any conversation) ──
-  const [globalIncoming, setGlobalIncoming] = useState(null);
-  const [globalCaller, setGlobalCaller] = useState(null);
-
   const conversation = conversations.find(c => c.id === selectedConversation);
 
   useEffect(() => {
@@ -2345,30 +2341,6 @@ export default function Messages() {
       }
     };
   }, [mobileOpenChat]);
-
-  // Global incoming call polling — detects calls regardless of active conversation
-  useEffect(() => {
-    if (!user?.id) return;
-    const check = async () => {
-      try {
-        const call = await getIncomingCall(user.id);
-        if (call) {
-          setGlobalIncoming(prev => {
-            if (prev?.id === call.id) return prev; // already showing
-            const caller = users.find(u => u.id === call.caller_id);
-            setGlobalCaller(caller || null);
-            return call;
-          });
-        } else {
-          setGlobalIncoming(null);
-          setGlobalCaller(null);
-        }
-      } catch {}
-    };
-    check();
-    const interval = setInterval(check, 2500);
-    return () => clearInterval(interval);
-  }, [user?.id, users]);
 
   // Ref-based polling to prevent unstable dependency re-runs/flickering
   const loadRef = useRef();
@@ -2429,27 +2401,6 @@ export default function Messages() {
     <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-[#080b14] overscroll-none messages-fullscreen">
       {showNewChat && <NewChatModal users={users} currentUser={user} onClose={() => setShowNewChat(false)} onStart={handleStartChat} />}
       {showStarred && <StarredMessagesModal currentUser={user} onClose={() => setShowStarred(false)} onJump={handleStarredJump} />}
-
-      {/* Global incoming call overlay — visible from anywhere in the Messages page */}
-      {globalIncoming && globalCaller && (
-        <IncomingCallOverlay
-          call={globalIncoming}
-          callerUser={globalCaller}
-          onAccept={() => {
-            // Hand off to ChatView by opening that conversation
-            const conv = conversations.find(c =>
-              (c.user?.id === globalIncoming.caller_id)
-            );
-            if (conv) { handleSelectConversation(conv.id); }
-            setGlobalIncoming(null);
-          }}
-          onDecline={async (reason) => {
-            await updateCallStatus(globalIncoming.id, reason).catch(() => {});
-            setGlobalIncoming(null);
-            setGlobalCaller(null);
-          }}
-        />
-      )}
 
       <div className="flex-1 flex min-h-0 overscroll-none relative overflow-hidden">
         <div 

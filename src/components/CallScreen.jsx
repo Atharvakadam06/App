@@ -78,29 +78,45 @@ function injectCSS() {
   document.head.appendChild(s);
 }
 
-// ─── Phone ringtone (double-burst 440+480 Hz) ─────────────────────────────────
+// ─── Realistic mobile phone ringtone (480+620 Hz PSTN dual-tone, triple burst) ─
 function startRingtone() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     let active = true;
-    function ring() {
+
+    // Each "ring" = 3 bursts of 0.4s with 0.1s gaps, then 2.2s silence → repeat
+    const burstDuration = 0.4;
+    const burstGap = 0.12;
+    const numBursts = 3;
+    const cycleDuration = numBursts * (burstDuration + burstGap) + 2.2;
+
+    function playBurst(startTime) {
+      const o1 = ctx.createOscillator();
+      const o2 = ctx.createOscillator();
+      const g = ctx.createGain();
+      o1.connect(g); o2.connect(g); g.connect(ctx.destination);
+      // PSTN standard ring: 480 Hz + 620 Hz
+      o1.type = 'sine'; o1.frequency.value = 480;
+      o2.type = 'sine'; o2.frequency.value = 620;
+      // ADSR: quick attack, sustain, quick release
+      g.gain.setValueAtTime(0, startTime);
+      g.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+      g.gain.setValueAtTime(0.15, startTime + burstDuration - 0.03);
+      g.gain.linearRampToValueAtTime(0, startTime + burstDuration);
+      o1.start(startTime); o1.stop(startTime + burstDuration + 0.05);
+      o2.start(startTime); o2.stop(startTime + burstDuration + 0.05);
+    }
+
+    function playCycle() {
       if (!active) return;
       const now = ctx.currentTime;
-      [[0, 0.45], [0.56, 1.0]].forEach(([s, e]) => {
-        const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
-        o1.connect(g); o2.connect(g); g.connect(ctx.destination);
-        o1.type = 'sine'; o1.frequency.value = 440;
-        o2.type = 'sine'; o2.frequency.value = 480;
-        g.gain.setValueAtTime(0, now + s);
-        g.gain.linearRampToValueAtTime(0.18, now + s + 0.025);
-        g.gain.setValueAtTime(0.18, now + e - 0.04);
-        g.gain.linearRampToValueAtTime(0, now + e);
-        o1.start(now + s); o1.stop(now + e + 0.06);
-        o2.start(now + s); o2.stop(now + e + 0.06);
-      });
-      if (active) setTimeout(ring, 3400);
+      for (let i = 0; i < numBursts; i++) {
+        playBurst(now + i * (burstDuration + burstGap));
+      }
+      if (active) setTimeout(playCycle, cycleDuration * 1000);
     }
-    ring();
+
+    playCycle();
     return () => { active = false; setTimeout(() => { try { ctx.close(); } catch {} }, 500); };
   } catch { return () => {}; }
 }
