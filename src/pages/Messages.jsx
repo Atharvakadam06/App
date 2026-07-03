@@ -642,7 +642,7 @@ function ChatDetails({ recipientUser, messages, conversation, onBack, onSearch }
   );
 }
 
-function ChatView({ conversation, user, onBack, addToast, addNotification, users, initialHighlightMessageId, clearInitialHighlightMessageId, refreshUnread, refreshInbox }) {
+function ChatView({ conversation, user, onBack, addToast, addNotification, users, initialHighlightMessageId, clearInitialHighlightMessageId, refreshUnread, refreshInbox, initialActiveCall }) {
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -728,8 +728,8 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
   const [hasScrolledToInitial, setHasScrolledToInitial] = useState(false);
 
   // ── Call State ──
-  const [activeCall, setActiveCall] = useState(null);
-  const [callRole, setCallRole] = useState(null); // 'caller' | 'receiver'
+  const [activeCall, setActiveCall] = useState(initialActiveCall || null);
+  const [callRole, setCallRole] = useState(initialActiveCall ? (initialActiveCall.caller_id === user.id ? 'caller' : 'receiver') : null); // 'caller' | 'receiver'
 
   // Gesture & Context Menu States
   const [touchStartX, setTouchStartX] = useState(0);
@@ -2385,6 +2385,13 @@ export default function Messages() {
     }
   }, [location.state?.targetUser, conversations, selectedConversation, loading, startChat, handleSelectConversation]);
 
+  // Handle call accept redirects instantly
+  useEffect(() => {
+    if (location.state?.openConvId && selectedConversation !== location.state.openConvId) {
+      handleSelectConversation(location.state.openConvId);
+    }
+  }, [location.state?.openConvId, selectedConversation, handleSelectConversation]);
+
   const handleStartChat = async (targetUser) => {
     await startChat(targetUser);
     setShowNewChat(false);
@@ -2450,6 +2457,7 @@ export default function Messages() {
               clearInitialHighlightMessageId={() => setInitialHighlightMessageId(null)}
               refreshUnread={refreshUnread}
               refreshInbox={refreshInbox}
+              initialActiveCall={location.state?.acceptedCall}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center p-6 bg-white dark:bg-[#080b14] h-full">

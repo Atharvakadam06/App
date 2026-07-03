@@ -98,26 +98,45 @@ function GlobalCallManager() {
   if (!incoming || !caller) return null;
 
   const handleAccept = async () => {
+    const activeIncoming = incoming;
+    if (!activeIncoming) return;
+
+    // 1. Hide overlay instantly so user gets 0ms responsive feedback
+    setIncoming(null);
+    setCaller(null);
+
     try {
-      // Find or create the conversation with the caller, then navigate to inbox
+      // 2. Perform DB update to accept status in background
+      await updateCallStatus(activeIncoming.id, 'accepted');
+
+      // 3. Resolve conversation and navigate
       const convs = await getConversations(user.id);
-      let conv = convs.find(c => c.user?.id === incoming.caller_id);
+      let conv = convs.find(c => c.user?.id === activeIncoming.caller_id);
       if (!conv) {
-        const newId = await createConversation(user.id, incoming.caller_id);
+        const newId = await createConversation(user.id, activeIncoming.caller_id);
         conv = { id: newId };
       }
-      setIncoming(null);
-      setCaller(null);
-      navigate('/inbox', { state: { openConvId: conv.id, acceptedCall: incoming } });
-    } catch {
-      setIncoming(null);
+      
+      const acceptedCallObj = { ...activeIncoming, status: 'accepted' };
+      navigate('/inbox', { state: { openConvId: conv.id, acceptedCall: acceptedCallObj } });
+    } catch (e) {
+      console.warn('Error accepting call:', e);
     }
   };
 
   const handleDecline = async (reason) => {
-    await updateCallStatus(incoming.id, reason).catch(() => {});
+    const activeIncoming = incoming;
+    if (!activeIncoming) return;
+
+    // Hide overlay instantly
     setIncoming(null);
     setCaller(null);
+
+    try {
+      await updateCallStatus(activeIncoming.id, reason);
+    } catch (e) {
+      console.warn('Error declining call:', e);
+    }
   };
 
   return (

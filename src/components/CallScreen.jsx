@@ -78,68 +78,85 @@ function injectCSS() {
   document.head.appendChild(s);
 }
 
-// ─── Realistic mobile phone ringtone (480+620 Hz PSTN dual-tone, triple burst) ─
+// ─── Professional electronic chime melody (melodic arpeggio) for incoming call 
 function startRingtone() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     let active = true;
 
-    // Each "ring" = 3 bursts of 0.4s with 0.1s gaps, then 2.2s silence → repeat
-    const burstDuration = 0.4;
-    const burstGap = 0.12;
-    const numBursts = 3;
-    const cycleDuration = numBursts * (burstDuration + burstGap) + 2.2;
+    // Elegant professional electronic chime arpeggio
+    // Notes: E5 (659.25Hz), A5 (880.00Hz), C6 (1046.50Hz), E6 (1318.51Hz)
+    const melody = [
+      { f: 659.25, t: 0.0, d: 0.22 },
+      { f: 880.00, t: 0.12, d: 0.22 },
+      { f: 1046.50, t: 0.24, d: 0.22 },
+      { f: 1318.51, t: 0.36, d: 0.35 },
+      { f: 1174.66, t: 0.55, d: 0.22 },
+      { f: 987.77, t: 0.67, d: 0.22 },
+      { f: 783.99, t: 0.79, d: 0.22 },
+      { f: 987.77, t: 0.91, d: 0.22 },
+      { f: 1318.51, t: 1.03, d: 0.50 },
+    ];
 
-    function playBurst(startTime) {
-      const o1 = ctx.createOscillator();
-      const o2 = ctx.createOscillator();
-      const g = ctx.createGain();
-      o1.connect(g); o2.connect(g); g.connect(ctx.destination);
-      // PSTN standard ring: 480 Hz + 620 Hz
-      o1.type = 'sine'; o1.frequency.value = 480;
-      o2.type = 'sine'; o2.frequency.value = 620;
-      // ADSR: quick attack, sustain, quick release
-      g.gain.setValueAtTime(0, startTime);
-      g.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
-      g.gain.setValueAtTime(0.15, startTime + burstDuration - 0.03);
-      g.gain.linearRampToValueAtTime(0, startTime + burstDuration);
-      o1.start(startTime); o1.stop(startTime + burstDuration + 0.05);
-      o2.start(startTime); o2.stop(startTime + burstDuration + 0.05);
+    function playNote(freq, startTime, duration) {
+      if (!active) return;
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.type = 'triangle'; // Warm clean tone
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      // ADSR decay/pluck shape
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(0.18, startTime + 0.015);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.05);
     }
 
-    function playCycle() {
+    function playMelody() {
       if (!active) return;
       const now = ctx.currentTime;
-      for (let i = 0; i < numBursts; i++) {
-        playBurst(now + i * (burstDuration + burstGap));
-      }
-      if (active) setTimeout(playCycle, cycleDuration * 1000);
+      melody.forEach(n => {
+        playNote(n.f, now + n.t, n.d);
+      });
+      if (active) setTimeout(playMelody, 3400);
     }
 
-    playCycle();
+    playMelody();
     return () => { active = false; setTimeout(() => { try { ctx.close(); } catch {} }, 500); };
   } catch { return () => {}; }
 }
 
-// ─── Calling tone (425 Hz dial tone beeps) ────────────────────────────────────
+// ─── Double deep vibration dial tone (440+480 Hz US ringback cadence) ──────────
 function startCallingTone() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     let active = true;
     function beep() {
       if (!active) return;
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.type = 'sine'; o.frequency.value = 425;
-      g.gain.setValueAtTime(0, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.02);
-      g.gain.setValueAtTime(0.1, ctx.currentTime + 0.38);
-      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.44);
-      o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.5);
-      if (active) setTimeout(beep, 1900);
+      const now = ctx.currentTime;
+      // Double burst cadence: 0.4s on, 0.2s off, 0.4s on, then 2s off
+      [[0, 0.4], [0.55, 0.95]].forEach(([s, e]) => {
+        const o1 = ctx.createOscillator();
+        const o2 = ctx.createOscillator();
+        const g = ctx.createGain();
+        o1.connect(g); o2.connect(g); g.connect(ctx.destination);
+        o1.type = 'sine'; o1.frequency.value = 440;
+        o2.type = 'sine'; o2.frequency.value = 480;
+        g.gain.setValueAtTime(0, now + s);
+        g.gain.linearRampToValueAtTime(0.08, now + s + 0.02);
+        g.gain.setValueAtTime(0.08, now + e - 0.03);
+        g.gain.linearRampToValueAtTime(0, now + e);
+        o1.start(now + s); o1.stop(now + e + 0.05);
+        o2.start(now + s); o2.stop(now + e + 0.05);
+      });
+      if (active) setTimeout(beep, 3000);
     }
     beep();
-    return () => { active = false; setTimeout(() => { try { ctx.close(); } catch {} }, 400); };
+    return () => { active = false; setTimeout(() => { try { ctx.close(); } catch {} }, 500); };
   } catch { return () => {}; }
 }
 
@@ -215,16 +232,24 @@ function PulseRings({ n = 3 }) {
     </>
   );
 }
-
 // ─── Round pill control button ────────────────────────────────────────────────
 function PillBtn({ icon, label, onClick, danger = false, active = false, size = 52 }) {
   const [pressed, setPressed] = useState(false);
   const [rippling, setRippling] = useState(false);
+  const handledRef = useRef(false);
 
-  const handle = () => {
+  const handle = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (handledRef.current) return;
+    handledRef.current = true;
+    setTimeout(() => { handledRef.current = false; }, 600); // Debounce double trigger
+
     setPressed(true); setRippling(true);
-    setTimeout(() => setPressed(false), 280);
-    setTimeout(() => setRippling(false), 550);
+    setTimeout(() => setPressed(false), 140);
+    setTimeout(() => setRippling(false), 300);
     onClick?.();
   };
 
@@ -236,11 +261,12 @@ function PillBtn({ icon, label, onClick, danger = false, active = false, size = 
             position: 'absolute', top: '50%', left: '50%',
             width: size, height: size, borderRadius: '50%',
             background: danger ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.2)',
-            animation: 'scRipple 0.5s ease-out forwards',
+            animation: 'scRipple 0.4s ease-out forwards',
             pointerEvents: 'none', zIndex: 0,
           }} />
         )}
         <button
+          onTouchStart={handle}
           onClick={handle}
           style={{
             position: 'relative', zIndex: 1,
@@ -251,10 +277,12 @@ function PillBtn({ icon, label, onClick, danger = false, active = false, size = 
               ? 'rgba(255,255,255,0.25)'
               : 'rgba(255,255,255,0.1)',
             border: '1px solid rgba(255,255,255,0.1)',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifycenter: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             transform: pressed ? 'scale(0.86)' : 'scale(1)',
-            transition: 'transform 0.22s cubic-bezier(0.34,1.56,0.64,1), background 0.18s',
+            transition: 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1), background 0.15s',
             backdropFilter: 'blur(10px)',
+            outline: 'none',
           }}
         >
           {icon}
@@ -272,22 +300,35 @@ function PillBtn({ icon, label, onClick, danger = false, active = false, size = 
 // ─── Big action button (Accept / Decline for incoming) ───────────────────────
 function BigActionBtn({ icon, label, bg, onClick }) {
   const [pressed, setPressed] = useState(false);
-  const handle = () => {
+  const handledRef = useRef(false);
+
+  const handle = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (handledRef.current) return;
+    handledRef.current = true;
+    setTimeout(() => { handledRef.current = false; }, 600); // Debounce double trigger
+
     setPressed(true);
-    setTimeout(() => setPressed(false), 300);
+    setTimeout(() => setPressed(false), 140);
     onClick?.();
   };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
       <button
+        onTouchStart={handle}
         onClick={handle}
         style={{
           width: 68, height: 68, borderRadius: '50%',
           background: bg, border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transform: pressed ? 'scale(0.85)' : 'scale(1)',
-          transition: 'transform 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+          transition: 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)',
           boxShadow: '0 6px 28px rgba(0,0,0,0.4)',
+          outline: 'none',
         }}
       >
         {icon}
@@ -794,7 +835,10 @@ function PermScreen({ errType, errDetail, onRetry, onCancel }) {
    MAIN ORCHESTRATOR
 ═══════════════════════════════════════════════════ */
 export default function CallScreen({ call, currentUser, otherUser, role, onAccept, onDecline, onHangUp }) {
-  const [phase, setPhase] = useState(role === 'caller' ? 'caller_waiting' : 'incoming');
+  const [phase, setPhase] = useState(() => {
+    if (call?.status === 'accepted') return 'connecting';
+    return role === 'caller' ? 'caller_waiting' : 'incoming';
+  });
   const [permErrType, setPermErrType] = useState(null);
   const [permErrDetail, setPermErrDetail] = useState(null);
   const [localStream, setLocalStream] = useState(null);
@@ -859,7 +903,7 @@ export default function CallScreen({ call, currentUser, otherUser, role, onAccep
               setPhase(call.type === 'video' ? 'active_video' : 'active_audio');
             }
           } catch {}
-        }, 2000);
+        }, 800); // Poll fast (800ms) for instant pickup response
       } catch (e) { handleMediaError(e); }
     })();
     return () => { cleanup(null); };
@@ -893,9 +937,16 @@ export default function CallScreen({ call, currentUser, otherUser, role, onAccep
           const live = await getCallById(call.id);
           if (!live || ['ended','rejected','missed'].includes(live.status)) { clearInterval(r.current.poll); if (!r.current.dead) { cleanup(null); onHangUp(); } }
         } catch {}
-      }, 3000);
+      }, 800); // Poll fast (800ms) for fast hangup detection
     } catch (e) { handleMediaError(e); }
   }, [call.id, call.type, hangUp, onAccept, cleanup, onHangUp, handleMediaError]);
+
+  // If role is receiver and the call was already accepted globally, trigger setup automatically
+  useEffect(() => {
+    if (role === 'receiver' && phase === 'connecting' && !localStream && !r.current.dead) {
+      handleAccept();
+    }
+  }, [role, phase, localStream, handleAccept]);
 
   const handleRetry = useCallback(() => {
     r.current.dead = false; setPermErrType(null); setPermErrDetail(null);
