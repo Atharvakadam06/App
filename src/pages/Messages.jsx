@@ -1854,12 +1854,25 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                               </div>
                             )}
 
-                            {/* Subtle Red Heart reaction */}
-                            {message.reactions && message.reactions.length > 0 && (
-                              <div className={`absolute bottom-1 bg-white dark:bg-[#161d2b] border border-slate-200 dark:border-slate-800 rounded-full p-1 shadow-xs z-25 flex items-center justify-center animate-scale-in ${isMine ? '-left-2' : '-right-2'}`}>
-                                <Heart className="w-3 h-3 text-rose-500 fill-rose-500" strokeWidth={2.5} />
-                              </div>
-                            )}
+                            {/* Reaction bubble - shows actual emoji reacted */}
+                            {message.reactions && message.reactions.length > 0 && (() => {
+                              // Get unique emojis reacted (max 3 to show)
+                              const uniqueEmojis = [...new Set(message.reactions.map(r => r.reaction))].slice(0, 3);
+                              const total = message.reactions.length;
+                              return (
+                                <div
+                                  className={`absolute -bottom-2 bg-white dark:bg-[#1a1d27] border border-slate-200/70 dark:border-slate-700/60 rounded-full shadow-sm z-20 flex items-center animate-scale-in ${isMine ? '-left-2' : '-right-2'}`}
+                                  style={{ padding: '2px 5px 2px 4px', gap: 1 }}
+                                >
+                                  {uniqueEmojis.map(em => (
+                                    <span key={em} style={{ fontSize: 11, lineHeight: 1 }}>{em}</span>
+                                  ))}
+                                  {total > 1 && (
+                                    <span style={{ fontSize: 10, color: 'rgba(100,116,139,1)', fontWeight: 700, marginLeft: 2, lineHeight: 1 }}>{total}</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Timestamp & Star */}
@@ -2030,16 +2043,23 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
               animation: 'igMenuPop 0.2s cubic-bezier(0.34,1.56,0.64,1) both',
             }}
           >
-            {/* ── Emoji reaction row ── */}
+            {/* ── Emoji reaction row ── (Twemoji-style images, consistent cross-platform) */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-around',
               background: 'rgba(30,30,32,0.97)',
               backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-              borderRadius: 28, padding: '6px 10px', marginBottom: 7,
+              borderRadius: 28, padding: '8px 12px', marginBottom: 7,
               boxShadow: '0 2px 16px rgba(0,0,0,0.4)',
               border: '0.5px solid rgba(255,255,255,0.10)',
             }}>
-              {['❤️', '😂', '😮', '😢', '😠', '👍'].map(emoji => {
+              {[
+                { emoji: '❤️', cp: '2764' },
+                { emoji: '😂', cp: '1f602' },
+                { emoji: '😮', cp: '1f62e' },
+                { emoji: '😢', cp: '1f622' },
+                { emoji: '😠', cp: '1f620' },
+                { emoji: '👍', cp: '1f44d' },
+              ].map(({ emoji, cp }) => {
                 const userReaction = contextMenuMessage.reactions?.find(r => r.userId === user?.id)?.reaction;
                 const isSelected = userReaction === emoji;
                 return (
@@ -2051,22 +2071,31 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                       setContextMenuMessage(null);
                       setSelectedMessageIds([]);
                     }}
+                    title={emoji}
                     style={{
-                      width: 36, height: 36, borderRadius: '50%', border: 'none',
+                      width: 40, height: 40, borderRadius: '50%', border: 'none',
                       background: isSelected ? 'rgba(255,255,255,0.15)' : 'transparent',
-                      fontSize: 19, cursor: 'pointer',
+                      cursor: 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: isSelected ? '0 0 0 1.5px rgba(255,255,255,0.3)' : 'none',
-                      transition: 'transform 0.15s ease, background 0.15s ease',
+                      boxShadow: isSelected ? '0 0 0 1.5px rgba(255,255,255,0.35)' : 'none',
+                      transition: 'transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease',
                       flexShrink: 0,
                       outline: 'none',
+                      padding: 0,
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.18) translateY(-2px)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.22) translateY(-3px)'; }}
                     onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1) translateY(0)'; }}
-                    onTouchStart={e => { e.currentTarget.style.transform = 'scale(1.18) translateY(-2px)'; }}
-                    onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1) translateY(0)'; }}
+                    onTouchStart={e => { e.currentTarget.style.transform = 'scale(1.22) translateY(-3px)'; }}
+                    onTouchEnd={e => { setTimeout(() => { if (e.currentTarget) e.currentTarget.style.transform = 'scale(1) translateY(0)'; }, 200); }}
                   >
-                    {emoji}
+                    <img
+                      src={`https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${cp}.svg`}
+                      alt={emoji}
+                      width={22}
+                      height={22}
+                      style={{ display: 'block', userSelect: 'none', filter: isSelected ? 'drop-shadow(0 0 3px rgba(255,255,255,0.4))' : 'none' }}
+                      draggable={false}
+                    />
                   </button>
                 );
               })}
