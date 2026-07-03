@@ -1231,25 +1231,25 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
   const getMenuStyles = () => {
     if (!menuPosition) return {};
     const { top, left, width, height } = menuPosition;
-    const menuWidth = 230;
-    const emojiBarH = 56;
-    const menuBodyH = 300;
-    const totalH = emojiBarH + 10 + menuBodyH;
-    const gap = 8;
+    const menuWidth = 260;
+    const emojiBarH = 48;
+    const menuBodyH = 260; // estimated, shrinks for fewer items
+    const totalH = emojiBarH + 8 + menuBodyH;
+    const gap = 10;
 
     const containerW = chatViewRef.current ? chatViewRef.current.clientWidth : window.innerWidth;
     const containerH = chatViewRef.current ? chatViewRef.current.clientHeight : window.innerHeight;
 
-    // Center horizontally on bubble, clamp to container
+    // Center horizontally on bubble, clamp strictly inside container
     let targetLeft = left + width / 2 - menuWidth / 2;
-    targetLeft = Math.max(8, Math.min(containerW - menuWidth - 8, targetLeft));
+    targetLeft = Math.max(6, Math.min(containerW - menuWidth - 6, targetLeft));
 
     // Prefer below bubble; flip above if near bottom
     let targetTop = top + height + gap;
-    if (targetTop + totalH > containerH - 16) {
+    if (targetTop + totalH > containerH - 20) {
       targetTop = top - totalH - gap;
     }
-    targetTop = Math.max(60, Math.min(containerH - totalH - 8, targetTop));
+    targetTop = Math.max(56, Math.min(containerH - totalH - 6, targetTop));
 
     return { position: 'absolute', left: `${targetLeft}px`, top: `${targetTop}px`, width: `${menuWidth}px`, zIndex: 9990 };
   };
@@ -2019,27 +2019,27 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
         <>
           {/* Dim backdrop — pointer-events:none so taps pass through to messages */}
           <div
-            style={{ position: 'absolute', inset: 0, zIndex: 9980, background: 'rgba(0,0,0,0.18)', pointerEvents: 'none' }}
+            style={{ position: 'absolute', inset: 0, zIndex: 9980, background: 'rgba(0,0,0,0.22)', pointerEvents: 'none' }}
           />
 
-          {/* Floating panel anchored near the bubble */}
+          {/* Floating panel */}
           <div
             id="context-menu-container"
             style={{
               ...getMenuStyles(),
-              animation: 'igMenuPop 0.22s cubic-bezier(0.34,1.56,0.64,1) both',
+              animation: 'igMenuPop 0.2s cubic-bezier(0.34,1.56,0.64,1) both',
             }}
           >
             {/* ── Emoji reaction row ── */}
             <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'rgba(28,28,30,0.95)',
-              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-              borderRadius: 22, padding: '6px 8px', marginBottom: 8,
-              boxShadow: '0 4px 24px rgba(0,0,0,0.32)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+              background: 'rgba(30,30,32,0.97)',
+              backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+              borderRadius: 28, padding: '6px 10px', marginBottom: 7,
+              boxShadow: '0 2px 16px rgba(0,0,0,0.4)',
+              border: '0.5px solid rgba(255,255,255,0.10)',
             }}>
-              {['❤️', '😂', '😮', '😢', '😠', '👍', '➕'].map(emoji => {
+              {['❤️', '😂', '😮', '😢', '😠', '👍'].map(emoji => {
                 const userReaction = contextMenuMessage.reactions?.find(r => r.userId === user?.id)?.reaction;
                 const isSelected = userReaction === emoji;
                 return (
@@ -2047,23 +2047,24 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
                     key={emoji}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (emoji !== '➕') {
-                        handleMessageReact(contextMenuMessage, emoji);
-                        setContextMenuMessage(null);
-                        setSelectedMessageIds([]);
-                      }
+                      handleMessageReact(contextMenuMessage, emoji);
+                      setContextMenuMessage(null);
+                      setSelectedMessageIds([]);
                     }}
                     style={{
-                      width: 40, height: 40, borderRadius: '50%', border: 'none',
-                      background: isSelected ? 'rgba(255,255,255,0.2)' : 'transparent',
-                      fontSize: 22, cursor: 'pointer',
+                      width: 36, height: 36, borderRadius: '50%', border: 'none',
+                      background: isSelected ? 'rgba(255,255,255,0.15)' : 'transparent',
+                      fontSize: 19, cursor: 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transform: isSelected ? 'scale(1.25)' : 'scale(1)',
-                      transition: 'transform 0.18s cubic-bezier(0.34,1.56,0.64,1)',
+                      boxShadow: isSelected ? '0 0 0 1.5px rgba(255,255,255,0.3)' : 'none',
+                      transition: 'transform 0.15s ease, background 0.15s ease',
                       flexShrink: 0,
+                      outline: 'none',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.2)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = isSelected ? 'scale(1.25)' : 'scale(1)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.18) translateY(-2px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1) translateY(0)'; }}
+                    onTouchStart={e => { e.currentTarget.style.transform = 'scale(1.18) translateY(-2px)'; }}
+                    onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1) translateY(0)'; }}
                   >
                     {emoji}
                   </button>
@@ -2073,97 +2074,98 @@ function ChatView({ conversation, user, onBack, addToast, addNotification, users
 
             {/* ── Action menu body ── */}
             <div style={{
-              background: 'rgba(28,28,30,0.95)',
-              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-              borderRadius: 16, overflow: 'hidden',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.32)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(30,30,32,0.97)',
+              backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+              borderRadius: 14, overflow: 'hidden',
+              boxShadow: '0 2px 16px rgba(0,0,0,0.4)',
+              border: '0.5px solid rgba(255,255,255,0.10)',
             }}>
-              {/* Time stamp */}
-              <div style={{ padding: '10px 16px 6px', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
-                <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: 600, letterSpacing: '0.03em' }}>
-                  {new Date(contextMenuMessage.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
-                </span>
-              </div>
-
-              {[/* Reply */
+              {[
                 {
-                  icon: <CornerUpLeft size={18} style={{ color: 'rgba(255,255,255,0.7)' }} />,
+                  icon: <CornerUpLeft size={16} />,
                   label: 'Reply',
                   action: () => { setReplyingTo(contextMenuMessage); setContextMenuMessage(null); setSelectedMessageIds([]); },
-                  red: false, show: true,
+                  color: 'rgba(255,255,255,0.82)', show: true,
                 },
                 {
-                  icon: <Copy size={18} style={{ color: 'rgba(255,255,255,0.7)' }} />,
+                  icon: <Copy size={16} />,
                   label: 'Copy',
                   action: handleCopyMessage,
-                  red: false,
+                  color: 'rgba(255,255,255,0.82)',
                   show: contextMenuMessage.content !== '🚫 This message was deleted',
                 },
                 {
-                  icon: <Star size={18} style={{ color: isStarred(contextMenuMessage.id) ? '#f59e0b' : 'rgba(255,255,255,0.7)', fill: isStarred(contextMenuMessage.id) ? '#f59e0b' : 'none' }} />,
+                  icon: <Star size={16} style={{ fill: isStarred(contextMenuMessage.id) ? '#f59e0b' : 'none' }} />,
                   label: isStarred(contextMenuMessage.id) ? 'Unstar' : 'Star',
                   action: handleStarToggle,
-                  red: false, show: true,
+                  color: isStarred(contextMenuMessage.id) ? '#f59e0b' : 'rgba(255,255,255,0.82)',
+                  show: true,
                 },
                 {
-                  icon: <Edit3 size={18} style={{ color: 'rgba(255,255,255,0.7)' }} />,
+                  icon: <Edit3 size={16} />,
                   label: 'Edit',
                   action: () => { setEditingMessage(contextMenuMessage); setNewMessage(contextMenuMessage.content); setContextMenuMessage(null); setSelectedMessageIds([]); },
-                  red: false,
+                  color: 'rgba(255,255,255,0.82)',
                   show: contextMenuMessage.senderId === user?.id && contextMenuMessage.content !== '🚫 This message was deleted',
                 },
                 {
-                  icon: <ShieldAlert size={18} style={{ color: '#fb923c' }} />,
+                  icon: <ShieldAlert size={16} />,
                   label: 'Report',
                   action: handleReportMessage,
-                  red: false,
+                  color: '#fb923c',
                   show: contextMenuMessage.senderId !== user?.id,
                 },
                 {
-                  icon: <Trash2 size={18} style={{ color: '#f87171' }} />,
+                  icon: <Trash2 size={16} />,
                   label: 'Delete for Everyone',
                   action: handleDeleteEveryone,
-                  red: true,
+                  color: '#f87171',
                   show: contextMenuMessage.senderId === user?.id && contextMenuMessage.content !== '🚫 This message was deleted',
                 },
                 {
-                  icon: <Trash2 size={18} style={{ color: '#f87171' }} />,
+                  icon: <Trash2 size={16} />,
                   label: 'Delete for Me',
                   action: handleDeleteMe,
-                  red: true, show: true,
+                  color: '#f87171',
+                  show: true,
                 },
               ].filter(item => item.show).map((item, idx, arr) => (
                 <button
                   key={item.label}
                   onClick={(e) => { e.stopPropagation(); item.action(); }}
                   style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 14,
-                    padding: '13px 16px',
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '11px 15px',
                     background: 'transparent', border: 'none', cursor: 'pointer',
                     textAlign: 'left',
-                    borderBottom: idx < arr.length - 1 ? '0.5px solid rgba(255,255,255,0.06)' : 'none',
-                    transition: 'background 0.12s',
+                    borderBottom: idx < arr.length - 1 ? '0.5px solid rgba(255,255,255,0.055)' : 'none',
+                    transition: 'background 0.1s',
+                    color: item.color,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.055)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  onTouchStart={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.055)'; }}
+                  onTouchEnd={e => { setTimeout(() => { if (e.currentTarget) e.currentTarget.style.background = 'transparent'; }, 200); }}
                 >
-                  {item.icon}
+                  <span style={{ display: 'flex', alignItems: 'center', color: item.color, flexShrink: 0 }}>
+                    {item.icon}
+                  </span>
                   <span style={{
-                    fontSize: 15, fontWeight: 500,
-                    color: item.red ? '#f87171' : 'rgba(255,255,255,0.9)',
+                    fontSize: 14, fontWeight: 500,
+                    color: item.color,
                     letterSpacing: '-0.01em',
+                    lineHeight: 1,
                   }}>{item.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* CSS for popup animation + heart float */}
+          {/* Keyframe animations */}
           <style>{`
             @keyframes igMenuPop {
-              from { opacity:0; transform: scale(0.88) translateY(6px); }
-              to   { opacity:1; transform: scale(1)   translateY(0); }
+              from { opacity:0; transform: scale(0.9) translateY(4px); }
+              to   { opacity:1; transform: scale(1) translateY(0); }
             }
             @keyframes igHeartFloat {
               0%   { opacity:1; transform: scale(0.6); }
