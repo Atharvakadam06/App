@@ -1,5 +1,6 @@
 import { query, queryOne, execute, initDatabase as initTursoDb } from './turso';
 import { getCurrentTimestamp } from '../utils/timeUtils';
+import { deleteFromCloudinary } from './cloudinary';
 
 let dbInitialized = false;
 let dbInitError = null;
@@ -306,6 +307,12 @@ export async function deletePost(postId) {
    localStorage.setItem(FALLBACK_POSTS_KEY, JSON.stringify(filtered));
    try {
      await ensureDb();
+     const post = await queryOne('SELECT image, video, file_url FROM posts WHERE id = ?', [postId]);
+     if (post) {
+       if (post.image) deleteFromCloudinary(post.image);
+       if (post.video) deleteFromCloudinary(post.video);
+       if (post.file_url) deleteFromCloudinary(post.file_url);
+     }
      await execute('DELETE FROM posts WHERE id = ?', [postId]);
    } catch (e) {
      console.warn('Turso delete failed:', e);
@@ -548,6 +555,10 @@ export async function deletePaper(paperId) {
   localStorage.setItem(FALLBACK_PAPERS_KEY, JSON.stringify(filtered));
   try {
     await ensureDb();
+    const paper = await queryOne('SELECT file_url FROM papers WHERE id = ?', [paperId]);
+    if (paper && paper.file_url) {
+      deleteFromCloudinary(paper.file_url);
+    }
     await execute('DELETE FROM papers WHERE id = ?', [paperId]);
   } catch (e) {
     console.warn('Turso delete failed for paper:', e);
@@ -686,6 +697,11 @@ export async function deleteBook(bookId) {
   localStorage.setItem(FALLBACK_BOOKS_KEY, JSON.stringify(filtered));
   try {
     await ensureDb();
+    const book = await queryOne('SELECT image, file_url FROM books WHERE id = ?', [bookId]);
+    if (book) {
+      if (book.image) deleteFromCloudinary(book.image);
+      if (book.file_url) deleteFromCloudinary(book.file_url);
+    }
     await execute('DELETE FROM books WHERE id = ?', [bookId]);
   } catch (e) {
     console.warn('Turso delete failed for book:', e);
@@ -831,6 +847,10 @@ export async function deleteProduct(productId) {
   localStorage.setItem(FALLBACK_PRODUCTS_KEY, JSON.stringify(filtered));
   try {
     await ensureDb();
+    const product = await queryOne('SELECT image FROM products WHERE id = ?', [productId]);
+    if (product && product.image) {
+      deleteFromCloudinary(product.image);
+    }
     await execute('DELETE FROM products WHERE id = ?', [productId]);
   } catch (e) {
     console.warn('Turso delete failed for product:', e);
@@ -950,22 +970,25 @@ export async function getLinks(userId) {
 // ---- Conversations & Messages ----
 export async function getConversations(userId) {
   await ensureDb();
+  
+  // Get all deleted conversation IDs for this user
+  const deletedConvs = await query('SELECT conversation_id FROM user_deleted_conversations WHERE user_id = ?', [userId]).catch(() => []);
+  const deletedConvSet = new Set(deletedConvs.map(r => r.conversation_id));
+
   const rows = await query(
-    `SELECT c.*,
-       CASE WHEN c.user1_id = ? THEN c.unread_user2 ELSE c.unread_user1 END as unread,
-       CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END as other_user_id
-    FROM conversations c
-    WHERE c.user1_id = ? OR c.user2_id = ?`,
-    [userId, userId, userId, userId]
+    `SELECT * FROM conversations
+     WHERE user1_id = ? OR user2_id = ?`,
+    [userId, userId]
   );
   
   // Get all deleted message IDs for this user
   const deletedIds = await getDeletedMessageIds(userId).catch(() => []);
   const deletedSet = new Set(deletedIds);
 
-  const convs = [];
-  for (const r of rows) {
-    const otherUser = await getUser(r.other_user_id);
+  const promises = rows.map(async (r) => {
+    if (deletedConvSet.has(r.id)) return null;
+    const otherUserId = String(r.user1_id) === String(userId) ? r.user2_id : r.user1_id;
+    const otherUser = await getUser(otherUserId);
     
     // Find the latest message in this conversation that is NOT deleted for everyone
     const messages = await query(
@@ -981,13 +1004,57 @@ export async function getConversations(userId) {
 
     let lastMsgText = r.last_message;
     let lastMsgTimestamp = r.timestamp;
+    let hasOtherReaction = false;
+    let otherReactionEmoji = null;
+    let isMissedCall = false;
 
     if (visibleMessages.length > 0) {
       const latest = visibleMessages[0];
-      lastMsgText = latest.file_url 
-        ? (latest.file_type?.startsWith('image/') ? 'Photo' : `File: ${latest.file_name}`)
-        : latest.content;
+      if (latest.file_type === 'call_log') {
+        const isVideo = latest.file_name === 'video';
+        const isMissed = ['missed', 'declined', 'cancelled'].includes(latest.content);
+        if (isMissed) {
+          lastMsgText = isVideo ? '📹 Missed video call' : '📞 Missed voice call';
+          isMissedCall = true;
+        } else {
+          lastMsgText = isVideo ? '📹 Video call' : '📞 Voice call';
+        }
+      } else {
+        lastMsgText = latest.file_url 
+          ? (latest.file_type?.startsWith('image/') 
+              ? 'sent a photo' 
+              : latest.file_type?.startsWith('video/') 
+                ? 'sent a video' 
+                : 'sent a file')
+          : latest.content;
+      }
       lastMsgTimestamp = latest.timestamp;
+
+      // Check if latest message is reacted to by the other user
+      const reactions = await query(
+        `SELECT * FROM message_reactions WHERE message_id = ? AND user_id != ? AND is_read = 0`,
+        [latest.id, userId]
+      );
+      if (reactions.length > 0) {
+        const reactionEmoji = reactions[0].reaction;
+        if (latest.sender_id === userId) {
+          hasOtherReaction = true;
+          otherReactionEmoji = reactionEmoji;
+          const isHeart = reactionEmoji === '❤️';
+          
+          if (latest.file_url && latest.file_type !== 'call_log') {
+            if (latest.file_type?.startsWith('image/')) {
+              lastMsgText = isHeart ? 'Liked your photo' : `Reacted ${reactionEmoji} to your photo`;
+            } else if (latest.file_type?.startsWith('video/')) {
+              lastMsgText = isHeart ? 'Liked your video' : `Reacted ${reactionEmoji} to your video`;
+            } else {
+              lastMsgText = isHeart ? 'Liked your file' : `Reacted ${reactionEmoji} to your file`;
+            }
+          } else if (latest.file_type !== 'call_log') {
+            lastMsgText = isHeart ? 'Liked your message' : `Reacted ${reactionEmoji} to your message`;
+          }
+        }
+      }
     } else {
       // If no visible messages left in the thread, set to empty
       lastMsgText = '';
@@ -995,20 +1062,35 @@ export async function getConversations(userId) {
 
     const unreadCount = visibleMessages.filter(m => m.sender_id !== userId && (m.read === 0 || !m.read)).length;
 
-    convs.push({
+    return {
       id: r.id,
       user: otherUser,
       lastMessage: lastMsgText,
       timestamp: lastMsgTimestamp,
       unread: unreadCount,
-    });
-  }
+      hasOtherReaction,
+      otherReactionEmoji,
+      isMissedCall,
+    };
+  });
+
+  const results = await Promise.all(promises);
+  const convs = results.filter(Boolean);
 
   // Sort conversations by latest active timestamp descending (newest first)
   convs.sort((a, b) => {
-    const tA = new Date(a.timestamp).getTime() || 0;
-    const tB = new Date(b.timestamp).getTime() || 0;
-    return tB - tA;
+    let tA = 0;
+    if (a.timestamp) {
+      const parsed = new Date(a.timestamp).getTime();
+      if (!isNaN(parsed)) tA = parsed;
+    }
+    let tB = 0;
+    if (b.timestamp) {
+      const parsed = new Date(b.timestamp).getTime();
+      if (!isNaN(parsed)) tB = parsed;
+    }
+    if (tB !== tA) return tB - tA;
+    return String(a.id).localeCompare(String(b.id));
   });
 
   return convs;
@@ -1043,6 +1125,7 @@ export async function getMessages(conversationId) {
 export async function markMessagesAsRead(conversationId, userId) {
   await ensureDb();
   await execute('UPDATE messages SET read = 1 WHERE conversation_id = ? AND sender_id != ? AND read = 0', [conversationId, userId]);
+  await execute('UPDATE message_reactions SET is_read = 1 WHERE message_id IN (SELECT id FROM messages WHERE conversation_id = ?) AND user_id != ? AND is_read = 0', [conversationId, userId]);
 }
 
 export async function sendMessage(conversationId, senderId, content, fileUrl = null, fileName = null, fileType = null, parentId = null) {
@@ -1053,14 +1136,35 @@ export async function sendMessage(conversationId, senderId, content, fileUrl = n
     'INSERT INTO messages (id, conversation_id, sender_id, content, file_url, file_name, file_type, parent_id, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [msgId, conversationId, senderId, content, fileUrl, fileName, fileType, parentId, timestamp]
   );
-  const lastMsg = fileUrl ? (fileType?.startsWith('image/') ? 'Photo' : `File: ${fileName}`) : content;
+  let lastMsg = content;
+  if (fileType === 'call_log') {
+    const isVideo = fileName === 'video';
+    if (content === 'missed' || content === 'declined' || content === 'cancelled') {
+      lastMsg = isVideo ? '📹 Missed video call' : '📞 Missed voice call';
+    } else {
+      lastMsg = isVideo ? '📹 Video call' : '📞 Voice call';
+    }
+  } else if (fileUrl) {
+    lastMsg = fileType?.startsWith('image/') 
+      ? 'sent a photo' 
+      : fileType?.startsWith('video/') 
+        ? 'sent a video' 
+        : 'sent a file';
+  }
   await execute('UPDATE conversations SET last_message = ?, timestamp = ? WHERE id = ?', [lastMsg, timestamp, conversationId]);
+  await execute('DELETE FROM user_deleted_conversations WHERE conversation_id = ?', [conversationId]);
   return msgId;
 }
 
 export async function deleteMessageEveryone(messageId) {
   await ensureDb();
-  await execute("UPDATE messages SET content = '🚫 This message was deleted', file_url = null, file_name = null, file_type = null WHERE id = ?", [messageId]);
+  const newTimestamp = getCurrentTimestamp();
+  const msg = await queryOne('SELECT file_url FROM messages WHERE id = ?', [messageId]);
+  if (msg && msg.file_url) {
+    deleteFromCloudinary(msg.file_url);
+  }
+  await execute("UPDATE messages SET content = '🚫 This message was deleted', file_url = null, file_name = null, file_type = null, timestamp = ? WHERE id = ?", [newTimestamp, messageId]);
+  await execute("DELETE FROM message_reactions WHERE message_id = ?", [messageId]);
 }
 
 export async function editMessage(messageId, newContent) {
@@ -1383,6 +1487,7 @@ export async function deleteGlobalMessageEveryone(messageId) {
   try {
     await ensureDb();
     await execute("UPDATE global_messages SET content = '🚫 This message was deleted', file_url = null, file_name = null, file_type = null WHERE id = ?", [messageId]);
+    await execute("DELETE FROM message_reactions WHERE message_id = ?", [messageId]);
   } catch (e) {
     console.warn('Turso delete update failed for global message:', e);
   }
@@ -1438,8 +1543,8 @@ export async function createCall(conversationId, callerId, receiverId, type) {
   const roomName = 'stugrow-' + id;
   const timestamp = getCurrentTimestamp();
   await execute(
-    `INSERT INTO calls (id, conversation_id, caller_id, receiver_id, type, status, room_name, timestamp)
-     VALUES (?, ?, ?, ?, ?, 'ringing', ?, ?)`,
+    `INSERT INTO calls (id, conversation_id, caller_id, receiver_id, type, status, room_name, timestamp, created_at)
+     VALUES (?, ?, ?, ?, ?, 'ringing', ?, ?, datetime('now'))`,
     [id, conversationId, callerId, receiverId, type, roomName, timestamp]
   );
   return { id, roomName };
@@ -1447,6 +1552,15 @@ export async function createCall(conversationId, callerId, receiverId, type) {
 
 export async function getActiveCall(conversationId) {
   await ensureDb();
+  try {
+    await execute(
+      `UPDATE calls SET status = 'ended' 
+       WHERE status NOT IN ('ended', 'rejected', 'missed') 
+       AND created_at < datetime('now', '-90 seconds')`
+    );
+  } catch (e) {
+    console.warn('Failed to auto-close stale calls:', e);
+  }
   const row = await queryOne(
     `SELECT * FROM calls WHERE conversation_id = ? AND status NOT IN ('ended', 'rejected', 'missed')
      ORDER BY created_at DESC LIMIT 1`,
@@ -1457,6 +1571,15 @@ export async function getActiveCall(conversationId) {
 
 export async function getIncomingCall(userId) {
   await ensureDb();
+  try {
+    await execute(
+      `UPDATE calls SET status = 'ended' 
+       WHERE status NOT IN ('ended', 'rejected', 'missed') 
+       AND created_at < datetime('now', '-90 seconds')`
+    );
+  } catch (e) {
+    console.warn('Failed to auto-close stale calls:', e);
+  }
   const row = await queryOne(
     `SELECT * FROM calls WHERE receiver_id = ? AND status = 'ringing'
      ORDER BY created_at DESC LIMIT 1`,
@@ -1467,7 +1590,50 @@ export async function getIncomingCall(userId) {
 
 export async function updateCallStatus(callId, status) {
   await ensureDb();
+  
+  // 1. Get the current call record before updating
+  const call = await getCallById(callId);
+  
+  // 2. Perform the update
   await execute(`UPDATE calls SET status = ? WHERE id = ?`, [status, callId]);
+
+  // 3. Write call log message if transitioning to ended/rejected/missed from non-final status
+  if (call) {
+    const finalStatuses = ['ended', 'rejected', 'missed'];
+    const oldStatus = call.status;
+    
+    // Only write a message if the new status is a final status, and the old status was not a final status
+    if (finalStatuses.includes(status) && !finalStatuses.includes(oldStatus)) {
+      let logContent = 'completed';
+      if (status === 'missed') {
+        logContent = 'missed';
+      } else if (status === 'rejected') {
+        logContent = 'declined';
+      } else if (status === 'ended') {
+        // If caller hung up while still ringing
+        if (oldStatus === 'ringing') {
+          logContent = 'cancelled';
+        }
+      }
+      
+      try {
+        // Prevent duplicate call logs by checking if a message with file_url = callId already exists
+        const existing = await queryOne("SELECT id FROM messages WHERE file_url = ? AND file_type = 'call_log'", [callId]);
+        if (!existing) {
+          await sendMessage(
+            call.conversation_id,
+            call.caller_id,
+            logContent,
+            callId, // fileUrl (stores callId to prevent duplicates)
+            call.type, // fileName (voice/video)
+            'call_log' // fileType
+          );
+        }
+      } catch (e) {
+        console.warn('Failed to insert call log message:', e);
+      }
+    }
+  }
 }
 
 export async function setCallOffer(callId, sdpJson) {
@@ -1486,6 +1652,32 @@ export async function getCallById(callId) {
   return row || null;
 }
 
+export async function addIceCandidate(callId, senderRole, candidateJson) {
+  await ensureDb();
+  await execute(
+    `INSERT INTO ice_candidates (call_id, sender_role, candidate) VALUES (?, ?, ?)`,
+    [callId, senderRole, candidateJson]
+  );
+}
+
+export async function getIceCandidates(callId, senderRole, afterId = 0) {
+  await ensureDb();
+  const rows = await query(
+    `SELECT * FROM ice_candidates WHERE call_id = ? AND sender_role = ? AND id > ? ORDER BY id ASC`,
+    [callId, senderRole, afterId]
+  );
+  return rows;
+}
+
+export async function clearIceCandidates(callId) {
+  await ensureDb();
+  try {
+    await execute(`DELETE FROM ice_candidates WHERE call_id = ?`, [callId]);
+  } catch (e) {
+    console.warn('Failed to clear ICE candidates:', e);
+  }
+}
+
 export async function deleteMessageForUser(userId, messageId) {
   if (!userId || !messageId) return;
   try {
@@ -1496,6 +1688,37 @@ export async function deleteMessageForUser(userId, messageId) {
     );
   } catch (e) {
     console.warn('Failed to delete message for user in Turso:', e);
+  }
+}
+
+export async function deleteConversationForUser(userId, conversationId) {
+  if (!userId || !conversationId) return;
+  try {
+    await ensureDb();
+    // Get all message IDs for this conversation
+    const msgs = await query('SELECT id FROM messages WHERE conversation_id = ?', [conversationId]);
+    for (const m of msgs) {
+      await execute(
+        'INSERT INTO user_deleted_messages (user_id, message_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
+        [userId, m.id]
+      );
+    }
+    // Set conversation as deleted for this user
+    await execute(
+      'INSERT INTO user_deleted_conversations (user_id, conversation_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
+      [userId, conversationId]
+    );
+    // Reset unread counter for this user
+    const conv = await queryOne('SELECT user1_id, user2_id FROM conversations WHERE id = ?', [conversationId]);
+    if (conv) {
+      if (conv.user1_id === userId) {
+        await execute('UPDATE conversations SET unread_user1 = 0 WHERE id = ?', [conversationId]);
+      } else {
+        await execute('UPDATE conversations SET unread_user2 = 0 WHERE id = ?', [conversationId]);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to delete conversation for user:', e);
   }
 }
 
@@ -1576,10 +1799,10 @@ export async function toggleMessageReaction(messageId, userId, reaction) {
       if (existing.reaction === reaction) {
         await execute('DELETE FROM message_reactions WHERE message_id = ? AND user_id = ?', [messageId, userId]);
       } else {
-        await execute('UPDATE message_reactions SET reaction = ? WHERE message_id = ? AND user_id = ?', [reaction, messageId, userId]);
+        await execute('UPDATE message_reactions SET reaction = ?, is_read = 0 WHERE message_id = ? AND user_id = ?', [reaction, messageId, userId]);
       }
     } else {
-      await execute('INSERT INTO message_reactions (message_id, user_id, reaction) VALUES (?, ?, ?)', [messageId, userId, reaction]);
+      await execute('INSERT INTO message_reactions (message_id, user_id, reaction, is_read) VALUES (?, ?, ?, 0)', [messageId, userId, reaction]);
     }
   } catch (e) {
     console.warn('Turso toggle reaction failed:', e);

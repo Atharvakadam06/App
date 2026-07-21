@@ -1,38 +1,15 @@
-import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import {
-  Home,
-  MessageCircle,
-  Compass,
-  Settings,
-  LogOut,
-  Link2,
-  FileText,
-  BookOpen,
-  ShoppingBag,
-  LayoutGrid,
-  Bell,
-} from 'lucide-react';
+import { Home, MessageCircle, Compass, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLayout } from '../context/LayoutContext';
 import { useMessages } from '../context/MessageContext';
-import MobileMoreMenu from './MobileMoreMenu';
 import { handleAvatarError } from '../utils/avatarUtils';
 
 const mainNavItems = [
   { path: '/', icon: Home, label: 'Home' },
-  { path: '/connect', icon: Compass, label: 'Explore' },
   { path: '/inbox', icon: MessageCircle, label: 'Messages' },
+  { path: '/connect', icon: Compass, label: 'Explore' },
 ];
-
-const featureNavItems = [
-  { path: '/bind', icon: Link2, label: 'Binds' },
-  { path: '/vault', icon: FileText, label: 'PYQ Vault' },
-  { path: '/library', icon: BookOpen, label: 'Book Exchange' },
-  { path: '/marketplace', icon: ShoppingBag, label: 'Marketplace' },
-];
-
-const morePaths = ['/bind', '/vault', '/library', '/marketplace', '/settings'];
 
 function NavItem({ path, icon: Icon, label, isActive, badge }) {
   return (
@@ -48,7 +25,7 @@ function NavItem({ path, icon: Icon, label, isActive, badge }) {
       <div className="relative shrink-0">
         <Icon
           className={`w-[21px] h-[21px] transition-transform duration-300 ease-in-out ${
-            isActive ? '' : 'group-hover:scale-110'
+            isActive ? 'scale-105' : 'group-hover:scale-110'
           }`}
         />
         {badge > 0 && (
@@ -67,15 +44,11 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const { hideMobileNav } = useLayout();
   const { unreadMessageCount } = useMessages();
-  const [moreOpen, setMoreOpen] = useState(false);
-  const isMoreActive = morePaths.some((p) => location.pathname === p);
-
-
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-[72px] xl:w-[244px] bg-white dark:bg-[#080b14] flex-col z-50 border-r border-slate-100 dark:border-[#0e1322] transition-all duration-300 safe-area-top">
+      {/* ── Desktop Sidebar ─────────────────────────────────────────────── */}
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-[72px] xl:w-[244px] bg-white dark:bg-[#080b14] flex-col z-50 border-r border-slate-100 dark:border-[#0e1322]">
         {/* Logo */}
         <div className="px-3 xl:px-4 pt-6 pb-5 shrink-0">
           <div className="flex items-center gap-3">
@@ -86,7 +59,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Nav */}
+        {/* Main Nav */}
         <nav className="flex-1 px-2 xl:px-3 py-1 space-y-0.5 overflow-y-auto no-scrollbar">
           {mainNavItems.map(({ path, icon, label }) => (
             <NavItem
@@ -98,30 +71,10 @@ export default function Sidebar() {
               badge={path === '/inbox' ? unreadMessageCount : 0}
             />
           ))}
-
-          <div className="hidden xl:flex pt-4 pb-1.5 px-3 items-center gap-2">
-            <div className="flex-1 h-px bg-slate-100 dark:bg-[#0e1322]" />
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 shrink-0">Features</p>
-            <div className="flex-1 h-px bg-slate-100 dark:bg-[#0e1322]" />
-          </div>
-
-          <div className="lg:block xl:hidden pt-3 pb-1">
-            <div className="h-px bg-slate-100 dark:bg-[#0e1322] mx-2" />
-          </div>
-
-          {featureNavItems.map(({ path, icon, label }) => (
-            <NavItem
-              key={path}
-              path={path}
-              icon={icon}
-              label={label}
-              isActive={location.pathname === path}
-            />
-          ))}
         </nav>
 
-        {/* Bottom */}
-        <div className="p-2 xl:p-3 border-t border-slate-100 dark:border-[#0e1322] space-y-0.5 shrink-0 safe-area-bottom">
+        {/* Bottom: Profile + Settings + Logout */}
+        <div className="p-2 xl:p-3 border-t border-slate-100 dark:border-[#0e1322] space-y-0.5 shrink-0">
           <NavLink
             to="/profile"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-300 ease-in-out border border-transparent ${
@@ -132,7 +85,7 @@ export default function Sidebar() {
           >
             <div className={`relative shrink-0 w-8 h-8 rounded-full overflow-hidden border-2 transition-all duration-300 ease-in-out ${
               location.pathname.startsWith('/profile')
-                ? 'border-slate-800 dark:border-slate-200 shadow-md'
+                ? 'border-slate-800 dark:border-slate-200 shadow-md scale-105'
                 : 'border-slate-200 dark:border-slate-700'
             }`}>
               {user?.avatar ? (
@@ -172,81 +125,79 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      <MobileMoreMenu open={moreOpen} onClose={() => setMoreOpen(false)} />
-
-      {/* Mobile Bottom Navigation */}
-      <nav 
-        className={`lg:hidden fixed bottom-0 left-0 right-0 z-[9999] safe-area-bottom transition-all duration-[400ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] will-change-transform ${
-          hideMobileNav 
-            ? 'opacity-0 translate-y-12 pointer-events-none' 
+      {/* ── Mobile Bottom Navigation (Floating Pill with Circle Edges) ─────── */}
+      <nav
+        className={`lg:hidden fixed bottom-0 left-0 right-0 z-[9999] flex justify-center pointer-events-none transition-all duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          hideMobileNav
+            ? 'opacity-0 translate-y-16'
             : 'opacity-100 translate-y-0'
         }`}
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
-        <div className="mx-3 mb-2.5 rounded-2xl bg-white/95 dark:bg-[#080b14]/95 backdrop-blur-2xl border border-slate-200/60 dark:border-white/[0.06] shadow-xl shadow-slate-900/10 dark:shadow-black/40">
-          <div className="flex items-center justify-around py-1 px-1">
-            {mainNavItems.map(({ path, icon: Icon }) => {
-              const isActive = location.pathname === path;
-              const badge = path === '/inbox' ? unreadMessageCount : 0;
-              return (
-                <NavLink
-                  key={path}
-                  to={path}
-                  className={`relative flex flex-col items-center justify-center min-w-[52px] min-h-[52px] rounded-2xl transition-all duration-300 ease-in-out active:scale-90 ${
-                    isActive
-                      ? 'text-slate-900 dark:text-white'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}
-                >
-                  <div className={`relative p-2.5 rounded-xl transition-all duration-300 ease-in-out ${
-                    isActive ? 'bg-slate-100 dark:bg-white/10' : 'bg-transparent'
-                  }`}>
-                    <Icon className={`w-[22px] h-[22px] transition-transform duration-300 ease-in-out ${isActive ? 'scale-105' : ''}`} />
-                    {badge > 0 && (
-                      <span className="notification-badge">{badge}</span>
-                    )}
-                  </div>
-                </NavLink>
-              );
-            })}
+        <div className="pointer-events-auto flex items-center gap-1 bg-white/96 dark:bg-[#0a0d14]/97 backdrop-blur-2xl border border-slate-200/70 dark:border-white/[0.08] rounded-full px-2.5 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.65)]">
 
-            <button
-              type="button"
-              onClick={() => setMoreOpen(true)}
-              className={`relative flex flex-col items-center justify-center min-w-[52px] min-h-[52px] rounded-2xl transition-all duration-300 ease-in-out active:scale-90 ${
-                isMoreActive ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'
+          {/* Nav Items (Home, Messages, Explore) */}
+          {mainNavItems.map(({ path, icon: Icon, label }) => {
+            const isActive = location.pathname === path;
+            const badge = path === '/inbox' ? unreadMessageCount : 0;
+            return (
+              <NavLink
+                key={path}
+                to={path}
+                title={label}
+                className={`relative flex items-center justify-center w-12 h-12 rounded-full select-none cursor-pointer active:scale-90 transition-all duration-200 ${
+                  isActive
+                    ? 'text-slate-900 dark:text-white font-bold'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                {/* Active circle indicator */}
+                {isActive && (
+                  <span className="absolute inset-0 rounded-full bg-slate-100 dark:bg-white/10 shadow-xs" />
+                )}
+                <Icon className="relative w-[21px] h-[21px]" />
+                {badge > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-[#0a0d14]" />
+                )}
+              </NavLink>
+            );
+          })}
+
+          {/* Thin divider */}
+          <div className="w-px h-5 bg-slate-200/80 dark:bg-white/[0.08] mx-0.5 shrink-0" />
+
+          {/* Profile Avatar */}
+          <NavLink
+            to="/profile"
+            title="Profile"
+            className="relative flex items-center justify-center w-12 h-12 rounded-full active:scale-90 transition-all duration-200 select-none cursor-pointer"
+          >
+            {location.pathname.startsWith('/profile') && (
+              <span className="absolute inset-0 rounded-full bg-slate-100 dark:bg-white/10 shadow-xs" />
+            )}
+            <div
+              className={`relative w-[27px] h-[27px] rounded-full overflow-hidden border-2 transition-all duration-200 ${
+                location.pathname.startsWith('/profile')
+                  ? 'border-slate-800 dark:border-white shadow-sm scale-105'
+                  : 'border-slate-300 dark:border-slate-600'
               }`}
-              aria-label="More options"
             >
-              <div className={`p-2.5 rounded-xl transition-all duration-300 ease-in-out ${
-                isMoreActive ? 'bg-slate-100 dark:bg-white/10' : 'bg-transparent'
-              }`}>
-                <LayoutGrid className={`w-[22px] h-[22px] transition-transform duration-300 ease-in-out ${isMoreActive ? 'scale-105' : ''}`} />
-              </div>
-            </button>
-
-            <NavLink
-              to="/profile"
-              className={`relative flex items-center justify-center min-w-[52px] min-h-[52px] active:scale-90 transition-all duration-300 ease-in-out`}
-            >
-              <div className={`relative p-2 rounded-xl transition-all duration-300 ease-in-out ${
-                location.pathname.startsWith('/profile') ? 'bg-slate-100 dark:bg-white/10' : 'bg-transparent'
-              }`}>
-                <div className={`w-7 h-7 rounded-full overflow-hidden border-2 transition-all duration-300 ease-in-out ${
-                  location.pathname.startsWith('/profile')
-                    ? 'border-slate-800 dark:border-white shadow-md scale-105'
-                    : 'border-transparent'
-                }`}>
-                  {user?.avatar ? (
-                    <img src={user.avatar} alt={user?.name} className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, user?.name)} />
-                  ) : (
-                    <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{user?.name?.charAt(0)}</span>
-                    </div>
-                  )}
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user?.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => handleAvatarError(e, user?.name)}
+                />
+              ) : (
+                <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                    {user?.name?.charAt(0)}
+                  </span>
                 </div>
-              </div>
-            </NavLink>
-          </div>
+              )}
+            </div>
+          </NavLink>
         </div>
       </nav>
     </>

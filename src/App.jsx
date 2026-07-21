@@ -149,6 +149,37 @@ function GlobalCallManager() {
   );
 }
 
+function getParallaxStyle(slotIndex, activeIndex) {
+  const diff = slotIndex - activeIndex;
+  if (diff === 0) {
+    return {
+      transform: 'translate3d(0%, 0, 0) scale(1)',
+      opacity: 1,
+      zIndex: 20,
+      pointerEvents: 'auto',
+      visibility: 'visible',
+    };
+  } else if (diff < 0) {
+    // Receding page: moves left at 25% parallax speed with subtle scale (0.96) and dimming (0.5)
+    return {
+      transform: `translate3d(${diff * 25}%, 0, 0) scale(0.96)`,
+      opacity: 0.5,
+      zIndex: 10 + diff,
+      pointerEvents: 'none',
+      visibility: Math.abs(diff) <= 1 ? 'visible' : 'invisible',
+    };
+  } else {
+    // Incoming page: overlays from right at full speed
+    return {
+      transform: `translate3d(${diff * 100}%, 0, 0) scale(1)`,
+      opacity: 1,
+      zIndex: 20 + diff,
+      pointerEvents: 'none',
+      visibility: Math.abs(diff) <= 1 ? 'visible' : 'invisible',
+    };
+  }
+}
+
 function AuthGate() {
   const { user, isLoading } = useAuth();
   const { addNotification, notifications } = useNotifications();
@@ -157,6 +188,11 @@ function AuthGate() {
   const location = useLocation();
   const navigate = useNavigate();
   const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
+  const [mounted] = useState({ '/': true, '/connect': true, '/inbox': true });
+
+  const SLIDE_PAGES = ['/', '/inbox', '/connect'];
+  const slideIndex = Math.max(0, SLIDE_PAGES.indexOf(location.pathname));
+  const isSwipePage = SLIDE_PAGES.includes(location.pathname);
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -184,48 +220,31 @@ function AuthGate() {
     const diffY = touch.clientY - touchStart.y;
     setTouchStart({ x: 0, y: 0 });
 
-    // Enforce horizontal swipe: X-diff must be at least 70px and at least 1.8x the Y-diff
-    if (Math.abs(diffX) < 70 || Math.abs(diffX) < Math.abs(diffY) * 1.8) {
+    // Enforce horizontal swipe: X-diff must be at least 65px and at least 1.8x the Y-diff
+    if (Math.abs(diffX) < 65 || Math.abs(diffX) < Math.abs(diffY) * 1.8) {
       return;
     }
 
-    // Ignore swipes when typing inside text boxes
-    const activeEl = document.activeElement;
-    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
-      return;
-    }
-
-    // Swipe right to close chat when in mobile view and a chat conversation is active
-    if (location.pathname === '/inbox' && hideMobileNav) {
-      if (diffX > 0) {
-        window.history.back();
-      }
-      return;
-    }
-
-    // Climb parent tags to verify if the gesture occurs inside an actually horizontally scrollable container
-    let target = e.target;
-    while (target && target !== e.currentTarget) {
-      const style = window.getComputedStyle(target);
-      const isScrollableX = (target.scrollWidth > target.clientWidth) && (style.overflowX === 'auto' || style.overflowX === 'scroll');
-
-      if (
-        isScrollableX ||
-        target.classList.contains('no-swipe') ||
-        target.classList.contains('overflow-x-auto') ||
-        target.classList.contains('overscroll-y-contain')
-      ) {
+    // Fast target check without getComputedStyle reflows
+    const target = e.target;
+    if (target && target.closest) {
+      if (target.closest('.no-swipe, .overflow-x-auto, input, textarea, select, [contenteditable="true"]')) {
         return;
       }
-      target = target.parentElement;
     }
 
-    const swipePages = ['/', '/connect', '/inbox'];
+    // When a chat is open in Messages, swipe right → tell Messages to close it (not history.back)
+    if (location.pathname === '/inbox' && hideMobileNav) {
+      if (diffX > 0) window.dispatchEvent(new CustomEvent('messages-back'));
+      return;
+    }
+
+    const swipePages = ['/', '/inbox', '/connect'];
     const currentIndex = swipePages.indexOf(location.pathname);
     if (currentIndex === -1) return;
 
     if (diffX < 0 && currentIndex < swipePages.length - 1) {
-      // Swipe Left -> Next Page (Feed -> Explore -> Messages)
+      // Swipe Left -> Next Page (Feed -> Messages -> Explore)
       navigate(swipePages[currentIndex + 1]);
     } else if (diffX > 0 && currentIndex > 0) {
       // Swipe Right -> Previous Page
@@ -253,19 +272,16 @@ function AuthGate() {
 
   return (
     <div className="h-dvh flex flex-col bg-[#faf8f5] dark:bg-[#080b14] transition-colors duration-300">
-      {/* Global incoming call overlay — visible from any page */}
       <GlobalCallManager />
       <Sidebar />
       <main className="lg:ml-[72px] xl:ml-[244px] flex flex-col h-full transition-all duration-300 overflow-hidden">
         {location.pathname !== '/inbox' && location.pathname !== '/global-chat' && (
           <Header title={meta.title} subtitle={meta.subtitle} />
         )}
-        <div 
-          key={location.pathname}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-contain [&:has(.messages-fullscreen)]:pb-0 animate-fade-in"
-        >
+
+        {/* ── Desktop View (lg and above) ──────────────────────────────────── */}
+        {/* Standard single-page routing without horizontal slider math         */}
+        <div className="hidden lg:flex flex-col flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [&:has(.messages-fullscreen)]:pb-0 animate-fade-in" key={location.pathname}>
           <Routes>
             <Route path="/" element={<Feed />} />
             <Route path="/connect" element={<Network />} />
@@ -281,6 +297,58 @@ function AuthGate() {
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+        </div>
+
+        {/* ── Mobile View (below lg) ────────────────────────────────────────── */}
+        {/* Native iOS 3D Parallax Stack Transition                              */}
+        <div className="lg:hidden flex-1 flex flex-col overflow-hidden relative">
+          {isSwipePage ? (
+            <div
+              className="flex-1 relative overflow-hidden"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              {/* Slot 0 — Feed (/) */}
+              <div
+                className="absolute inset-0 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] overscroll-y-contain shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform bg-[#faf8f5] dark:bg-[#080b14]"
+                style={getParallaxStyle(0, slideIndex)}
+              >
+                {mounted['/'] && <Feed />}
+              </div>
+              {/* Slot 1 — Messages (/inbox) */}
+              <div
+                className="absolute inset-0 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] [&:has(.messages-fullscreen)]:pb-0 overscroll-y-contain shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform bg-[#faf8f5] dark:bg-[#080b14]"
+                style={getParallaxStyle(1, slideIndex)}
+              >
+                {mounted['/inbox'] && <Messages />}
+              </div>
+              {/* Slot 2 — Network (/connect) */}
+              <div
+                className="absolute inset-0 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] overscroll-y-contain shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform bg-[#faf8f5] dark:bg-[#080b14]"
+                style={getParallaxStyle(2, slideIndex)}
+              >
+                {mounted['/connect'] && <Network />}
+              </div>
+            </div>
+          ) : (
+            <div
+              key={location.pathname}
+              className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] overscroll-y-contain animate-fade-in"
+            >
+              <Routes>
+                <Route path="/bind" element={<Bind />} />
+                <Route path="/vault" element={<PYQVault />} />
+                <Route path="/library" element={<BookExchange />} />
+                <Route path="/marketplace" element={<Marketplace />} />
+                <Route path="/global-chat" element={<GlobalChat />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/profile/:userId" element={<Profile />} />
+                <Route path="/posts/:userId" element={<PostViewer />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
+          )}
         </div>
       </main>
     </div>

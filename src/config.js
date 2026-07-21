@@ -2,6 +2,8 @@ export const CLOUDINARY_CONFIG = {
   cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dkjryejcz',
   uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'hjgqkyhd',
   uploadFolder: import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER || 'stugrow',
+  apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY || '225883984183863',
+  apiSecret: import.meta.env.VITE_CLOUDINARY_API_SECRET || '',
 };
 
 export const TURSO_CONFIG = {

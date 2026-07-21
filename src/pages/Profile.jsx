@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight, MoreHorizontal, BadgeAlert, RefreshCcw, Paperclip } from 'lucide-react';
+import { Edit2, MapPin, Calendar, Settings, Grid, Bookmark, Award, FileText, BookOpen, X, Check, Camera, Heart, User, MessageCircle, Image, Upload, Trash2, Download, Link2, GraduationCap, Users, Share2, ChevronLeft, ChevronRight, MoreHorizontal, BadgeAlert, RefreshCcw, Paperclip, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { uploadToCloudinary } from '../services/cloudinary';
 import { uploadToGofile } from '../services/gofile';
 import { createPost, createPaper, createBook, getAllPosts, getAllPostsWithDetails, getAllPapers, getAllBooks, isPostSaved, savePost, getLinks, getUser, createConversation, isPostLiked, likePost, addComment, getPostComments } from '../services/data';
@@ -248,7 +248,16 @@ export default function Profile() {
   const { likeMap, likesCountMap, toggleLike, getLikeState, syncAllPosts, initialized } = usePostLike();
   const { savedMap, toggleSave, getSaveState, syncAllPosts: syncAllSaves, initialized: savesInitialized } = usePostSave();
   const navigate = useNavigate();
+  const location = useLocation();
   const { userId } = useParams();
+
+  const goBack = () => {
+    if (location.state?.fromDetails && location.state?.fromConversationId) {
+      navigate('/inbox', { state: { openConvId: location.state.fromConversationId, showDetails: true } });
+    } else {
+      navigate(-1);
+    }
+  };
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('posts');
   const [userPosts, setUserPosts] = useState([]);
@@ -1172,6 +1181,15 @@ case 'books':
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto profile-page-bg profile-safe-area pb-28 lg:pb-8">
+      {(!isOwnProfile || location.state?.fromDetails) && (
+        <button 
+          onClick={goBack} 
+          className="mb-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-[#0c1018] border border-slate-200/60 dark:border-slate-800/80 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/60 active:scale-95 transition-all shadow-xs"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+      )}
       <ProfileHeader user={profileUser} onEdit={handleEdit} isOwnProfile={isOwnProfile} onMessage={handleSendMessage} bindsCount={linkedUsersProfile?.length || 0} />
       {isOwnProfile && activeTab === 'posts' && <CreatePost onPost={handlePost} user={currentUser} />}
       <div className="profile-tabs-container">

@@ -15,6 +15,54 @@ import {
 import { formatTimeAgo } from '../utils/timeUtils';
 import { handleAvatarError } from '../utils/avatarUtils';
 
+function getTwemojiUrl(emoji) {
+  const directMap = {
+    '❤️': '2764',
+    '😂': '1f602',
+    '😮': '1f62e',
+    '😢': '1f622',
+    '😠': '1f620',
+    '👍': '1f44d',
+    '😀': '1f600',
+    '👋': '1f44b',
+    '🎉': '1f389',
+    '🔥': '1f525',
+    '💯': '1f4af',
+    '😊': '1f60a',
+    '🤔': '1f914',
+    '👏': '1f44f',
+    '🙏': '1f64f',
+    '💪': '1f4aa',
+    '✨': '2728',
+    '🚀': '1f680',
+    '📚': '1f4da',
+    '🎓': '1f393',
+    '💡': '1f4a1',
+    '⭐': '2b50',
+    '🌟': '1f31f',
+    '😍': '1f60d',
+    '🥳': '1f973',
+    '😎': '1f60e',
+    '🤝': '1f91d'
+  };
+  
+  const cp = directMap[emoji];
+  if (cp) {
+    return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${cp}.svg`;
+  }
+  
+  try {
+    const codePoints = [];
+    for (const char of emoji) {
+      codePoints.push(char.codePointAt(0).toString(16));
+    }
+    const joined = codePoints.filter(x => x !== 'fe0f').join('-');
+    return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${joined}.svg`;
+  } catch {
+    return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/2764.svg`;
+  }
+}
+
 function EmojiPicker({ onSelect, onClose }) {
   const emojis = ['😀','😂','❤️','👍','👋','🎉','🔥','💯','😊','🤔','👏','🙏','💪','✨','🚀','📚','🎓','💡','⭐','🌟','😍','🥳','😎','🤝'];
   return (
@@ -31,9 +79,16 @@ function EmojiPicker({ onSelect, onClose }) {
             key={e}
             type="button"
             onClick={() => { onSelect(e); onClose(); }}
-            className="h-9 flex items-center justify-center text-[18px] hover:bg-gray-100 dark:hover:bg-gray-800/70 rounded-lg active:scale-90 transition-all"
+            className="h-9 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800/70 rounded-lg active:scale-90 transition-all animate-duration-150"
           >
-            {e}
+            <img
+              src={getTwemojiUrl(e)}
+              alt={e}
+              width={20}
+              height={20}
+              className="block select-none pointer-events-none"
+              draggable={false}
+            />
           </button>
         ))}
       </div>
@@ -59,41 +114,66 @@ export default function GlobalChat() {
   const [burstingHearts, setBurstingHearts] = useState({});
 
   const handleMessageReact = async (message, reactionChar) => {
+    const existingReactions = message.reactions || [];
+    const idx = existingReactions.findIndex(r => r.userId === user.id);
+    let updatedReactions = [...existingReactions];
+    
+    let expectedReact = reactionChar;
+    if (idx > -1) {
+      if (existingReactions[idx].reaction === reactionChar) {
+        expectedReact = null;
+        updatedReactions.splice(idx, 1);
+      } else {
+        updatedReactions[idx] = { userId: user.id, reaction: reactionChar };
+      }
+    } else {
+      updatedReactions.push({ userId: user.id, reaction: reactionChar });
+    }
+
+    // Set state immediately (Optimistic Update)
+    setMessages(prev => prev.map(m => {
+      if (m.id === message.id) {
+        return { ...m, reactions: updatedReactions };
+      }
+      return m;
+    }));
+
+    if (reactionChar === '❤️' && expectedReact === '❤️') {
+      if (window.navigator.vibrate) window.navigator.vibrate(15);
+    }
+
     try {
       const activeReact = await toggleMessageReaction(message.id, user.id, reactionChar);
       
-      setMessages(prev => prev.map(m => {
-        if (m.id === message.id) {
-          const existingReactions = m.reactions || [];
-          const idx = existingReactions.findIndex(r => r.userId === user.id);
-          let updatedReactions = [...existingReactions];
-          if (idx > -1) {
-            if (activeReact === null) {
-              updatedReactions.splice(idx, 1);
-            } else {
-              updatedReactions[idx] = { userId: user.id, reaction: activeReact };
+      // If server response differs from what we expected, correct it
+      if (activeReact !== expectedReact) {
+        setMessages(prev => prev.map(m => {
+          if (m.id === message.id) {
+            let correctedReactions = [...existingReactions];
+            const idx2 = correctedReactions.findIndex(r => r.userId === user.id);
+            if (idx2 > -1) {
+              if (activeReact === null) {
+                correctedReactions.splice(idx2, 1);
+              } else {
+                correctedReactions[idx2] = { userId: user.id, reaction: activeReact };
+              }
+            } else if (activeReact) {
+              correctedReactions.push({ userId: user.id, reaction: activeReact });
             }
-          } else if (activeReact) {
-            updatedReactions.push({ userId: user.id, reaction: activeReact });
+            return { ...m, reactions: correctedReactions };
           }
-          return { ...m, reactions: updatedReactions };
-        }
-        return m;
-      }));
-
-      if (reactionChar === '❤️' && activeReact === '❤️') {
-        setBurstingHearts(prev => ({ ...prev, [message.id]: true }));
-        if (window.navigator.vibrate) window.navigator.vibrate(15);
-        setTimeout(() => {
-          setBurstingHearts(prev => {
-            const updated = { ...prev };
-            delete updated[message.id];
-            return updated;
-          });
-        }, 800);
+          return m;
+        }));
       }
     } catch (err) {
       console.error('Failed to react to message:', err);
+      // Revert to original reactions on error
+      setMessages(prev => prev.map(m => {
+        if (m.id === message.id) {
+          return { ...m, reactions: existingReactions };
+        }
+        return m;
+      }));
     }
   };
 
@@ -129,10 +209,10 @@ export default function GlobalChat() {
   const isFirstLoadRef = useRef(true);
   const prevMessageIdsRef = useRef(new Set());
 
-  // Poll for new messages every 3 seconds to keep it live
+  // Poll for new messages every 1.5 seconds to keep it live
   useEffect(() => {
     loadMessages(true);
-    const interval = setInterval(() => loadMessages(false), 3000);
+    const interval = setInterval(() => loadMessages(false), 1500);
     return () => clearInterval(interval);
   }, []);
 
@@ -271,7 +351,13 @@ export default function GlobalChat() {
       const visible = list.filter(m => !combined.includes(m.id));
       setMessages(prev => {
         const isIdentical = prev.length === visible.length &&
-          prev.every((msg, idx) => msg.id === visible[idx].id && msg.content === visible[idx].content);
+          prev.every((msg, idx) => {
+            const vMsg = visible[idx];
+            const r1 = msg.reactions || [];
+            const r2 = vMsg.reactions || [];
+            const rxEqual = r1.length === r2.length && r1.every((rx, i) => rx.userId === r2[i].userId && rx.reaction === r2[i].reaction);
+            return msg.id === vMsg.id && msg.content === vMsg.content && rxEqual;
+          });
         return isIdentical ? prev : visible;
       });
     } catch (e) {
@@ -522,7 +608,6 @@ export default function GlobalChat() {
       }
       setContextMenuMessage(msg);
       setSelectedMessageIds([msg.id]);
-      if (window.navigator.vibrate) window.navigator.vibrate(20);
     }, 550);
   };
 
@@ -898,7 +983,7 @@ export default function GlobalChat() {
                             }}
                             className={`px-3 py-2 rounded-2xl shadow-xs border inline-flex items-center gap-2 ${
                               isMine
-                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white'
+                                ? 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-white border-slate-200/80 dark:border-slate-800/60'
                                 : 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-white border-slate-200/80 dark:border-slate-800/60'
                             }`}
                           >
@@ -909,7 +994,7 @@ export default function GlobalChat() {
                           <div
                             className={`px-3.5 py-2.5 rounded-2xl shadow-xs border text-[13px] leading-relaxed break-words font-medium select-text ${
                               isMine
-                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white rounded-tr-xs'
+                                ? 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-slate-200 border-slate-200/80 dark:border-slate-800/60 rounded-tr-xs'
                                 : 'bg-white dark:bg-[#0c1018] text-slate-900 dark:text-slate-200 border-slate-200/80 dark:border-slate-800/60 rounded-tl-xs'
                             } ${msg.content === '🚫 This message was deleted' ? 'text-slate-400 dark:text-slate-500 italic font-semibold border-slate-100 dark:border-slate-850/50 bg-slate-50 dark:bg-white/[0.01]' : ''}`}
                           >
@@ -933,12 +1018,30 @@ export default function GlobalChat() {
                           </div>
                         )}
 
-                        {/* Subtle Red Heart reaction */}
-                        {msg.reactions && msg.reactions.length > 0 && (
-                          <div className={`absolute bottom-1 bg-white dark:bg-[#161d2b] border border-slate-200 dark:border-slate-800 rounded-full p-1 shadow-xs z-25 flex items-center justify-center animate-scale-in ${isMine ? '-left-2' : '-right-2'}`}>
-                            <Heart className="w-3 h-3 text-rose-500 fill-rose-500" strokeWidth={2.5} />
-                          </div>
-                        )}
+                        {/* Reactions bubble */}
+                        {msg.reactions && msg.reactions.length > 0 && msg.content !== '🚫 This message was deleted' && (() => {
+                          const uniqueEmojis = [...new Set(msg.reactions.map(r => r.reaction))].slice(0, 3);
+                          const total = msg.reactions.length;
+                          return (
+                            <div
+                              className={`absolute -bottom-2 bg-white dark:bg-[#161d2b] border border-slate-200 dark:border-slate-800 rounded-full shadow-sm z-25 flex items-center transition-all duration-300 animate-scale-in ${isMine ? '-left-2' : '-right-2'}`}
+                              style={{ padding: '3px 6px 3px 5px', gap: 2 }}
+                            >
+                              {uniqueEmojis.map(em => (
+                                <img
+                                  key={em}
+                                  src={getTwemojiUrl(em)}
+                                  alt={em}
+                                  className="w-3.5 h-3.5 block select-none pointer-events-none"
+                                  draggable={false}
+                                />
+                              ))}
+                              {total > 1 && (
+                                <span style={{ fontSize: 10, color: 'rgba(100,116,139,1)', fontWeight: 700, marginLeft: 1, lineHeight: 1 }}>{total}</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Timestamp & Star */}
@@ -1112,11 +1215,19 @@ export default function GlobalChat() {
                       handleMessageReact(contextMenuMessage, emoji);
                       setContextMenuMessage(null);
                     }}
-                    className={`w-8 h-8 flex items-center justify-center text-base rounded-full hover:bg-slate-100 dark:hover:bg-white/[0.08] active:scale-90 transition-all duration-200 ${
+                    className={`w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-white/[0.08] active:scale-90 transition-all duration-200 ${
                       isSelected ? 'bg-indigo-50/80 dark:bg-indigo-950/40 ring-1.5 ring-indigo-500 scale-110' : ''
                     }`}
                   >
-                    {emoji}
+                    <img
+                      src={getTwemojiUrl(emoji)}
+                      alt={emoji}
+                      width={18}
+                      height={18}
+                      className="block select-none pointer-events-none"
+                      style={{ filter: isSelected ? 'drop-shadow(0 0 3px rgba(99,102,241,0.5))' : 'none' }}
+                      draggable={false}
+                    />
                   </button>
                 );
               })}

@@ -323,6 +323,16 @@ export async function initDatabase() {
     try { await db.execute(`ALTER TABLE calls ADD COLUMN answer TEXT`); } catch {}
 
     await db.execute(`
+      CREATE TABLE IF NOT EXISTS ice_candidates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id TEXT NOT NULL,
+        sender_role TEXT NOT NULL,
+        candidate TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS post_categories (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -368,7 +378,22 @@ export async function initDatabase() {
         message_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
         reaction TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
         PRIMARY KEY (message_id, user_id)
+      )
+    `);
+
+    try {
+      await db.execute('ALTER TABLE message_reactions ADD COLUMN is_read INTEGER DEFAULT 0');
+    } catch (e) {
+      // ignore if already exists
+    }
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS user_deleted_conversations (
+        user_id TEXT NOT NULL,
+        conversation_id TEXT NOT NULL,
+        PRIMARY KEY (user_id, conversation_id)
       )
     `);
 
