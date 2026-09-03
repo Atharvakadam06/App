@@ -38,107 +38,112 @@ export default function Header({ title, subtitle }) {
   const [isClosing, setIsClosing] = useState(false);
 
   const closeMenu = () => {
+    if (isClosing) return;
     setIsClosing(true);
     setTimeout(() => {
       setHeaderMenuOpen(false);
       setIsClosing(false);
-    }, 180);
+    }, 200);
   };
 
   const renderMenu = () => (
     <div className="relative shrink-0" ref={menuRef}>
-      {/* Three-dot button */}
+      {/* Three-dot Trigger Button with morphing rotation */}
       <button
         type="button"
-        onClick={() => isHeaderMenuOpen ? closeMenu() : setHeaderMenuOpen(true)}
-        className={`flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-200 active:scale-90 border shrink-0 ${
+        onClick={() => (isHeaderMenuOpen ? closeMenu() : setHeaderMenuOpen(true))}
+        className={`relative flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90 border shrink-0 z-50 select-none ${
           isHeaderMenuOpen
-            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-lg shadow-slate-900/25'
-            : 'bg-white/60 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border-slate-200/60 dark:border-white/[0.07] hover:bg-slate-100 dark:hover:bg-white/10 shadow-sm backdrop-blur-sm'
+            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-lg shadow-slate-900/20 dark:shadow-white/10 rotate-90'
+            : 'bg-white/70 dark:bg-white/[0.06] text-slate-700 dark:text-slate-200 border-slate-200/70 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/10 shadow-xs backdrop-blur-md rotate-0'
         }`}
         title="More Options"
       >
-        <MoreVertical
-          className="w-[18px] h-[18px] transition-transform duration-300"
-          style={{ transform: isHeaderMenuOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-        />
+        <MoreVertical className="w-[19px] h-[19px] transition-transform duration-300" />
       </button>
 
-      {/* Glassmorphic dropdown */}
+      {/* Glassmorphic Dropdown Overlay */}
       {isHeaderMenuOpen && (
         <>
-          {/* Invisible backdrop to catch outside taps */}
+          {/* Subtle Ambient Dimming Backdrop (Smart Animate feel) */}
           <div
-            className="fixed inset-0 z-40"
+            className={`fixed inset-0 z-40 bg-black/15 dark:bg-black/40 backdrop-blur-[2px] transition-all duration-200 ${
+              isClosing ? 'animate-backdrop-out pointer-events-none' : 'animate-backdrop-in'
+            }`}
             onClick={closeMenu}
           />
 
           <div
-            className={`sg-glass-menu absolute right-0 top-[calc(100%+8px)] w-[272px] z-50 origin-top-right p-[10px] rounded-[20px] ${
-              isClosing ? 'animate-menu-out' : 'animate-menu-in'
+            className={`sg-glass-menu absolute right-0 top-[calc(100%+10px)] w-[284px] z-50 p-2 rounded-[24px] ${
+              isClosing ? 'animate-menu-out pointer-events-none' : 'animate-menu-in'
             }`}
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
-
-            {/* FEATURES section */}
-            <div className="px-2 pt-1 pb-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500 mb-2 ml-0.5">
+            {/* Header / Section Title */}
+            <div className="flex items-center justify-between px-3 pt-2 pb-1.5">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
                 Features
               </p>
-              <div className="space-y-0.5">
-                {featureItems.map(({ path, icon: Icon, label, subtitle: sub }, i) => {
-                  const isActive = location.pathname === path;
-                  return (
-                    <NavLink
-                      key={path}
-                      to={path}
-                      onClick={closeMenu}
-                      className={`sg-menu-item flex items-center gap-3 px-2.5 py-2.5 rounded-[14px] select-none cursor-pointer group ${
-                        isActive
-                          ? 'bg-slate-900 dark:bg-white/10'
-                          : 'hover:bg-black/[0.04] dark:hover:bg-white/[0.07]'
-                      }`}
-                      style={{ animationDelay: `${i * 35}ms` }}
-                    >
-                      {/* Floating icon square */}
-                      <div
-                        className={`w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 shadow-sm ${
-                          isActive
-                            ? 'bg-white/15'
-                            : 'bg-black/[0.06] dark:bg-white/[0.07]'
-                        }`}
-                      >
-                        <Icon
-                          className={`w-[17px] h-[17px] ${
-                            isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'
-                          }`}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-[13px] font-semibold leading-tight ${
-                          isActive ? 'text-white' : 'text-slate-800 dark:text-slate-100'
-                        }`}>
-                          {label}
-                        </p>
-                        <p className={`text-[11px] mt-0.5 truncate ${
-                          isActive ? 'text-white/60' : 'text-slate-400 dark:text-slate-500'
-                        }`}>
-                          {sub}
-                        </p>
-                      </div>
-                    </NavLink>
-                  );
-                })}
-              </div>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </div>
 
-            {/* Hairline divider */}
-            <div className="h-px bg-black/[0.07] dark:bg-white/[0.07] mx-1.5 my-1.5" />
+            {/* Features Navigation List */}
+            <div className="space-y-1">
+              {featureItems.map(({ path, icon: Icon, label, subtitle: sub }, i) => {
+                const isActive = location.pathname === path;
+                return (
+                  <NavLink
+                    key={path}
+                    to={path}
+                    onClick={closeMenu}
+                    className={`sg-menu-item flex items-center gap-3 px-2.5 py-2.5 rounded-[16px] select-none cursor-pointer transition-all duration-200 group active:scale-[0.98] ${
+                      isActive
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/10'
+                        : 'hover:bg-slate-100/80 dark:hover:bg-white/[0.08]'
+                    }`}
+                    style={{ animationDelay: `${i * 40}ms` }}
+                  >
+                    {/* Squircle Icon Holder */}
+                    <div
+                      className={`w-10 h-10 rounded-[13px] flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${
+                        isActive
+                          ? 'bg-white/15 dark:bg-slate-900/10 text-white dark:text-slate-900'
+                          : 'bg-black/[0.05] dark:bg-white/[0.08] text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <Icon className="w-[18px] h-[18px]" strokeWidth={2.2} />
+                    </div>
 
-            {/* Profile & Settings */}
-            <div className="space-y-0.5 px-0.5">
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={`text-[13px] font-bold leading-tight truncate ${
+                          isActive ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'
+                        }`}
+                      >
+                        {label}
+                      </p>
+                      <p
+                        className={`text-[11px] mt-0.5 truncate font-medium ${
+                          isActive
+                            ? 'text-white/70 dark:text-slate-900/70'
+                            : 'text-slate-400 dark:text-slate-400'
+                        }`}
+                      >
+                        {sub}
+                      </p>
+                    </div>
+                  </NavLink>
+                );
+              })}
+            </div>
+
+            {/* Refined Hairline Divider */}
+            <div className="h-px bg-slate-200/60 dark:bg-white/[0.08] mx-2 my-2" />
+
+            {/* Secondary Actions (Profile & Settings) */}
+            <div className="space-y-0.5 px-0.5 pb-1">
               {[
-                { to: '/profile',  Icon: User,     label: 'Profile'  },
+                { to: '/profile', Icon: User, label: 'Profile' },
                 { to: '/settings', Icon: Settings, label: 'Settings' },
               ].map(({ to, Icon, label }, i) => {
                 const isActive = location.pathname.startsWith(to);
@@ -147,14 +152,14 @@ export default function Header({ title, subtitle }) {
                     key={to}
                     to={to}
                     onClick={closeMenu}
-                    className={`sg-menu-item flex items-center gap-3 px-3 py-2.5 rounded-[14px] select-none cursor-pointer ${
+                    className={`sg-menu-item flex items-center gap-3 px-3 py-2.5 rounded-[14px] select-none cursor-pointer transition-all duration-200 active:scale-[0.98] ${
                       isActive
-                        ? 'bg-black/[0.05] dark:bg-white/[0.07]'
-                        : 'hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                        ? 'bg-slate-900/5 dark:bg-white/10 font-bold'
+                        : 'hover:bg-slate-100/70 dark:hover:bg-white/[0.06]'
                     }`}
-                    style={{ animationDelay: `${(featureItems.length + i) * 35}ms` }}
+                    style={{ animationDelay: `${(featureItems.length + i) * 40}ms` }}
                   >
-                    <Icon className="w-[16px] h-[16px] shrink-0 text-slate-400 dark:text-slate-500" />
+                    <Icon className="w-[17px] h-[17px] shrink-0 text-slate-500 dark:text-slate-400" />
                     <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">
                       {label}
                     </span>
