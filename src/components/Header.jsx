@@ -1,5 +1,5 @@
 import { useLocation, NavLink } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   MoreVertical, Link2, FileText, BookOpen, ShoppingBag, User, Settings,
 } from 'lucide-react';
@@ -35,79 +35,135 @@ export default function Header({ title, subtitle }) {
     };
   }, [isHeaderMenuOpen, setHeaderMenuOpen]);
 
+  const [isClosing, setIsClosing] = useState(false);
+
+  const closeMenu = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setHeaderMenuOpen(false);
+      setIsClosing(false);
+    }, 180);
+  };
+
   const renderMenu = () => (
     <div className="relative shrink-0" ref={menuRef}>
+      {/* Three-dot button */}
       <button
         type="button"
-        onClick={() => setHeaderMenuOpen(!isHeaderMenuOpen)}
-        className={`flex items-center justify-center w-10 h-10 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-600 dark:text-slate-300 transition-all duration-200 active:scale-95 border border-slate-200/50 dark:border-white/[0.04] bg-white/50 dark:bg-white/[0.02] shadow-xs shrink-0 ${
-          isHeaderMenuOpen ? 'bg-slate-100 dark:bg-white/[0.08] ring-2 ring-slate-400/20 dark:ring-white/20' : ''
+        onClick={() => isHeaderMenuOpen ? closeMenu() : setHeaderMenuOpen(true)}
+        className={`flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-200 active:scale-90 border shrink-0 ${
+          isHeaderMenuOpen
+            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-lg shadow-slate-900/25'
+            : 'bg-white/60 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border-slate-200/60 dark:border-white/[0.07] hover:bg-slate-100 dark:hover:bg-white/10 shadow-sm backdrop-blur-sm'
         }`}
         title="More Options"
       >
-        <MoreVertical className="w-[19px] h-[19px]" />
+        <MoreVertical
+          className="w-[18px] h-[18px] transition-transform duration-300"
+          style={{ transform: isHeaderMenuOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
       </button>
 
+      {/* Glassmorphic dropdown */}
       {isHeaderMenuOpen && (
-        <div className="absolute right-0 top-12 w-64 bg-white/96 dark:bg-[#0e121e]/96 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 rounded-2xl p-2 shadow-2xl z-50 origin-top-right animate-fade-in">
-          {/* Section Title */}
-          <div className="px-3 py-1.5 mb-0.5">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Features
-            </p>
+        <>
+          {/* Invisible backdrop to catch outside taps */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={closeMenu}
+          />
+
+          <div
+            className={`sg-glass-menu absolute right-0 top-[calc(100%+8px)] w-[272px] z-50 origin-top-right p-[10px] rounded-[20px] ${
+              isClosing ? 'animate-menu-out' : 'animate-menu-in'
+            }`}
+            onClick={e => e.stopPropagation()}
+          >
+
+            {/* FEATURES section */}
+            <div className="px-2 pt-1 pb-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500 mb-2 ml-0.5">
+                Features
+              </p>
+              <div className="space-y-0.5">
+                {featureItems.map(({ path, icon: Icon, label, subtitle: sub }, i) => {
+                  const isActive = location.pathname === path;
+                  return (
+                    <NavLink
+                      key={path}
+                      to={path}
+                      onClick={closeMenu}
+                      className={`sg-menu-item flex items-center gap-3 px-2.5 py-2.5 rounded-[14px] select-none cursor-pointer group ${
+                        isActive
+                          ? 'bg-slate-900 dark:bg-white/10'
+                          : 'hover:bg-black/[0.04] dark:hover:bg-white/[0.07]'
+                      }`}
+                      style={{ animationDelay: `${i * 35}ms` }}
+                    >
+                      {/* Floating icon square */}
+                      <div
+                        className={`w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 shadow-sm ${
+                          isActive
+                            ? 'bg-white/15'
+                            : 'bg-black/[0.06] dark:bg-white/[0.07]'
+                        }`}
+                      >
+                        <Icon
+                          className={`w-[17px] h-[17px] ${
+                            isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-[13px] font-semibold leading-tight ${
+                          isActive ? 'text-white' : 'text-slate-800 dark:text-slate-100'
+                        }`}>
+                          {label}
+                        </p>
+                        <p className={`text-[11px] mt-0.5 truncate ${
+                          isActive ? 'text-white/60' : 'text-slate-400 dark:text-slate-500'
+                        }`}>
+                          {sub}
+                        </p>
+                      </div>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Hairline divider */}
+            <div className="h-px bg-black/[0.07] dark:bg-white/[0.07] mx-1.5 my-1.5" />
+
+            {/* Profile & Settings */}
+            <div className="space-y-0.5 px-0.5">
+              {[
+                { to: '/profile',  Icon: User,     label: 'Profile'  },
+                { to: '/settings', Icon: Settings, label: 'Settings' },
+              ].map(({ to, Icon, label }, i) => {
+                const isActive = location.pathname.startsWith(to);
+                return (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    onClick={closeMenu}
+                    className={`sg-menu-item flex items-center gap-3 px-3 py-2.5 rounded-[14px] select-none cursor-pointer ${
+                      isActive
+                        ? 'bg-black/[0.05] dark:bg-white/[0.07]'
+                        : 'hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                    }`}
+                    style={{ animationDelay: `${(featureItems.length + i) * 35}ms` }}
+                  >
+                    <Icon className="w-[16px] h-[16px] shrink-0 text-slate-400 dark:text-slate-500" />
+                    <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">
+                      {label}
+                    </span>
+                  </NavLink>
+                );
+              })}
+            </div>
           </div>
-
-          {/* Feature Links */}
-          <div className="space-y-1">
-            {featureItems.map(({ path, icon: Icon, label, subtitle: sub }) => {
-              const isActive = location.pathname === path;
-              return (
-                <NavLink
-                  key={path}
-                  to={path}
-                  onClick={() => setHeaderMenuOpen(false)}
-                  className={`flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-150 select-none cursor-pointer ${
-                    isActive
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold shadow-xs'
-                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <div className={`p-1.5 rounded-lg shrink-0 ${isActive ? 'bg-white/20 dark:bg-slate-900/20' : 'bg-slate-100 dark:bg-white/5'}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold leading-tight truncate">{label}</p>
-                    <p className={`text-[10px] truncate mt-0.5 ${isActive ? 'opacity-80' : 'text-slate-400 dark:text-slate-500'}`}>{sub}</p>
-                  </div>
-                </NavLink>
-              );
-            })}
-          </div>
-
-          {/* Divider */}
-          <div className="h-px bg-slate-100 dark:bg-white/5 my-1.5" />
-
-          {/* Quick Links */}
-          <div className="space-y-0.5">
-            <NavLink
-              to="/profile"
-              onClick={() => setHeaderMenuOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors select-none cursor-pointer"
-            >
-              <User className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-              <span>Profile</span>
-            </NavLink>
-
-            <NavLink
-              to="/settings"
-              onClick={() => setHeaderMenuOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors select-none cursor-pointer"
-            >
-              <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-              <span>Settings</span>
-            </NavLink>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
